@@ -1,0 +1,193 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
+import { getUserThreads, subscribeToUserThreads } from '../utils/supabase';
+import { HiUser, HiPlus, HiDotsVertical } from 'react-icons/hi';
+import type { Database } from '../types/supabase';
+
+type ThreadPayload = {
+  new: Database['public']['Tables']['threads']['Row'];
+};
+
+type Thread = Database['public']['Tables']['threads']['Row'] & {
+  messages: Database['public']['Tables']['messages']['Row'][];
+};
+
+export const ChatList: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useUser();
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      loadThreads();
+      
+      // Subscribe to new threads
+      const unsubscribe = subscribeToUserThreads(user.id, (payload) => {
+        console.log('New thread notification received:', payload);
+        if (payload.new) {
+          // Refresh threads list to include the new thread
+          loadThreads();
+          
+          // Show notification if the thread was created by someone else
+          if (payload.new.created_by !== user.id) {
+            // Use browser notification if available
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('New Chat', {
+                body: `New chat: ${payload.new.name}`,
+              });
+            }
+          }
+        }
+      });
+
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [user]);
+
+  const loadThreads = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const threads = await getUserThreads(user.id);
+      setThreads(threads);
+    } catch (error) {
+      console.error('Error loading threads:', error);
+      setError('Failed to load chats');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getLastMessage = (thread: Thread) => {
+    if (!thread.messages || thread.messages.length === 0) {
+      return 'No messages yet';
+    }
+    return thread.messages[0].content;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (days === 1) {
+      return 'Yesterday';
+    } else if (days < 7) {
+      return date.toLocaleDateString([], { weekday: 'long' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-400">Loading chats...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
+      {/* Header */}
+      <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
+            <HiUser size={24} />
+          </div>
+          <div>
+            <div className="font-semibold">Chats</div>
+          </div>
+        </div>
+        <button
+          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          aria-label="Menu"
+        >
+          <HiDotsVertical size={24} />
+        </button>
+      </div>
+
+      {/* Chat List */}
+      <div className="flex-1 overflow-y-auto">
+        {error && (
+          <div className="p-4 text-sm text-red-600 bg-red-50">
+            {error}
+          </div>
+        )}
+
+        {threads.length === 0 ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-gray-500 mb-4">No chats yet</p>
+              <button
+                onClick={() => navigate('/contacts')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#075e54] hover:bg-[#128c7e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                Start a chat
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {threads.map((thread) => (
+              <div
+                key={thread.id}
+                onClick={() => navigate(`/chat/${thread.id}`)}
+                className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+              >
+                <div className="px-4 py-4 sm:px-6 flex items-center">
+                  <div className="w-12 h-12 rounded-full bg-[#e9edef] dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                    <HiUser className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+                  </div>
+                  <div className="ml-4 flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {thread.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {thread.last_message_at ? formatDate(thread.last_message_at) : ''}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {getLastMessage(thread)}
+                    </p>
+                  </div>
+                  {thread.messages?.some(m => !m.read && m.sender_id !== user?.id) && (
+                    <div className="ml-4">
+                      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-[#25d366] text-white text-xs font-medium">
+                        {thread.messages.filter(m => !m.read && m.sender_id !== user?.id).length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Floating Action Button */}
+      <button
+        onClick={() => navigate('/contacts')}
+        className="fixed right-6 bottom-6 p-4 rounded-full bg-brand-secondary text-white shadow-lg hover:bg-brand-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary z-10"
+        aria-label="New chat"
+      >
+        <HiPlus size={24} />
+      </button>
+    </div>
+  );
+};
