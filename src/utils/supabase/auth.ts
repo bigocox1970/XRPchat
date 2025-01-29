@@ -1,4 +1,5 @@
 import { supabase, supabaseAdmin } from './client';
+import type { Database } from '../../types/supabase';
 
 /**
  * Creates a new user profile with wallet
@@ -197,7 +198,12 @@ export const addContact = async (contactId: string) => {
 /**
  * Gets a user's contacts
  */
-export const getContacts = async () => {
+type ContactWithProfile = {
+  contact_id: string;
+  contact: Database['public']['Tables']['profiles']['Row'];
+};
+
+export const getContacts = async (): Promise<Database['public']['Tables']['profiles']['Row'][]> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No authenticated user');
@@ -210,13 +216,25 @@ export const getContacts = async () => {
           id,
           username,
           wallet_address,
-          avatar_url
+          avatar_url,
+          updated_at
         )
       `)
       .eq('user_id', user.id);
 
     if (error) throw error;
-    return data?.map(c => c.contact) || [];
+    
+    if (!data) return [];
+
+    // Type assertion and transformation
+    const contacts = data as unknown as ContactWithProfile[];
+    return contacts.map(item => ({
+      id: item.contact.id,
+      username: item.contact.username,
+      wallet_address: item.contact.wallet_address,
+      avatar_url: item.contact.avatar_url,
+      updated_at: item.contact.updated_at
+    }));
   } catch (error) {
     console.error('Error getting contacts:', error);
     throw error;
@@ -226,7 +244,7 @@ export const getContacts = async () => {
 /**
  * Searches for users by username or wallet address
  */
-export const searchUsers = async (query: string) => {
+export const searchUsers = async (query: string): Promise<Database['public']['Tables']['profiles']['Row'][]> => {
   try {
     const { data, error } = await supabase
       .from('profiles')
@@ -235,7 +253,17 @@ export const searchUsers = async (query: string) => {
       .limit(10);
 
     if (error) throw error;
-    return data;
+    
+    if (!data) return [];
+
+    // Transform the data to ensure each profile has the correct shape
+    return data.map(profile => ({
+      id: profile.id,
+      username: profile.username,
+      wallet_address: profile.wallet_address,
+      avatar_url: profile.avatar_url,
+      updated_at: profile.updated_at
+    }));
   } catch (error) {
     console.error('Error searching users:', error);
     throw error;
