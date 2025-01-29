@@ -23,6 +23,8 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
+    "allowUnusedLabels": true,
+    "allowUnreachableCode": true,
 
     /* Type Checking */
     "forceConsistentCasingInFileNames": true,
