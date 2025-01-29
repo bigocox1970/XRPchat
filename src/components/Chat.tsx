@@ -235,7 +235,10 @@ export const Chat: React.FC = () => {
             if (prev.some(m => m.id === message.id)) {
               return prev;
             }
-            return [...prev, message];
+            // Sort messages by creation time to maintain order
+            return [...prev, message].sort((a, b) => 
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
           });
         }
       },
