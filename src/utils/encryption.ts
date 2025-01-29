@@ -103,7 +103,6 @@ export const encryptMessage = async (
     // Convert to base64
     return btoa(String.fromCharCode(...result));
   } catch (error) {
-    console.error('Encryption error:', error);
     throw new Error('Failed to encrypt message');
   }
 };
@@ -154,7 +153,6 @@ export const decryptMessage = async (
     const decoder = new TextDecoder();
     return decoder.decode(decryptedData);
   } catch (error) {
-    console.error('Decryption error:', error);
     throw new Error('Failed to decrypt message');
   }
 };

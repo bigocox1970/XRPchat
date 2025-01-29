@@ -38,12 +38,9 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!user || !wallet) throw new Error('Not authenticated or no wallet available');
 
     try {
-      console.log('Getting recipient public key for:', recipientId);
       const recipientPublicKey = await getRecipientPublicKey(recipientId);
-      console.log('Encrypting message with recipient public key');
       return await encryptMessage(message, recipientPublicKey);
     } catch (error) {
-      console.error('Error encrypting message:', error);
       throw error;
     }
   }, [user, wallet, getRecipientPublicKey]);
@@ -54,10 +51,8 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!wallet) throw new Error('No wallet available');
 
     try {
-      console.log('Decrypting message with wallet private key');
       return await decryptMessage(encryptedMessage, wallet.private_key);
     } catch (error) {
-      console.error('Error decrypting message:', error);
       throw error;
     }
   }, [wallet]);

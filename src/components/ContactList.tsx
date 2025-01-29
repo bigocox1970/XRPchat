@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { searchUsers, createThread } from '../utils/supabase';
+import { searchUsers, createThread, addContact, getContacts } from '../utils/supabase';
 import { HiUser, HiQrcode, HiPlus } from 'react-icons/hi';
+import { CopyButton } from './CopyButton';
 import type { Database } from '../types/supabase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
@@ -13,6 +14,7 @@ export const ContactList: React.FC = () => {
   const { user, profile } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
+  const [contacts, setContacts] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
@@ -49,6 +51,19 @@ export const ContactList: React.FC = () => {
       }
     };
   }, [showScanner]);
+
+  // Load contacts on mount
+  useEffect(() => {
+    const loadContacts = async () => {
+      try {
+        const userContacts = await getContacts();
+        setContacts(userContacts);
+      } catch (error) {
+        console.error('Error loading contacts:', error);
+      }
+    };
+    loadContacts();
+  }, []);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -120,6 +135,57 @@ export const ContactList: React.FC = () => {
     }
   };
 
+  const renderContactCard = (contact: Profile, showStartChat = true) => (
+    <div
+      key={contact.id}
+      className="relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 dark:hover:border-gray-500"
+    >
+      <div className="flex-shrink-0">
+        {contact.avatar_url ? (
+          <img
+            className="h-10 w-10 rounded-full"
+            src={contact.avatar_url}
+            alt={contact.username}
+          />
+        ) : (
+          <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            <span className="text-gray-500 dark:text-white font-medium">
+              {contact.username.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="focus:outline-none">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            {contact.username}
+          </p>
+          <div className="flex items-center space-x-2">
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+              {contact.wallet_address}
+            </p>
+            <CopyButton text={contact.wallet_address || ''} />
+          </div>
+        </div>
+      </div>
+      {showStartChat && (
+        <div className="flex-shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              startChat(contact);
+            }}
+            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+          >
+            Start Chat
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
       {/* Header */}
@@ -129,16 +195,16 @@ export const ContactList: React.FC = () => {
             <HiUser size={24} />
           </div>
           <div>
-          <div className="flex items-center space-x-4">
-            <div className="font-semibold">Contacts</div>
-            <button
-              onClick={() => setShowScanner(!showScanner)}
-              className="flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-            >
-              <HiPlus className="h-5 w-5 mr-2" />
-              Add Contact
-            </button>
-          </div>
+            <div className="flex items-center space-x-4">
+              <div className="font-semibold">Contacts</div>
+              <button
+                onClick={() => setShowScanner(!showScanner)}
+                className="flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+              >
+                <HiPlus className="h-5 w-5 mr-2" />
+                Add Contact
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -160,7 +226,7 @@ export const ContactList: React.FC = () => {
                       </h4>
                       <button
                         onClick={() => setShowScanner(false)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        className="text-gray-500 hover:text-gray-700 dark:text-white dark:hover:text-gray-200"
                       >
                         ✕
                       </button>
@@ -168,109 +234,104 @@ export const ContactList: React.FC = () => {
                     
                     <div className="space-y-6">
                       <div>
-                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                           Scan QR Code
                         </h5>
-                        <div id="qr-reader" className="w-full"></div>
+                        <div id="qr-reader" className="w-full dark:text-white"></div>
                       </div>
                       
-                      <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                      <div className="text-center text-sm text-gray-700 dark:text-white">
                         or
                       </div>
                       
                       <div>
-                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                           Enter Wallet Address
                         </h5>
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Enter wallet address..."
-                          className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by username..."
-                  className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                />
-                {loading && (
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <svg className="animate-spin h-5 w-5 text-gray-400 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              {error && (
-                <div className="mt-2 text-sm text-red-600">
-                  {error}
-                </div>
-              )}
-
-              <div className="mt-6 space-y-4">
-                {searchResults.map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 dark:hover:border-gray-500"
-                  >
-                    <div className="flex-shrink-0">
-                      {contact.avatar_url ? (
-                        <img
-                          className="h-10 w-10 rounded-full"
-                          src={contact.avatar_url}
-                          alt={contact.username}
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                          <span className="text-gray-500 dark:text-gray-300 font-medium">
-                            {contact.username.charAt(0).toUpperCase()}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              placeholder="Enter wallet address..."
+                              className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                            />
+                            {searchQuery && (
+                              <CopyButton 
+                                text={searchQuery} 
+                                size={5} 
+                                className="absolute right-3 top-1/2 -translate-y-1/2"
+                              />
+                            )}
+                          </div>
+                          {searchQuery && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  setLoading(true);
+                                  setError(null);
+                                  const results = await searchUsers(searchQuery);
+                                  console.log('Search results:', results);
+                                  if (!results || results.length === 0) {
+                                    setError('No user found with this wallet address');
+                                    return;
+                                  }
+                                  console.log('Adding contact with ID:', results[0].id);
+                                  await addContact(results[0].id);
+                                  // Refresh contacts list
+                                  const userContacts = await getContacts();
+                                  setContacts(userContacts);
+                                  setShowScanner(false);
+                                  setSearchQuery('');
+                                } catch (error) {
+                                  setError(error instanceof Error ? error.message : 'Failed to add contact');
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }}
+                              disabled={loading}
+                              className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-brand-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <HiPlus className="h-5 w-5" />
+                              <span>Add Contact</span>
+                            </button>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="focus:outline-none">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {contact.username}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                          {contact.wallet_address}
-                        </p>
                       </div>
                     </div>
-                    <div className="flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          startChat(contact);
-                        }}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                      >
-                        Start Chat
-                      </button>
-                    </div>
                   </div>
-                ))}
+                </div>
+              )}
 
-                {searchQuery && !loading && searchResults.length === 0 && (
-                  <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
-                    No users found
-                  </div>
-                )}
+              {/* Contacts List */}
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Your Contacts</h4>
+                <div className="space-y-4">
+                  {contacts.map((contact) => renderContactCard(contact))}
+                  {contacts.length === 0 && (
+                    <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+                      No contacts yet
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Search Results</h4>
+                  <div className="space-y-4">
+                    {searchResults.map((contact) => renderContactCard(contact))}
+                  </div>
+                </div>
+              )}
+
+              {searchQuery && !loading && searchResults.length === 0 && (
+                <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+                  No users found
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useEncryption } from '../context/EncryptionContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
+import { useDebugMode } from '../context/DebugModeContext';
 import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile } from '../utils/supabase/index';
-import { HiUser, HiX, HiPaperAirplane } from 'react-icons/hi';
+import { HiX, HiPaperAirplane } from 'react-icons/hi';
+import { Avatar } from './Avatar';
 import type { Database } from '../types/supabase';
 
 type Message = Database['public']['Tables']['messages']['Row'];
@@ -14,13 +16,102 @@ interface ThreadDetails {
   participant_ids: string[];
 }
 
+interface ParticipantProfile {
+  username: string;
+  avatar_url: string | null;
+}
+
+interface ThreadParticipants {
+  [key: string]: ParticipantProfile;
+}
+
+const MessageContent: React.FC<{
+  content: string;
+  showEncrypted: boolean;
+  decryptMessage?: (content: string) => Promise<string>;
+}> = ({ content, showEncrypted, decryptMessage }) => {
+  const [decryptedContent, setDecryptedContent] = useState<string>(content);
+  const [isDecrypted, setIsDecrypted] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const decrypt = async () => {
+      if (!isDecrypted && decryptMessage) {
+        try {
+          const decrypted = await decryptMessage(content);
+          if (mounted) {
+            setDecryptedContent(decrypted);
+            setIsDecrypted(true);
+          }
+        } catch (error) {
+          if (mounted) {
+            setDecryptedContent(content);
+            setIsDecrypted(true);
+          }
+        }
+      }
+    };
+
+    if (!isDecrypted && decryptMessage) {
+      decrypt();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [content, decryptMessage, isDecrypted]);
+
+  return (
+    <p className="text-sm whitespace-pre-wrap break-words">
+      {showEncrypted ? (
+        <span className="font-mono text-xs">{content}</span>
+      ) : (
+        decryptedContent
+      )}
+    </p>
+  );
+};
+
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
   const [threadDetails, setThreadDetails] = useState<ThreadDetails | null>(null);
+  const [participants, setParticipants] = useState<ThreadParticipants>({});
   const { threadId } = useParams<{ threadId: string }>();
   const { user } = useUser();
   const { encryptForRecipient, decryptMessage } = useEncryption();
   const { showEncrypted } = useEncryptionMode();
+  const { debugMode } = useDebugMode();
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  // Capture console output in debug mode
+  useEffect(() => {
+    if (!debugMode) return;
+
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    console.log = (...args) => {
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      setDebugLogs(prev => [...prev, `[LOG] ${message}`]);
+      originalConsoleLog.apply(console, args);
+    };
+
+    console.error = (...args) => {
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      setDebugLogs(prev => [...prev, `[ERROR] ${message}`]);
+      originalConsoleError.apply(console, args);
+    };
+
+    return () => {
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+    };
+  }, [debugMode]);
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -39,7 +130,6 @@ export const Chat: React.FC = () => {
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(threadId)) {
-      console.error('Invalid thread ID format');
       navigate('/');
       return;
     }
@@ -58,27 +148,43 @@ export const Chat: React.FC = () => {
           .single();
           
         if (error) {
-          console.error('Error loading thread details:', error);
           setError('Failed to load chat. Please try again.');
           return;
         }
         
         if (!data) {
-          console.error('Thread not found');
           navigate('/');
           return;
         }
 
         // Verify user is a participant
         if (!data.participant_ids.includes(user.id)) {
-          console.error('User is not a participant in this thread');
           navigate('/');
           return;
         }
 
         setThreadDetails(data);
+        
+        // Load participant profiles
+        const profiles = await Promise.all(
+          data.participant_ids.map(async (id: string) => {
+            const profile = await getProfile(id);
+            return { id, profile };
+          })
+        );
+
+        const participantMap = profiles.reduce((acc, { id, profile }) => {
+          if (profile) {
+            acc[id] = {
+              username: profile.username,
+              avatar_url: profile.avatar_url
+            };
+          }
+          return acc;
+        }, {} as ThreadParticipants);
+
+        setParticipants(participantMap);
       } catch (error) {
-        console.error('Error loading thread details:', error);
         setError('Failed to load chat. Please try again.');
       }
     };
@@ -86,247 +192,100 @@ export const Chat: React.FC = () => {
     loadThreadDetails();
   }, [threadId, user, navigate]);
 
-  // Load initial messages
+  // Load messages and handle subscriptions
   useEffect(() => {
-    if (!threadId || !user || threadId === 'new') return;
-    
-    loadMessages().catch(error => {
-      console.error('Error loading initial messages:', error);
-      setError('Failed to load messages. Please try refreshing the page.');
-    });
-  }, [threadId, user?.id]);
+    const loadMessages = async () => {
+      if (!threadId || !user) return;
+      
+      try {
+        const messages = await getThreadMessages(threadId);
+        setMessages(messages.reverse()); // Reverse to show oldest first
+        
+        // Mark unread messages as read
+        messages.forEach(async (message) => {
+          if (!message.read && message.sender_id !== user.id) {
+            await markMessageAsRead(message.id);
+          }
+        });
+      } catch (error) {
+        setError('Failed to load messages');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!threadId || !user || threadId === 'new') {
-      console.log('No threadId or user:', { threadId, userId: user?.id });
-      return;
-    }
+    loadMessages();
 
-    console.log('Initializing chat with:', { threadId, userId: user.id });
-    
-    // Set up real-time subscription
-    console.log('Setting up thread subscription');
+    // Subscribe to new messages
+    if (!threadId) return;
+
     const unsubscribe = subscribeToThread(
       threadId,
       async (payload) => {
-        console.log('New message received:', payload);
-        if (payload.new) {
-          await handleNewMessage(payload);
+        if (payload.new && user) {
+          const message = payload.new;
+          
+          // Mark message as read if it's not from the current user
+          if (message.sender_id !== user.id) {
+            await markMessageAsRead(message.id);
+          }
+          
+          setMessages(prev => {
+            // Check if message already exists
+            if (prev.some(m => m.id === message.id)) {
+              return prev;
+            }
+            return [...prev, message];
+          });
         }
       },
-      handleThreadUpdate
+      () => {}
     );
 
-    // Request notification permission if needed
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(error => {
-        console.error('Error requesting notification permission:', error);
-      });
-    }
-
     return () => {
-      console.log('Cleaning up thread subscription');
       unsubscribe();
     };
-  }, [threadId]); // Only depend on threadId to prevent unnecessary resubscriptions
+  }, [threadId, user]);
 
+  // Scroll to bottom on new messages
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const loadMessages = async () => {
-    if (!threadId) return;
-
-    try {
-      console.log('Loading messages for thread:', threadId);
-      setLoading(true);
-      const messages = await getThreadMessages(threadId);
-      console.log('Retrieved messages:', messages);
-      
-      // Decrypt messages
-      console.log('Decrypting messages...');
-      const decryptedMessages = await Promise.all(
-        messages.map(async (message) => {
-          try {
-            const decryptedContent = await decryptMessage(message.content);
-            return { ...message, content: decryptedContent };
-          } catch (error) {
-            console.error('Failed to decrypt message:', error);
-            return { ...message, content: 'Failed to decrypt message' };
-          }
-        })
-      );
-      
-      console.log('Messages decrypted successfully');
-      // Sort messages by created_at in ascending order (oldest first)
-      const sortedMessages = decryptedMessages.sort(
-        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-      setMessages(sortedMessages);
-
-      // Mark unread messages as read
-      const unreadMessages = messages.filter(
-        (m) => !m.read && m.sender_id !== user?.id
-      );
-      await Promise.all(
-        unreadMessages.map((m) => markMessageAsRead(m.id))
-      );
-    } catch (error) {
-      console.error('Error loading messages:', error);
-      setError('Failed to load messages');
-    } finally {
-      setLoading(false);
+    if (messages.length > 0 && !loading) {
+      const timeout = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView();
+      }, 100);
+      return () => clearTimeout(timeout);
     }
-  };
-
-  const handleNewMessage = async (payload: { new: Message, eventType: string }) => {
-    try {
-      console.log('Processing new message:', {
-        event: payload.eventType,
-        message: payload.new,
-        threadId: payload.new.thread_id,
-        currentThread: threadId,
-        senderId: payload.new.sender_id,
-        currentUser: user?.id
-      });
-
-      // Verify message belongs to current thread
-      if (payload.new.thread_id !== threadId) {
-        console.log('Message is for a different thread, ignoring');
-        return;
-      }
-
-      // Decrypt message content
-      console.log('Decrypting message content...');
-      const decryptedContent = await decryptMessage(payload.new.content);
-      const newMessage = { ...payload.new, content: decryptedContent };
-      
-      setMessages((prevMessages) => {
-        // More robust deduplication using Map
-        const uniqueMessages = new Map(prevMessages.map(msg => [msg.id, msg]));
-        uniqueMessages.set(newMessage.id, newMessage);
-        
-        const updatedMessages = Array.from(uniqueMessages.values()).sort(
-          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        
-        console.log('Updated messages state:', {
-          previousCount: prevMessages.length,
-          newCount: updatedMessages.length,
-          addedMessageId: newMessage.id,
-          duplicateCheck: uniqueMessages.size !== prevMessages.length
-        });
-        
-        return updatedMessages;
-      });
-
-      // Mark message as read if it's from another user
-      if (payload.new.sender_id !== user?.id) {
-        await markMessageAsRead(payload.new.id);
-
-        // Show notification if window is not focused
-        if (document.hidden) {
-          try {
-            if ('Notification' in window && Notification.permission === 'granted') {
-              const sender = await getProfile(payload.new.sender_id);
-              new Notification('New Message', {
-                body: `${sender?.username}: ${decryptedContent}`,
-              });
-            }
-          } catch (error) {
-            console.error('Error showing notification:', error);
-          }
-        }
-      }
-
-      // Always scroll to bottom for new messages
-      setTimeout(scrollToBottom, 100);
-    } catch (error) {
-      console.error('Error handling new message:', error);
-    }
-  };
-
-  const handleThreadUpdate = () => {
-    // Handle thread updates if needed
-  };
+  }, [messages.length, loading]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!threadId || !user || !newMessage.trim()) {
-      console.log('Missing required data:', { threadId, userId: user?.id, hasMessage: Boolean(newMessage.trim()) });
-      return;
-    }
+    if (!threadId || !user || !newMessage.trim() || sending) return;
 
     try {
-      console.log('Sending message in thread:', threadId);
       setSending(true);
       setError(null);
-      
-      // Get thread details to find the recipient
-      console.log('Fetching thread details...');
-      const { data: thread, error: threadError } = await supabase
-        .from('threads')
-        .select('participant_ids')
-        .eq('id', threadId)
-        .single();
-      
-      if (threadError) {
-        console.error('Error fetching thread:', threadError);
-        throw threadError;
-      }
-      
-      if (!thread) {
-        console.error('Thread not found');
-        throw new Error('Thread not found');
-      }
-      
-      console.log('Thread details:', thread);
-      
-      // Find the other participant (recipient) from participant_ids
-      const recipientId = thread.participant_ids.find((id: string) => id !== user.id);
-      if (!recipientId) {
-        console.error('No recipient found in thread');
-        throw new Error('No recipient found');
+
+      // Get the other participant's ID
+      const otherParticipantId = threadDetails?.participant_ids.find(id => id !== user.id);
+      if (!otherParticipantId) {
+        throw new Error('Could not find other participant');
       }
 
-      console.log('Found recipient:', recipientId);
+      // Encrypt message if encryption is enabled
+      const finalContent = encryptForRecipient 
+        ? await encryptForRecipient(newMessage, otherParticipantId)
+        : newMessage;
 
-      // Encrypt message
-      console.log('Encrypting message...');
-      const encryptedContent = await encryptForRecipient(
-        newMessage.trim(),
-        recipientId
-      );
-      console.log('Message encrypted successfully');
-
-      // Send message
-      console.log('Sending encrypted message...');
-      const sentMessage = await sendMessage(threadId, user.id, encryptedContent);
-      console.log('Message sent successfully:', sentMessage);
-      
-      // Immediately add sent message to state with decrypted content
-      setMessages((prev) => {
-        const newMessageObj = { ...sentMessage, content: newMessage.trim() };
-        const updated = [...prev, newMessageObj].sort(
-          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        return updated;
-      });
-      
+      const { data } = await sendMessage(threadId, user.id, finalContent);
+      if (data) {
+        setMessages(prev => [...prev, data]);
+      }
       setNewMessage('');
-      setTimeout(scrollToBottom, 100);
     } catch (error) {
-      console.error('Detailed error sending message:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Failed to send message: ${errorMessage}`);
+      setError('Failed to send message');
     } finally {
       setSending(false);
     }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   if (loading || !threadDetails) {
@@ -349,11 +308,17 @@ export const Chat: React.FC = () => {
       {/* Chat Header */}
       <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
-            <HiUser size={24} />
-          </div>
+          <Avatar 
+            url={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url} 
+            size={40}
+            className="bg-white/30"
+          />
           <div>
-            <div className="font-semibold">{threadDetails?.name || 'Chat'}</div>
+            <div className="font-semibold">
+              {participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.username ? 
+                `Chat with ${participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.username}` : 
+                'Chat'}
+            </div>
           </div>
         </div>
         <button
@@ -368,13 +333,33 @@ export const Chat: React.FC = () => {
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-4 max-w-3xl mx-auto">
+          {/* Debug Logs */}
+          {debugMode && debugLogs.map((log, index) => (
+            <div key={`debug-${index}`} className="flex items-end space-x-2">
+              <div className="max-w-lg px-4 py-2 rounded-lg shadow bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Debug Console</p>
+                  <p className="text-sm font-mono whitespace-pre-wrap break-words">{log}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Chat Messages */}
           {messages.map((message, index) => {
             const isUserMessage = message.sender_id === user?.id;
             return (
               <div
                 key={`${message.id}-${index}`}
-                className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'}`}
+                className={`flex items-end space-x-2 ${isUserMessage ? 'justify-end' : 'justify-start'}`}
               >
+                {!isUserMessage && (
+                  <Avatar 
+                    url={participants[message.sender_id]?.avatar_url}
+                    size={32}
+                    className="mb-1"
+                  />
+                )}
                 <div
                   className={`max-w-lg px-4 py-2 rounded-lg shadow ${
                     isUserMessage
@@ -382,13 +367,16 @@ export const Chat: React.FC = () => {
                       : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap break-words">
-                    {showEncrypted ? (
-                      <span className="font-mono text-xs">{message.content}</span>
-                    ) : (
-                      message.content
-                    )}
-                  </p>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      {isUserMessage ? 'You' : participants[message.sender_id]?.username}
+                    </p>
+                    <MessageContent 
+                      content={message.content}
+                      showEncrypted={showEncrypted}
+                      decryptMessage={decryptMessage}
+                    />
+                  </div>
                   <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
                     {new Date(message.created_at).toLocaleTimeString([], {
                       hour: '2-digit',

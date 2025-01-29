@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useUser } from '../context/UserContext';
 import { isValidAddress } from '../utils/encryption';
-import { HiUser, HiClipboard, HiCheck } from 'react-icons/hi';
+import { HiUser, HiCheck, HiUpload, HiLink } from 'react-icons/hi';
+import { uploadAvatar } from '../utils/supabase/storage';
+import { CopyButton } from './CopyButton';
 import { QRCodeSVG } from 'qrcode.react';
 
 export const Profile: React.FC = () => {
-  const { profile, wallet, updateUserProfile, loading } = useUser();
+  const { profile, wallet, updateUserProfile, loading, user } = useUser();
   
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState(profile?.username || '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const [isUrlMode, setIsUrlMode] = useState(true);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateLoading, setUpdateLoading] = useState(false);
 
@@ -20,6 +25,33 @@ export const Profile: React.FC = () => {
       </div>
     );
   }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    setUploadError(null);
+    setUpdateLoading(true);
+
+    try {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please upload an image file');
+      }
+
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Image must be less than 5MB');
+      }
+
+      const publicUrl = await uploadAvatar(file, user.id);
+      setAvatarUrl(publicUrl);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,24 +116,90 @@ export const Profile: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="avatar" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Avatar URL
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Avatar
                   </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      name="avatar"
-                      id="avatar"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                    />
+                  <div className="mt-1 space-y-4">
+                    <div className="flex space-x-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsUrlMode(true)}
+                        className={`flex-1 inline-flex items-center justify-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${
+                          isUrlMode
+                            ? 'border-brand-primary text-brand-primary bg-white dark:bg-gray-700'
+                            : 'border-gray-300 text-gray-700 bg-white dark:border-gray-600 dark:text-gray-300 dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        <HiLink className="-ml-1 mr-2 h-5 w-5" />
+                        URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUrlMode(false);
+                          fileInputRef.current?.click();
+                        }}
+                        className={`flex-1 inline-flex items-center justify-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${
+                          !isUrlMode
+                            ? 'border-brand-primary text-brand-primary bg-white dark:bg-gray-700'
+                            : 'border-gray-300 text-gray-700 bg-white dark:border-gray-600 dark:text-gray-300 dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        <HiUpload className="-ml-1 mr-2 h-5 w-5" />
+                        Upload
+                      </button>
+                    </div>
+
+                    {isUrlMode ? (
+                      <input
+                        type="text"
+                        name="avatar"
+                        id="avatar"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        placeholder="Enter image URL"
+                        className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                      />
+                    ) : (
+                      <div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <div className="flex items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md">
+                          <div className="space-y-1 text-center">
+                            <HiUpload className="mx-auto h-12 w-12 text-gray-400" />
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="text-brand-primary hover:text-brand-secondary"
+                              >
+                                Click to upload
+                              </button>
+                              {' or drag and drop'}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              PNG, JPG, GIF up to 5MB
+                            </p>
+                            {updateLoading ? (
+                              <p className="text-xs text-blue-500">Uploading image...</p>
+                            ) : avatarUrl && (
+                              <p className="text-xs text-green-500">Image uploaded successfully</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {updateError && (
+                {(updateError || uploadError) && (
                   <div className="text-red-600 text-sm">
-                    {updateError}
+                    {updateError || uploadError}
                   </div>
                 )}
 
@@ -148,21 +246,7 @@ export const Profile: React.FC = () => {
                     <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
                       {wallet.address}
                     </p>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(wallet.address);
-                        const button = document.getElementById('copyButton');
-                        if (button) {
-                          button.classList.add('text-green-500');
-                          setTimeout(() => button.classList.remove('text-green-500'), 2000);
-                        }
-                      }}
-                      id="copyButton"
-                      className="p-1 hover:text-brand-primary transition-colors"
-                      title="Copy address"
-                    >
-                      <HiClipboard className="h-5 w-5" />
-                    </button>
+                    <CopyButton text={profile.wallet_address} size={5} />
                   </div>
                   {isValidAddress(wallet.address) ? (
                     <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">

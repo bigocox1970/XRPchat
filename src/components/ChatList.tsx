@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getUserThreads, subscribeToUserThreads } from '../utils/supabase';
-import { HiUser, HiPlus, HiDotsVertical } from 'react-icons/hi';
+import { getUserThreads, subscribeToUserThreads, getProfile } from '../utils/supabase';
+import { HiPlus, HiDotsVertical, HiUser } from 'react-icons/hi';
+import { Avatar } from './Avatar';
 import type { Database } from '../types/supabase';
 
 type Thread = Database['public']['Tables']['threads']['Row'] & {
   messages: Database['public']['Tables']['messages']['Row'][];
+  otherParticipant?: {
+    username: string;
+    avatar_url: string | null;
+  };
 };
 
 export const ChatList: React.FC = () => {
@@ -18,14 +23,14 @@ export const ChatList: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      loadThreads();
+      loadThreadsWithParticipants();
       
       // Subscribe to new threads
       const unsubscribe = subscribeToUserThreads(user.id, (payload) => {
         console.log('New thread notification received:', payload);
         if (payload.new) {
           // Refresh threads list to include the new thread
-          loadThreads();
+          loadThreadsWithParticipants();
           
           // Show notification if the thread was created by someone else
           if (payload.new.created_by !== user.id) {
@@ -50,13 +55,32 @@ export const ChatList: React.FC = () => {
     }
   }, [user]);
 
-  const loadThreads = async () => {
+  const loadThreadsWithParticipants = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
       const threads = await getUserThreads(user.id);
-      setThreads(threads);
+      
+      // Load participant profiles for each thread
+      const threadsWithParticipants = await Promise.all(
+        threads.map(async (thread) => {
+          const otherParticipantId = thread.participant_ids.find((id: string) => id !== user.id);
+          if (otherParticipantId) {
+            const profile = await getProfile(otherParticipantId);
+            return {
+              ...thread,
+              otherParticipant: profile ? {
+                username: profile.username,
+                avatar_url: profile.avatar_url
+              } : undefined
+            };
+          }
+          return thread;
+        })
+      );
+
+      setThreads(threadsWithParticipants);
     } catch (error) {
       console.error('Error loading threads:', error);
       setError('Failed to load chats');
@@ -146,13 +170,15 @@ export const ChatList: React.FC = () => {
                 className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
               >
                 <div className="px-4 py-4 sm:px-6 flex items-center">
-                  <div className="w-12 h-12 rounded-full bg-[#e9edef] dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                    <HiUser className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-                  </div>
+                  <Avatar 
+                    url={thread.otherParticipant?.avatar_url}
+                    size={48}
+                    className="flex-shrink-0"
+                  />
                   <div className="ml-4 flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {thread.name}
+                        {thread.otherParticipant ? `Chat with ${thread.otherParticipant.username}` : 'Chat'}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {thread.last_message_at ? formatDate(thread.last_message_at) : ''}

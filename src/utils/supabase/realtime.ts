@@ -17,38 +17,23 @@ export const subscribeToThread = (
   const channel = supabase.channel(`thread:${threadId}`);
 
   const handleSubscribe = async (status: string) => {
-    console.log(`Thread subscription status:`, status);
-
     if (status === 'SUBSCRIBED') {
-      console.log('Successfully subscribed to thread changes');
       isSubscribed = true;
       retryAttempts = 0;
-    } else if (status === 'CLOSED' && shouldRetry) {
-      console.log('Channel closed, attempting to reconnect...');
-      if (retryAttempts < maxRetries) {
-        retryAttempts++;
-        console.log(`Retrying subscription (attempt ${retryAttempts}/${maxRetries})...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-        if (shouldRetry) {
-          channel.subscribe(handleSubscribe);
-        }
-      } else {
-        console.error('Max retry attempts reached, giving up');
-        shouldRetry = false;
+    } else if (status === 'CLOSED' && shouldRetry && retryAttempts < maxRetries) {
+      retryAttempts++;
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+      if (shouldRetry) {
+        channel.subscribe(handleSubscribe);
       }
-    } else if (status === 'CHANNEL_ERROR') {
-      console.error('Channel error occurred');
-      if (retryAttempts < maxRetries) {
-        retryAttempts++;
-        console.log(`Retrying after error (attempt ${retryAttempts}/${maxRetries})...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-        if (shouldRetry) {
-          channel.subscribe(handleSubscribe);
-        }
-      } else {
-        console.error('Max retry attempts reached after error, giving up');
-        shouldRetry = false;
+    } else if (status === 'CHANNEL_ERROR' && retryAttempts < maxRetries) {
+      retryAttempts++;
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+      if (shouldRetry) {
+        channel.subscribe(handleSubscribe);
       }
+    } else if (retryAttempts >= maxRetries) {
+      shouldRetry = false;
     }
   };
 
@@ -56,17 +41,12 @@ export const subscribeToThread = (
     .on(
       'postgres_changes',
       {
-        event: '*', // Listen for all events
+        event: 'INSERT',
         schema: 'public',
         table: 'messages',
         filter: `thread_id=eq.${threadId}`,
       },
       (payload) => {
-        console.log('Message change received:', {
-          event: payload.eventType,
-          new: payload.new,
-          old: payload.old
-        });
         if (isSubscribed) {
           onMessage(payload);
         }
@@ -75,28 +55,20 @@ export const subscribeToThread = (
     .on(
       'postgres_changes',
       {
-        event: '*',
+        event: 'UPDATE',
         schema: 'public',
         table: 'threads',
         filter: `id=eq.${threadId}`,
       },
       (payload) => {
-        console.log('Thread change received:', payload);
         if (isSubscribed) {
           onUpdate(payload);
         }
       }
     )
-    .subscribe((status) => {
-      console.log('Subscription status with details:', {
-        status,
-        channel: channel.topic
-      });
-      handleSubscribe(status);
-    });
+    .subscribe(handleSubscribe);
 
   return () => {
-    console.log('Unsubscribing from thread channel');
     shouldRetry = false;
     channel.unsubscribe();
   };
@@ -118,9 +90,7 @@ export const subscribeToUserThreads = (userId: string, onNewThread: (thread: any
       },
       onNewThread
     )
-    .subscribe((status) => {
-      console.log(`User threads subscription status:`, status);
-    });
+    .subscribe();
 
   return () => {
     channel.unsubscribe();

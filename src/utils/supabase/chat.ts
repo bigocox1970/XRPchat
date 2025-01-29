@@ -1,4 +1,5 @@
 import { supabase } from './client';
+
 /**
  * Creates a new chat thread
  */
@@ -8,12 +9,6 @@ export const createThread = async (
   createdBy: string
 ) => {
   try {
-    console.log('Creating thread with:', {
-      name,
-      participantIds,
-      createdBy
-    });
-
     // Sort participant IDs to ensure consistent hashing
     const sortedParticipants = [...participantIds].sort();
     const msgUint8 = new TextEncoder().encode(sortedParticipants.join(','));
@@ -42,29 +37,11 @@ export const createThread = async (
       .select()
       .single();
 
-    if (error) {
-      console.error('Supabase error creating thread:', {
-        error,
-        errorMessage: error.message,
-        details: error.details,
-        hint: error.hint
-      });
-      throw error;
-    }
+    if (error) throw error;
+    if (!data) throw new Error('Thread creation failed - no data returned');
 
-    if (!data) {
-      console.error('No data returned from thread creation');
-      throw new Error('Thread creation failed - no data returned');
-    }
-
-    console.log('Thread created successfully:', data);
     return data;
   } catch (error) {
-    console.error('Detailed error creating thread:', {
-      error,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
     throw error;
   }
 };
@@ -92,7 +69,6 @@ export const getUserThreads = async (userId: string) => {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error getting user threads:', error);
     throw error;
   }
 };
@@ -122,7 +98,6 @@ export const getThreadMessages = async (
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error getting thread messages:', error);
     throw error;
   }
 };
@@ -136,8 +111,6 @@ export const sendMessage = async (
   content: string
 ) => {
   try {
-    console.log('Sending message with:', { threadId, senderId, contentLength: content.length });
-    
     // Insert message directly
     const { data: message, error: messageError } = await supabase
       .from('messages')
@@ -149,10 +122,7 @@ export const sendMessage = async (
       .select()
       .single();
 
-    if (messageError) {
-      console.error('Error inserting message:', messageError);
-      throw messageError;
-    }
+    if (messageError) throw messageError;
 
     // Update thread's last_message_at
     const { error: threadError } = await supabase
@@ -161,18 +131,11 @@ export const sendMessage = async (
       .eq('id', threadId);
 
     if (threadError) {
-      console.error('Error updating thread timestamp:', threadError);
       // Don't throw here as message was sent successfully
     }
 
-    console.log('Message sent successfully:', message);
-    return message;
+    return { data: message };
   } catch (error) {
-    console.error('Detailed error sending message:', {
-      error,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
     throw error;
   }
 };
@@ -189,7 +152,6 @@ export const markMessageAsRead = async (messageId: string) => {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error marking message as read:', error);
     throw error;
   }
 };
