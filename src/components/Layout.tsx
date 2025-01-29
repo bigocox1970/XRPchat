@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff } from 'react-icons/hi';
+import { HiQrCode } from 'react-icons/hi2';
 import { useDarkMode } from '../context/DarkModeContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showQRModal, setShowQRModal] = useState(false);
   const { user, profile, signOut } = useUser();
   const { showEncrypted, toggleEncryptionMode } = useEncryptionMode();
   const { DarkModeToggle } = useDarkMode();
@@ -26,7 +29,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       {/* Sidebar Toggle Button - Mobile */}
       <button
         onClick={toggleSidebar}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-full bg-brand-primary text-white shadow-lg"
+        className="lg:hidden fixed top-4 right-16 z-50 p-2 rounded-full bg-brand-primary text-white shadow-lg"
       >
         {sidebarOpen ? <HiX size={24} /> : <HiMenu size={24} />}
       </button>
@@ -50,13 +53,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
 
           {/* User Profile */}
-          <div className="px-4 py-3 bg-white dark:bg-gray-800">
+          <div className="px-4 py-3 mt-2.5 bg-white dark:bg-gray-800">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                 <HiUser size={24} className="text-gray-600 dark:text-gray-300" />
               </div>
-              <div className="flex-1 truncate">
-                <div className="font-semibold text-gray-900 dark:text-white">{profile?.username}</div>
+              <div className="flex-1 flex items-center justify-between">
+                <div className="font-semibold text-gray-900 dark:text-white truncate">{profile?.username}</div>
+                <button 
+                  onClick={() => setShowQRModal(true)} 
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" 
+                  title="Show QR Code"
+                >
+                  <HiQrCode size={20} className="text-gray-600 dark:text-gray-300" />
+                </button>
               </div>
             </div>
           </div>
@@ -153,6 +163,40 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
           onClick={toggleSidebar}
         />
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your QR Code</h3>
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                <HiX size={24} />
+              </button>
+            </div>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="bg-white p-2 rounded-lg">
+                <QRCodeSVG
+                  value={profile?.wallet_address || ''}
+                  size={192}
+                  level="H"
+                  includeMargin={true}
+                  className="bg-white"
+                />
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                <div className="font-medium mb-1">Wallet Address</div>
+                <div className="font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded break-all">
+                  {profile?.wallet_address || 'No wallet address available'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
