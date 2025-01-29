@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useEncryption } from '../context/EncryptionContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
-import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile } from '../utils/supabase/index';
+import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile } from '../utils/supabase';
 import { HiUser, HiX, HiPaperAirplane } from 'react-icons/hi';
 import type { Database } from '../types/supabase';
 
@@ -86,17 +86,6 @@ export const Chat: React.FC = () => {
     loadThreadDetails();
   }, [threadId, user, navigate]);
 
-  // Load initial messages
-  useEffect(() => {
-    if (!threadId || !user || threadId === 'new') return;
-    
-    loadMessages().catch(error => {
-      console.error('Error loading initial messages:', error);
-      setError('Failed to load messages. Please try refreshing the page.');
-    });
-  }, [threadId, user?.id]);
-
-  // Set up real-time subscription
   useEffect(() => {
     if (!threadId || !user || threadId === 'new') {
       console.log('No threadId or user:', { threadId, userId: user?.id });
@@ -105,31 +94,84 @@ export const Chat: React.FC = () => {
 
     console.log('Initializing chat with:', { threadId, userId: user.id });
     
-    // Set up real-time subscription
-    console.log('Setting up thread subscription');
-    const unsubscribe = subscribeToThread(
-      threadId,
-      async (payload) => {
-        console.log('New message received:', payload);
-        if (payload.new) {
-          await handleNewMessage(payload);
-        }
-      },
-      handleThreadUpdate
-    );
+    let unsubscribe: (() => void) | undefined;
+    let isSubscriptionActive = true;
 
-    // Request notification permission if needed
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(error => {
-        console.error('Error requesting notification permission:', error);
-      });
-    }
+    const initializeChat = async () => {
+      try {
+        // Load initial messages
+        await loadMessages();
+        
+        // Only proceed with subscription if component is still mounted
+        if (!isSubscriptionActive) {
+          console.log('Component unmounted before subscription setup');
+          return;
+        }
+        
+        console.log('Setting up thread subscription');
+        unsubscribe = subscribeToThread(
+          threadId,
+          async (payload) => {
+            // Verify subscription is still active before processing
+            if (!isSubscriptionActive) {
+              console.log('Ignoring message - subscription no longer active');
+              return;
+            }
+
+            console.log('New message received:', payload);
+            if (payload.new) {
+              await handleNewMessage(payload);
+              
+              // Show notification if message is from other user and window is not focused
+              if (payload.new.sender_id !== user.id && document.hidden) {
+                try {
+                  if ('Notification' in window && Notification.permission === 'granted') {
+                    const sender = await getProfile(payload.new.sender_id);
+                    const decryptedContent = await decryptMessage(payload.new.content);
+                    new Notification('New Message', {
+                      body: `${sender?.username}: ${decryptedContent}`,
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error showing notification:', error);
+                }
+              }
+            }
+          },
+          handleThreadUpdate
+        );
+
+        // Request notification permission if needed
+        if ('Notification' in window && Notification.permission === 'default') {
+          try {
+            await Notification.requestPermission();
+          } catch (error) {
+            console.error('Error requesting notification permission:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize chat:', error);
+        setError('Failed to initialize chat. Please try refreshing the page.');
+        
+        // Cleanup subscription if it exists
+        if (unsubscribe) {
+          unsubscribe();
+          unsubscribe = undefined;
+        }
+      }
+    };
+
+    initializeChat();
 
     return () => {
-      console.log('Cleaning up thread subscription');
-      unsubscribe();
+      console.log('Cleaning up chat resources');
+      isSubscriptionActive = false;
+      if (unsubscribe) {
+        console.log('Cleaning up thread subscription');
+        unsubscribe();
+      }
     };
-  }, [threadId]); // Only depend on threadId to prevent unnecessary resubscriptions
+  }, [threadId, user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -202,45 +244,31 @@ export const Chat: React.FC = () => {
       const decryptedContent = await decryptMessage(payload.new.content);
       const newMessage = { ...payload.new, content: decryptedContent };
       
-      setMessages((prevMessages) => {
-        // More robust deduplication using Map
-        const uniqueMessages = new Map(prevMessages.map(msg => [msg.id, msg]));
-        uniqueMessages.set(newMessage.id, newMessage);
+      setMessages((prev) => {
+        // Check if message already exists
+        const exists = prev.some(m => m.id === newMessage.id);
+        if (exists) {
+          console.log('Message already exists in state:', newMessage.id);
+          return prev;
+        }
         
-        const updatedMessages = Array.from(uniqueMessages.values()).sort(
+        // Add new message and sort by timestamp
+        const updated = [...prev, newMessage].sort(
           (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
-        
         console.log('Updated messages state:', {
-          previousCount: prevMessages.length,
-          newCount: updatedMessages.length,
-          addedMessageId: newMessage.id,
-          duplicateCheck: uniqueMessages.size !== prevMessages.length
+          previousCount: prev.length,
+          newCount: updated.length,
+          addedMessageId: newMessage.id
         });
-        
-        return updatedMessages;
+        return updated;
       });
-
-      // Mark message as read if it's from another user
+      
       if (payload.new.sender_id !== user?.id) {
         await markMessageAsRead(payload.new.id);
-
-        // Show notification if window is not focused
-        if (document.hidden) {
-          try {
-            if ('Notification' in window && Notification.permission === 'granted') {
-              const sender = await getProfile(payload.new.sender_id);
-              new Notification('New Message', {
-                body: `${sender?.username}: ${decryptedContent}`,
-              });
-            }
-          } catch (error) {
-            console.error('Error showing notification:', error);
-          }
-        }
       }
 
-      // Always scroll to bottom for new messages
+      // Scroll to bottom after state update
       setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error('Error handling new message:', error);
@@ -302,20 +330,10 @@ export const Chat: React.FC = () => {
 
       // Send message
       console.log('Sending encrypted message...');
-      const sentMessage = await sendMessage(threadId, user.id, encryptedContent);
-      console.log('Message sent successfully:', sentMessage);
-      
-      // Immediately add sent message to state with decrypted content
-      setMessages((prev) => {
-        const newMessageObj = { ...sentMessage, content: newMessage.trim() };
-        const updated = [...prev, newMessageObj].sort(
-          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        return updated;
-      });
+      await sendMessage(threadId, user.id, encryptedContent);
+      console.log('Message sent successfully');
       
       setNewMessage('');
-      setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error('Detailed error sending message:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -368,11 +386,11 @@ export const Chat: React.FC = () => {
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-4 max-w-3xl mx-auto">
-          {messages.map((message, index) => {
+          {messages.map((message) => {
             const isUserMessage = message.sender_id === user?.id;
             return (
               <div
-                key={`${message.id}-${index}`}
+                key={message.id}
                 className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'}`}
               >
                 <div

@@ -19,7 +19,7 @@ A modern, secure chat application with end-to-end encryption using wallet-based 
 - Vite for development and building
 - Tailwind CSS for styling
 - Supabase for backend and real-time
-- XRP-crypto for encryption
+- eth-crypto for encryption
 
 ## Prerequisites
 

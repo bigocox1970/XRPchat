@@ -5,6 +5,10 @@ import { getUserThreads, subscribeToUserThreads } from '../utils/supabase';
 import { HiUser, HiPlus, HiDotsVertical } from 'react-icons/hi';
 import type { Database } from '../types/supabase';
 
+type ThreadPayload = {
+  new: Database['public']['Tables']['threads']['Row'];
+};
+
 type Thread = Database['public']['Tables']['threads']['Row'] & {
   messages: Database['public']['Tables']['messages']['Row'][];
 };

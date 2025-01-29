@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useUser } from '../context/UserContext';
 import { isValidAddress } from '../utils/encryption';
-import { HiUser, HiClipboard, HiCheck } from 'react-icons/hi';
-import { QRCodeSVG } from 'qrcode.react';
+import { HiUser } from 'react-icons/hi';
 
 export const Profile: React.FC = () => {
   const { profile, wallet, updateUserProfile, loading } = useUser();
@@ -144,26 +143,9 @@ export const Profile: React.FC = () => {
 
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Wallet Address</h4>
-                  <div className="mt-1 flex items-center space-x-2">
-                    <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
-                      {wallet.address}
-                    </p>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(wallet.address);
-                        const button = document.getElementById('copyButton');
-                        if (button) {
-                          button.classList.add('text-green-500');
-                          setTimeout(() => button.classList.remove('text-green-500'), 2000);
-                        }
-                      }}
-                      id="copyButton"
-                      className="p-1 hover:text-brand-primary transition-colors"
-                      title="Copy address"
-                    >
-                      <HiClipboard className="h-5 w-5" />
-                    </button>
-                  </div>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white font-mono break-all">
+                    {wallet.address}
+                  </p>
                   {isValidAddress(wallet.address) ? (
                     <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       Valid XRP Address
@@ -173,22 +155,6 @@ export const Profile: React.FC = () => {
                       Invalid XRP Address
                     </span>
                   )}
-
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Share Your Address</h4>
-                    <div className="mt-2 p-4 bg-white dark:bg-gray-700 rounded-lg inline-block">
-                      <QRCodeSVG
-                        value={wallet.address}
-                        size={200}
-                        level="H"
-                        includeMargin={true}
-                        className="dark:bg-white p-2 rounded"
-                      />
-                    </div>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      Scan this QR code to share your wallet address
-                    </p>
-                  </div>
                 </div>
 
                 <div className="flex justify-end">

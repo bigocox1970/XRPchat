@@ -58,11 +58,21 @@ export const generateKeyPair = async (): Promise<KeyPair> => {
 };
 
 /**
+ * Derives a shared secret using Web Crypto API
+ */
+const deriveSharedSecret = async (message: string, key: string): Promise<ArrayBuffer> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message + key);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return hashBuffer;
+};
+
+/**
  * Encrypts a message using AES-GCM with a derived key
  */
 export const encryptMessage = async (
   message: string,
-  _recipientPublicKey: string
+  recipientPublicKey: string
 ): Promise<string> => {
   try {
     const encoder = new TextEncoder();
@@ -113,7 +123,7 @@ export const encryptMessage = async (
  */
 export const decryptMessage = async (
   encryptedMessage: string,
-  _privateKey: string
+  privateKey: string
 ): Promise<string> => {
   try {
     // Convert base64 to array buffer
@@ -177,7 +187,7 @@ export const verifyKeyPair = async (
 /**
  * Gets the wallet address from a public key
  */
-export const getAddressFromPublicKey = async (_publicKey: string): Promise<string> => {
+export const getAddressFromPublicKey = async (publicKey: string): Promise<string> => {
   try {
     const client = await createClient();
     const { wallet } = await client.fundWallet();

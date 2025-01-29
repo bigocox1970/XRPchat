@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { searchUsers, createThread } from '../utils/supabase';
-import { HiUser, HiQrcode, HiPlus } from 'react-icons/hi';
+import { HiUser } from 'react-icons/hi';
 import type { Database } from '../types/supabase';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -15,40 +14,6 @@ export const ContactList: React.FC = () => {
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
-  const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
-
-  useEffect(() => {
-    if (showScanner) {
-      const qrScanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        false
-      );
-      
-      qrScanner.render((decodedText) => {
-        // Handle the scanned wallet address
-        if (decodedText) {
-          setSearchQuery(decodedText);
-          qrScanner.clear();
-          setShowScanner(false);
-        }
-      }, (error) => {
-        console.error('QR scan error:', error);
-      });
-
-      setScanner(qrScanner);
-    } else if (scanner) {
-      scanner.clear();
-      setScanner(null);
-    }
-
-    return () => {
-      if (scanner) {
-        scanner.clear();
-      }
-    };
-  }, [showScanner]);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -129,16 +94,7 @@ export const ContactList: React.FC = () => {
             <HiUser size={24} />
           </div>
           <div>
-          <div className="flex items-center space-x-4">
             <div className="font-semibold">Contacts</div>
-            <button
-              onClick={() => setShowScanner(!showScanner)}
-              className="flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-            >
-              <HiPlus className="h-5 w-5 mr-2" />
-              Add Contact
-            </button>
-          </div>
           </div>
         </div>
       </div>
@@ -151,49 +107,6 @@ export const ContactList: React.FC = () => {
             </h3>
 
             <div className="max-w-xl">
-              {showScanner && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-xl w-full mx-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
-                        Add Contact
-                      </h4>
-                      <button
-                        onClick={() => setShowScanner(false)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-6">
-                      <div>
-                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Scan QR Code
-                        </h5>
-                        <div id="qr-reader" className="w-full"></div>
-                      </div>
-                      
-                      <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                        or
-                      </div>
-                      
-                      <div>
-                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Enter Wallet Address
-                        </h5>
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Enter wallet address..."
-                          className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
               <div className="mt-1 relative rounded-md shadow-sm">
                 <input
                   type="text"

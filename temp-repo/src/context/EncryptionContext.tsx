@@ -4,6 +4,8 @@ import { encryptMessage, decryptMessage } from '../utils/encryption';
 import { supabase } from '../utils/supabase';
 import type { Database } from '../types/supabase';
 
+type Wallet = Database['public']['Tables']['wallets']['Row'];
+
 interface EncryptionContextType {
   encryptForRecipient: (message: string, recipientId: string) => Promise<string>;
   decryptMessage: (encryptedMessage: string) => Promise<string>;
