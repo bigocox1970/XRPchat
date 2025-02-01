@@ -31,6 +31,7 @@ const RouteGuard: React.FC = () => {
   const { user, loading } = useUser();
   const location = useLocation();
   const isPublicRoute = ['/website/signup', '/website/signin'].includes(location.pathname);
+  const isWebsiteRoute = location.pathname.startsWith('/website');
 
   if (loading) {
     return (
@@ -40,7 +41,8 @@ const RouteGuard: React.FC = () => {
     );
   }
 
-  if (!user && !isPublicRoute) {
+  // Allow browsing website without being logged in
+  if (!user && !isPublicRoute && !isWebsiteRoute) {
     return <Navigate to="/website/signin" replace />;
   }
 

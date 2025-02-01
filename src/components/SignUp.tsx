@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { QRCodeSVG } from 'qrcode.react';
-import { HiKey } from 'react-icons/hi';
+import { HiKey, HiLockClosed } from 'react-icons/hi';
 
 export const SignUp: React.FC = () => {
   const navigate = useNavigate();
@@ -127,7 +127,7 @@ export const SignUp: React.FC = () => {
           </p>
           <div className="mt-4 flex justify-center">
             <button
-              onClick={() => navigate('/signin')}
+              onClick={() => navigate('/website/signin')}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#075e54] hover:bg-[#128c7e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54]"
             >
               Go to Sign In
@@ -139,12 +139,18 @@ export const SignUp: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <div className="flex items-center justify-center space-x-2">
+          <HiLockClosed size={32} className="text-brand-primary" />
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            SecureChat.<span className="italic font-normal">Crypto</span>
+          </div>
+        </div>
+        <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
           Create your account
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           Join SecureChat to start messaging securely
         </p>
       </div>
@@ -165,7 +171,7 @@ export const SignUp: React.FC = () => {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54]"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   placeholder="Choose a unique username"
                   disabled={loading}
                 />
@@ -185,7 +191,7 @@ export const SignUp: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54]"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   placeholder="Enter your email"
                   disabled={loading}
                 />
@@ -205,7 +211,7 @@ export const SignUp: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54]"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   placeholder="Create a secure password"
                   disabled={loading}
                 />
@@ -213,7 +219,7 @@ export const SignUp: React.FC = () => {
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 p-4">
+              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -221,7 +227,7 @@ export const SignUp: React.FC = () => {
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
+                    <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                   </div>
                 </div>
               </div>
@@ -253,7 +259,7 @@ export const SignUp: React.FC = () => {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
@@ -262,14 +268,20 @@ export const SignUp: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-4">
               <button
-                onClick={() => navigate('/signin')}
+                onClick={() => navigate('/website/signin')}
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54]"
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54] dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
               >
                 Sign in
               </button>
+              <Link
+                to="/website"
+                className="block text-center text-sm text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary"
+              >
+                View Website
+              </Link>
             </div>
           </div>
         </div>
