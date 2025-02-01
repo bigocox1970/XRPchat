@@ -80,7 +80,7 @@ export const Website: React.FC = () => {
             </div>
             <div className="flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
               <img 
-                src="./img/wallet.webp" 
+                src="/img/wallet.webp" 
                 alt="Secure XRPL wallet identity illustration" 
                 className="w-full h-auto rounded-lg"
               />
