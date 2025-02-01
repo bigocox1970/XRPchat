@@ -1,13 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
-import { isValidAddress } from '../utils/encryption';
-import { HiUser, HiCheck, HiUpload, HiLink } from 'react-icons/hi';
+import { isValidAddress, generateKeyPair } from '../utils/encryption';
+import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh } from 'react-icons/hi';
+import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { uploadAvatar } from '../utils/supabase/storage';
 import { CopyButton } from './CopyButton';
 import { QRCodeSVG } from 'qrcode.react';
 
 export const Profile: React.FC = () => {
-  const { profile, wallet, updateUserProfile, loading, user } = useUser();
+  const { profile, wallet, updateUserProfile, loading, user, regenerateWallet } = useUser();
+  const { isMaxSecurityEnabled, enableMaxSecurity, disableMaxSecurity, showPrivateKey, setShowPrivateKey } = useEncryptionMode();
   
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState(profile?.username || '');
@@ -17,6 +19,9 @@ export const Profile: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [newWalletInfo, setNewWalletInfo] = useState<{ privateKey: string; address: string } | null>(null);
+  const [hasConfirmedSave, setHasConfirmedSave] = useState(false);
 
   if (loading || !profile || !wallet) {
     return (
@@ -76,6 +81,9 @@ export const Profile: React.FC = () => {
     setAvatarUrl(profile.avatar_url || '');
     setIsEditing(false);
     setUpdateError(null);
+    setNewWalletInfo(null);
+    setShowPrivateKey(false);
+    setHasConfirmedSave(false);
   };
 
   return (
@@ -87,7 +95,7 @@ export const Profile: React.FC = () => {
             <HiUser size={24} />
           </div>
           <div>
-            <div className="font-semibold">Profile</div>
+          <div className="font-semibold">Profile {isMaxSecurityEnabled && <span className="text-xs">(Max Security)</span>}</div>
           </div>
         </div>
       </div>
@@ -99,6 +107,23 @@ export const Profile: React.FC = () => {
             
             {isEditing ? (
               <form onSubmit={handleSubmit} className="mt-5 space-y-6">
+                <div>
+                  <label className="flex items-center justify-between">
+                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">Max Security Mode</span>
+                    <button
+                      type="button"
+                      onClick={() => isMaxSecurityEnabled ? disableMaxSecurity() : enableMaxSecurity()}
+                      className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white ${
+                        isMaxSecurityEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'
+                      } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary`}
+                    >
+                      <HiShieldCheck className="-ml-0.5 mr-2 h-4 w-4" />
+                      {isMaxSecurityEnabled ? 'Max Security On' : 'Max Security Off'}
+                    </button>
+                  </label>
+                  <p className="mt-1 text-sm text-gray-500">Enable for enhanced security features and encryption.</p>
+                </div>
+
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Username
@@ -197,6 +222,147 @@ export const Profile: React.FC = () => {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Wallet
+                  </label>
+                  <div className="mt-1">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
+                            {newWalletInfo?.address || wallet.address}
+                          </p>
+                          <CopyButton text={newWalletInfo?.address || profile.wallet_address} size={5} />
+                        </div>
+                        {isValidAddress(newWalletInfo?.address || wallet.address) ? (
+                          <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Valid XRP Address
+                          </span>
+                        ) : (
+                          <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Invalid XRP Address
+                          </span>
+                        )}
+                      </div>
+                      
+                      {!newWalletInfo && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setRegenerating(true);
+                              setUpdateError(null);
+                              const keyPair = await generateKeyPair();
+                              setNewWalletInfo({
+                                privateKey: keyPair.privateKey,
+                                address: keyPair.address
+                              });
+                              setShowPrivateKey(true);
+                              setHasConfirmedSave(false);
+                            } catch (error) {
+                              setUpdateError(error instanceof Error ? error.message : 'Failed to generate new wallet');
+                            } finally {
+                              setRegenerating(false);
+                            }
+                          }}
+                          disabled={regenerating}
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+                        >
+                          <HiRefresh className={`-ml-0.5 mr-2 h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
+                          Regenerate Wallet
+                        </button>
+                      )}
+                    </div>
+
+                    {newWalletInfo && showPrivateKey && (
+                      <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
+                        <div className="flex items-start">
+                          <HiKey className="h-5 w-5 text-red-400 mt-0.5" />
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Important: Save Your Private Key</h3>
+                            <div className="mt-2 space-y-4">
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <p className="text-sm text-red-700 dark:text-red-300 font-mono break-all">
+                                    {newWalletInfo.privateKey}
+                                  </p>
+                                  <CopyButton text={newWalletInfo.privateKey} size={5} />
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">Scan to Import Private Key</h4>
+                                <div className="p-4 bg-white dark:bg-gray-700 rounded-lg inline-block">
+                                  <QRCodeSVG
+                                    value={newWalletInfo.privateKey}
+                                    size={200}
+                                    level="H"
+                                    includeMargin={true}
+                                    className="dark:bg-white p-2 rounded"
+                                  />
+                                </div>
+                                <p className="mt-2 text-sm text-red-700 dark:text-red-300">
+                                  Use this QR code to import your private key into a hardware wallet
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-4 space-y-4">
+                              <label className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  checked={hasConfirmedSave}
+                                  onChange={(e) => setHasConfirmedSave(e.target.checked)}
+                                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                                />
+                                <span className="text-sm text-red-700 dark:text-red-300">
+                                  I confirm that I have saved my private key in a secure location
+                                </span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    setRegenerating(true);
+                                    setUpdateError(null);
+                                    await regenerateWallet(newWalletInfo.privateKey, newWalletInfo.address);
+                                    setNewWalletInfo(null);
+                                    setShowPrivateKey(false);
+                                    setHasConfirmedSave(false);
+                                  } catch (error) {
+                                    setUpdateError(error instanceof Error ? error.message : 'Failed to update wallet');
+                                  } finally {
+                                    setRegenerating(false);
+                                  }
+                                }}
+                                disabled={!hasConfirmedSave}
+                                className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${!hasConfirmedSave ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                I've Saved My Private Key - Continue
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Share Your Address</h4>
+                      <div className="mt-2 p-4 bg-white dark:bg-gray-700 rounded-lg inline-block">
+                        <QRCodeSVG
+                          value={newWalletInfo?.address || wallet.address}
+                          size={200}
+                          level="H"
+                          includeMargin={true}
+                          className="dark:bg-white p-2 rounded"
+                        />
+                      </div>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Scan this QR code to share your wallet address
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {(updateError || uploadError) && (
                   <div className="text-red-600 text-sm">
                     {updateError || uploadError}
@@ -231,7 +397,7 @@ export const Profile: React.FC = () => {
 
                 {profile.avatar_url && (
                   <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
                     <img
                       src={profile.avatar_url}
                       alt="Profile avatar"
@@ -257,7 +423,6 @@ export const Profile: React.FC = () => {
                       Invalid XRP Address
                     </span>
                   )}
-
                   <div className="mt-4">
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Share Your Address</h4>
                     <div className="mt-2 p-4 bg-white dark:bg-gray-700 rounded-lg inline-block">

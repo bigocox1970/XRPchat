@@ -154,7 +154,7 @@ export const ChatList: React.FC = () => {
             <div className="text-center">
               <p className="text-gray-500 mb-4">No chats yet</p>
               <button
-                onClick={() => navigate('/contacts')}
+                onClick={() => navigate('/app/contacts')}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#075e54] hover:bg-[#128c7e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
                 Start a chat
@@ -166,7 +166,7 @@ export const ChatList: React.FC = () => {
             {threads.map((thread) => (
               <div
                 key={thread.id}
-                onClick={() => navigate(`/chat/${thread.id}`)}
+                onClick={() => navigate(`/app/chat/${thread.id}`)}
                 className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
               >
                 <div className="px-4 py-4 sm:px-6 flex items-center">
@@ -204,7 +204,7 @@ export const ChatList: React.FC = () => {
 
       {/* Floating Action Button */}
       <button
-        onClick={() => navigate('/contacts')}
+        onClick={() => navigate('/app/contacts')}
         className="fixed right-6 bottom-6 p-4 rounded-full bg-brand-secondary text-white shadow-lg hover:bg-brand-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary z-10"
         aria-label="New chat"
       >

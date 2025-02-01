@@ -1,0 +1,109 @@
+import React, { useState } from 'react';
+import { HiChevronDown, HiChevronUp } from 'react-icons/hi';
+
+interface FAQItemProps {
+  question: string;
+  answer: string | React.ReactNode;
+}
+
+const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border-b border-gray-200 dark:border-gray-700">
+      <button
+        className="w-full py-6 text-left flex items-center justify-between focus:outline-none"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="text-lg font-semibold text-gray-900 dark:text-white">{question}</span>
+        {isOpen ? (
+          <HiChevronUp className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+        ) : (
+          <HiChevronDown className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+        )}
+      </button>
+      {isOpen && (
+        <div className="pb-6 text-gray-600 dark:text-gray-300 space-y-2">
+          {answer}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const FAQ: React.FC = () => {
+  const faqs = [
+    {
+      question: "How secure is SecureChat?",
+      answer: "SecureChat uses military-grade end-to-end encryption to protect your messages. All messages are encrypted on your device before being sent, and only the intended recipient can decrypt them. We use AES-256 encryption and XRPL blockchain technology for identity verification."
+    },
+    {
+      question: "What is XRPL identity?",
+      answer: "XRPL identity uses the XRP Ledger blockchain to create a secure, decentralized identity for each user. When you sign up, a unique wallet is generated that serves as your identity. This provides cryptographic security and allows for secure message encryption."
+    },
+    {
+      question: "Can SecureChat read my messages?",
+      answer: "No. SecureChat uses end-to-end encryption, which means messages are encrypted on your device and can only be decrypted by the intended recipient. We never have access to your decrypted messages or encryption keys."
+    },
+    {
+      question: "How do I start a chat with someone?",
+      answer: (
+        <div className="space-y-2">
+          <p>There are two ways to start a chat:</p>
+          <ol className="list-decimal list-inside pl-4 space-y-1">
+            <li>Share your QR code with someone to connect</li>
+            <li>Enter their wallet address directly</li>
+          </ol>
+          <p>Once connected, you can start sending encrypted messages immediately.</p>
+        </div>
+      )
+    },
+    {
+      question: "What happens if I lose my device?",
+      answer: "Your private keys are stored securely on your device. If you lose your device, you'll need to create a new account and establish new connections. For security reasons, we cannot recover your encryption keys or decrypted messages."
+    },
+    {
+      question: "Is SecureChat open source?",
+      answer: "Yes, SecureChat is open source. Our code is available for review on GitHub, ensuring transparency and allowing the community to verify our security implementations."
+    },
+    {
+      question: "How does the encryption work?",
+      answer: (
+        <div className="space-y-2">
+          <p>SecureChat's encryption works in several steps:</p>
+          <ol className="list-decimal list-inside pl-4 space-y-1">
+            <li>Each user has a public and private key pair</li>
+            <li>Messages are encrypted with the recipient's public key</li>
+            <li>Only the recipient's private key can decrypt the message</li>
+            <li>All encryption/decryption happens on your device</li>
+          </ol>
+        </div>
+      )
+    },
+    {
+      question: "Do you store my messages?",
+      answer: "While encrypted messages are stored to enable message history and synchronization across devices, we can never access the content of your messages because we don't have the decryption keys. Only you and your chat partners can read the messages."
+    }
+  ];
+
+  return (
+    <div className="space-y-16">
+      <section className="text-center">
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
+          Frequently Asked Questions
+        </h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          Find answers to common questions about SecureChat's security, features, and usage.
+        </p>
+      </section>
+
+      <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md">
+        <div className="p-8">
+          {faqs.map((faq, index) => (
+            <FAQItem key={index} question={faq.question} answer={faq.answer} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};

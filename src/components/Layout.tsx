@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff } from 'react-icons/hi';
+import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff, HiCog } from 'react-icons/hi';
 import { Avatar } from './Avatar';
 import { HiQrCode } from 'react-icons/hi2';
 import { useDarkMode } from '../context/DarkModeContext';
@@ -11,9 +11,10 @@ import { useDebugMode } from '../context/DebugModeContext';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const { user, profile, signOut } = useUser();
-  const { showEncrypted, toggleEncryptionMode } = useEncryptionMode();
+  const { showEncrypted, toggleEncryptionMode, lockEncryption } = useEncryptionMode();
   const { debugMode, toggleDebugMode } = useDebugMode();
   const { DarkModeToggle } = useDarkMode();
   const navigate = useNavigate();
@@ -29,6 +30,22 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div className="h-screen bg-gray-100 dark:bg-gray-900 flex overflow-hidden relative">
+      {/* Background glow effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Sidebar glow */}
+        <div className="absolute top-0 left-0 w-96 h-screen">
+          <div className="absolute top-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-brand-primary opacity-10 dark:opacity-5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-green-400 opacity-10 dark:opacity-5 rounded-full blur-3xl"></div>
+        </div>
+        {/* Main content glow */}
+        <div className="absolute left-96 inset-y-0 right-0">
+          <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-primary opacity-20 dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-green-400 opacity-20 dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-blue-400 opacity-20 dark:opacity-10 rounded-full blur-3xl"></div>
+          </div>
+        </div>
+      </div>
       {/* Sidebar Toggle Button - Mobile */}
       <button
         onClick={toggleSidebar}
@@ -47,10 +64,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           {/* User Profile Section */}
           {/* App Header */}
           <div className="bg-brand-primary text-white py-[22px] px-4">
-            <div className="flex items-center space-x-2">
-              <HiLockClosed size={24} className="text-white" />
-              <div className="text-lg font-bold">
-                SecureChat.<span className="italic font-normal text-base">Crypto</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <HiLockClosed size={24} className="text-white" />
+                <div className="text-lg font-bold">
+                  SecureChat.<span className="italic font-normal text-base">Crypto</span>
+                </div>
               </div>
             </div>
           </div>
@@ -76,7 +95,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <nav className="flex-1 overflow-y-auto p-4 space-y-2 pb-6">
             <button
               onClick={() => {
-                navigate('/chat/new');
+                navigate('/app/chat/new');
                 setSidebarOpen(false);
               }}
               className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -86,20 +105,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </button>
 
             <Link
-              to="/"
+              to="/app"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+                isActiveRoute('/app') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
               <HiChat size={24} />
-              <span>Chats</span>
+              <span>Chat History</span>
             </Link>
 
             <Link
-              to="/contacts"
+              to="/app/contacts"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/contacts') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+                isActiveRoute('/app/contacts') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -108,9 +127,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </Link>
 
             <Link
-              to="/profile"
+              to="/app/profile"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/profile') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+                isActiveRoute('/app/profile') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -118,48 +137,66 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <span>Profile</span>
             </Link>
 
-            {/* Settings Section */}
-            <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2 space-y-2">
-              {/* Dark Mode Toggle */}
-              <div className="px-4 py-3">
-                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                  <DarkModeToggle />
+            {/* Settings Button */}
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                settingsOpen ? 'bg-gray-100 dark:bg-gray-700' : ''
+              } text-gray-700 dark:text-gray-200`}
+            >
+              <HiCog size={24} />
+              <span>Settings</span>
+            </button>
+
+            {/* Settings Dropdown */}
+            {settingsOpen && (
+              <div className="px-4 py-2 space-y-4 bg-gray-50 dark:bg-gray-700/50">
+                <div className="flex items-center justify-between text-gray-700 dark:text-gray-200">
                   <span>Theme</span>
+                  <DarkModeToggle />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
+                      {!showEncrypted ? <HiEyeOff size={20} /> : <HiEye size={20} />}
+                      <span>Decrypt Messages</span>
+                    </div>
+                    <button
+                      onClick={toggleEncryptionMode}
+                      className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${!showEncrypted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${!showEncrypted ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
+                      <HiUser size={20} />
+                      <span>Debug Mode</span>
+                    </div>
+                    <button
+                      onClick={toggleDebugMode}
+                      className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${debugMode ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${debugMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Toggle Buttons */}
-              <div className="space-y-2">
-                {/* Encryption Toggle */}
-                <button
-                  onClick={toggleEncryptionMode}
-                  className="w-full flex items-center justify-between px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    {showEncrypted ? <HiEyeOff size={24} /> : <HiEye size={24} />}
-                    <span>Encryption</span>
-                  </div>
-                  <div className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${showEncrypted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                    <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${showEncrypted ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </div>
-                </button>
+            <div className="flex-1"></div>
 
-                {/* Debug Mode Toggle */}
-                <button
-                  onClick={toggleDebugMode}
-                  className="w-full flex items-center justify-between px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <HiUser size={24} />
-                    <span>Debug Mode</span>
-                  </div>
-                  <div className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${debugMode ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                    <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${debugMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </div>
-                </button>
-              </div>
+            {/* Bottom Links */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-2 space-y-2">
+              <Link
+                to="/"
+                className="block px-4 py-3 text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary transition-colors"
+              >
+                Visit Website
+              </Link>
 
-              {/* Logout Button */}
               <button
                 onClick={signOut}
                 className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"

@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useEncryptionMode } from '../context/EncryptionModeContext';
+import { QRCodeSVG } from 'qrcode.react';
+import { HiKey } from 'react-icons/hi';
 
 export const SignUp: React.FC = () => {
   const navigate = useNavigate();
   const { signUp } = useUser();
+  const { setShowPrivateKey } = useEncryptionMode();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,6 +16,8 @@ export const SignUp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [walletInfo, setWalletInfo] = useState<{ privateKey: string; address: string } | null>(null);
+  const [privateKeySaved, setPrivateKeySaved] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +36,12 @@ export const SignUp: React.FC = () => {
         throw new Error('Password must be at least 6 characters');
       }
 
-      await signUp(email.trim(), password, username.trim());
-      setSuccess(true);
+      const walletInfo = await signUp(email.trim(), password, username.trim());
+      if (walletInfo) {
+        setWalletInfo(walletInfo);
+        setSuccess(true);
+        setShowPrivateKey(true);
+      }
     } catch (error) {
       console.error('Signup error:', error);
       if (error instanceof Error) {
@@ -59,6 +69,51 @@ export const SignUp: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (success && !privateKeySaved && walletInfo) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-center text-2xl font-extrabold text-gray-900 dark:text-white">
+                  Important Security Information
+                </h2>
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
+                  <div className="flex items-start">
+                    <HiKey className="h-5 w-5 text-red-400 mt-0.5" />
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Save Your Private Key</h3>
+                      <p className="mt-2 text-sm text-red-700 dark:text-red-300">
+                        This private key will only be shown once. Save it in a secure location. You'll need it to enable maximum security mode.
+                      </p>
+                      <div className="mt-4">
+                        <p className="text-sm text-red-700 dark:text-red-300 font-mono break-all">
+                          {walletInfo?.privateKey}
+                        </p>
+                      </div>
+                      <div className="mt-4">
+                        <button
+                          onClick={() => {
+                            setPrivateKeySaved(true);
+                            setShowPrivateKey(false);
+                          }}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          I've Saved My Private Key - Continue
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (

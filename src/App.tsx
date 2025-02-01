@@ -20,12 +20,17 @@ import { ContactList } from './components/ContactList';
 import { ChatList } from './components/ChatList';
 import { Chat } from './components/Chat';
 import { Layout } from './components/Layout';
+import { WebsiteLayout } from './components/WebsiteLayout';
+import { Website } from './components/Website';
+import { Features } from './components/Features';
+import { Security } from './components/Security';
+import { FAQ } from './components/FAQ';
 
 // Separate component for route protection logic
 const RouteGuard: React.FC = () => {
   const { user, loading } = useUser();
   const location = useLocation();
-  const isPublicRoute = ['/signup', '/signin'].includes(location.pathname);
+  const isPublicRoute = ['/website/signup', '/website/signin'].includes(location.pathname);
 
   if (loading) {
     return (
@@ -36,11 +41,11 @@ const RouteGuard: React.FC = () => {
   }
 
   if (!user && !isPublicRoute) {
-    return <Navigate to="/signin" replace />;
+    return <Navigate to="/website/signin" replace />;
   }
 
   if (user && isPublicRoute) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/app" replace />;
   }
 
   return <Outlet />;
@@ -50,15 +55,13 @@ const RouteGuard: React.FC = () => {
 const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <DarkModeProvider>
-      <EncryptionModeProvider>
-        <DebugModeProvider>
-          <UserProvider>
-            <EncryptionProvider>
-              {children}
-            </EncryptionProvider>
-          </UserProvider>
-        </DebugModeProvider>
-      </EncryptionModeProvider>
+      <DebugModeProvider>
+        <UserProvider>
+          <EncryptionModeProvider>
+            {children}
+          </EncryptionModeProvider>
+        </UserProvider>
+      </DebugModeProvider>
     </DarkModeProvider>
   );
 };
@@ -66,7 +69,7 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // Layout wrapper for authenticated routes
 const AuthenticatedLayout: React.FC = () => {
   const location = useLocation();
-  const isAuthRoute = ['/signup', '/signin'].includes(location.pathname);
+  const isAuthRoute = ['/website/signup', '/website/signin'].includes(location.pathname);
 
   if (isAuthRoute) {
     return <Outlet />;
@@ -79,20 +82,42 @@ const AuthenticatedLayout: React.FC = () => {
   );
 };
 
+// Website routes wrapper
+const WebsiteLayoutWrapper: React.FC = () => {
+  return (
+    <WebsiteLayout>
+      <Outlet />
+    </WebsiteLayout>
+  );
+};
+
 // Main routes configuration
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route element={<RouteGuard />}>
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/signin" element={<SignIn />} />
-      <Route element={<AuthenticatedLayout />}>
-        <Route path="/" element={<ChatList />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/contacts" element={<ContactList />} />
-        <Route path="/chat/new" element={<ContactList />} />
-        <Route path="/chat/:threadId" element={<Chat />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+    <Route>
+      {/* Website Routes */}
+      <Route element={<WebsiteLayoutWrapper />}>
+        <Route path="/website" element={<Website />} />
+        <Route path="/website/features" element={<Features />} />
+        <Route path="/website/security" element={<Security />} />
+        <Route path="/website/faq" element={<FAQ />} />
       </Route>
+
+      {/* Auth & App Routes */}
+      <Route element={<RouteGuard />}>
+        <Route path="/website/signup" element={<SignUp />} />
+        <Route path="/website/signin" element={<SignIn />} />
+        <Route path="/app" element={<AuthenticatedLayout />}>
+          <Route index element={<ChatList />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="contacts" element={<ContactList />} />
+          <Route path="chat/new" element={<ContactList />} />
+          <Route path="chat/:threadId" element={<Chat />} />
+        </Route>
+      </Route>
+
+      {/* Catch all */}
+      <Route path="*" element={<Navigate to="/website" replace />} />
     </Route>
   )
 );
@@ -100,7 +125,9 @@ const router = createBrowserRouter(
 const App: React.FC = () => {
   return (
     <AppProviders>
-      <RouterProvider router={router} />
+      <EncryptionProvider>
+        <RouterProvider router={router} />
+      </EncryptionProvider>
     </AppProviders>
   );
 };

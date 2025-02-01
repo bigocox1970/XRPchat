@@ -13,10 +13,11 @@ interface UserContextType {
   profile: Profile | null;
   wallet: Wallet | null;
   loading: boolean;
-  signUp: (email: string, password: string, username: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string) => Promise<{ privateKey: string; address: string }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (updates: { username?: string; avatar_url?: string }) => Promise<void>;
+  regenerateWallet: (privateKey: string, address: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -96,7 +97,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const signUp = async (email: string, password: string, username: string): Promise<{ privateKey: string; address: string }> => {
     try {
       console.log('Starting signup process...');
 
@@ -153,11 +154,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Create wallet using service role client
       await createWallet(userId, keyPair.address, keyPair.publicKey, keyPair.privateKey);
-      console.log('Signup completed successfully');
-
-      // Auto sign in after signup
-      await signIn(email, password);
-
+      console.log('Signup completed successfully. Please check your email to confirm your account.');
+      
+      return {
+        privateKey: keyPair.privateKey,
+        address: keyPair.address
+      };
     } catch (error) {
       console.error('Detailed signup error:', error);
       if (error instanceof Error) {
@@ -243,6 +245,36 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     updateUserProfile,
+    regenerateWallet: async (privateKey: string, address: string) => {
+      try {
+        if (!user?.id) throw new Error('No user ID');
+
+        // Update wallet in database
+        const { error: walletError } = await supabase
+          .from('wallets')
+          .update({
+            address: address,
+            private_key: privateKey,
+          })
+          .eq('profile_id', user.id);
+
+        if (walletError) throw walletError;
+
+        // Update profile wallet address
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ wallet_address: address })
+          .eq('id', user.id);
+
+        if (profileError) throw profileError;
+
+        // Refresh profile to get updated data
+        await fetchProfile(user.id);
+      } catch (error) {
+        console.error('Error regenerating wallet:', error);
+        throw error;
+      }
+    },
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

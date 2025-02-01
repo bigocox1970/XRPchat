@@ -28,8 +28,8 @@ interface ThreadParticipants {
 const MessageContent: React.FC<{
   content: string;
   showEncrypted: boolean;
-  decryptMessage?: (content: string) => Promise<string>;
-}> = ({ content, showEncrypted, decryptMessage }) => {
+}> = ({ content, showEncrypted }) => {
+  const { decryptMessage } = useEncryption();
   const [decryptedContent, setDecryptedContent] = useState<string>(content);
   const [isDecrypted, setIsDecrypted] = useState(false);
 
@@ -37,7 +37,7 @@ const MessageContent: React.FC<{
     let mounted = true;
 
     const decrypt = async () => {
-      if (!isDecrypted && decryptMessage) {
+      if (!isDecrypted) {
         try {
           const decrypted = await decryptMessage(content);
           if (mounted) {
@@ -53,14 +53,14 @@ const MessageContent: React.FC<{
       }
     };
 
-    if (!isDecrypted && decryptMessage) {
+    if (!isDecrypted) {
       decrypt();
     }
 
     return () => {
       mounted = false;
     };
-  }, [content, decryptMessage, isDecrypted]);
+  }, [content, decryptMessage, isDecrypted, showEncrypted]);
 
   return (
     <p className="text-sm whitespace-pre-wrap break-words">
@@ -279,10 +279,7 @@ export const Chat: React.FC = () => {
         ? await encryptForRecipient(newMessage, otherParticipantId)
         : newMessage;
 
-      const { data } = await sendMessage(threadId, user.id, finalContent);
-      if (data) {
-        setMessages(prev => [...prev, data]);
-      }
+      await sendMessage(threadId, user.id, finalContent);
       setNewMessage('');
     } catch (error) {
       setError('Failed to send message');
@@ -377,7 +374,6 @@ export const Chat: React.FC = () => {
                     <MessageContent 
                       content={message.content}
                       showEncrypted={showEncrypted}
-                      decryptMessage={decryptMessage}
                     />
                   </div>
                   <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">

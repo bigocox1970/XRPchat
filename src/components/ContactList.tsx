@@ -7,7 +7,10 @@ import { CopyButton } from './CopyButton';
 import type { Database } from '../types/supabase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+// Modify the Profile type to make updated_at optional to handle potential missing values
+type Profile = Omit<Database['public']['Tables']['profiles']['Row'], 'updated_at'> & {
+  updated_at?: string;
+};
 
 export const ContactList: React.FC = () => {
   const navigate = useNavigate();
@@ -123,7 +126,7 @@ export const ContactList: React.FC = () => {
         throw new Error('Thread creation failed - no thread ID returned');
       }
 
-      const chatPath = `/chat/${thread.id}`;
+      const chatPath = `/app/chat/${thread.id}`;
       console.log('Navigating to:', chatPath);
       navigate(chatPath);
     } catch (error) {
@@ -213,10 +216,19 @@ export const ContactList: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
           <div className="px-4 py-5">
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
-              Find Contacts
+              Search Contact
             </h3>
 
             <div className="max-w-xl">
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search contacts..."
+                  className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                />
+              </div>
               {showScanner && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-xl w-full mx-4">

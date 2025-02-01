@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback } from 'react';
 import { useUser } from './UserContext';
+import { useEncryptionMode } from './EncryptionModeContext';
 import { encryptMessage, decryptMessage } from '../utils/encryption';
 import { supabase } from '../utils/supabase';
 import type { Database } from '../types/supabase';
@@ -15,6 +16,7 @@ const EncryptionContext = createContext<EncryptionContextType | undefined>(undef
 
 export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { wallet, user } = useUser();
+  const { isMaxSecurityEnabled, temporaryPrivateKey } = useEncryptionMode();
 
   const getRecipientPublicKey = useCallback(async (recipientId: string): Promise<string> => {
     if (!user) throw new Error('Not authenticated');
@@ -51,11 +53,20 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!wallet) throw new Error('No wallet available');
 
     try {
+      // In max security mode, require temporary private key for decryption
+      if (isMaxSecurityEnabled) {
+        if (!temporaryPrivateKey) {
+          throw new Error('Please enter your private key to decrypt messages');
+        }
+        return await decryptMessage(encryptedMessage, temporaryPrivateKey);
+      }
+      
+      // Normal mode uses stored private key
       return await decryptMessage(encryptedMessage, wallet.private_key);
     } catch (error) {
       throw error;
     }
-  }, [wallet]);
+  }, [wallet, isMaxSecurityEnabled, temporaryPrivateKey]);
 
   const value = {
     encryptForRecipient,
