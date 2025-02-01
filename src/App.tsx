@@ -32,6 +32,7 @@ const RouteGuard: React.FC = () => {
   const location = useLocation();
   const isPublicRoute = ['/website/signup', '/website/signin'].includes(location.pathname);
   const isWebsiteRoute = location.pathname.startsWith('/website');
+  const isAppRoute = location.pathname.startsWith('/app');
 
   if (loading) {
     return (
@@ -41,11 +42,12 @@ const RouteGuard: React.FC = () => {
     );
   }
 
-  // Allow browsing website without being logged in
-  if (!user && !isPublicRoute && !isWebsiteRoute) {
+  // Require authentication only for app routes
+  if (!user && isAppRoute) {
     return <Navigate to="/website/signin" replace />;
   }
 
+  // Redirect authenticated users trying to access auth pages
   if (user && isPublicRoute) {
     return <Navigate to="/app" replace />;
   }
@@ -69,53 +71,35 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 // Layout wrapper for authenticated routes
-const AuthenticatedLayout: React.FC = () => {
-  const location = useLocation();
-  const isAuthRoute = ['/website/signup', '/website/signin'].includes(location.pathname);
-
-  if (isAuthRoute) {
-    return <Outlet />;
-  }
-
+const AuthenticatedLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   return (
     <Layout>
-      <Outlet />
+      {children || <Outlet />}
     </Layout>
-  );
-};
-
-// Website routes wrapper
-const WebsiteLayoutWrapper: React.FC = () => {
-  return (
-    <WebsiteLayout>
-      <Outlet />
-    </WebsiteLayout>
   );
 };
 
 // Main routes configuration
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route>
-      {/* Website Routes */}
-      <Route element={<WebsiteLayoutWrapper />}>
+    <Route element={<RouteGuard />}>
+      {/* Website Routes - Always use WebsiteLayout */}
+      <Route element={<WebsiteLayout />}>
         <Route path="/website" element={<Website />} />
         <Route path="/website/features" element={<Features />} />
         <Route path="/website/security" element={<Security />} />
         <Route path="/website/faq" element={<FAQ />} />
-      </Route>
-
-      {/* Auth & App Routes */}
-      <Route element={<RouteGuard />}>
         <Route path="/website/signup" element={<SignUp />} />
         <Route path="/website/signin" element={<SignIn />} />
-        <Route path="/app" element={<AuthenticatedLayout />}>
-          <Route index element={<ChatList />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="contacts" element={<ContactList />} />
-          <Route path="chat/new" element={<ContactList />} />
-          <Route path="chat/:threadId" element={<Chat />} />
-        </Route>
+      </Route>
+
+      {/* App Routes - Protected and use AuthenticatedLayout */}
+      <Route path="/app" element={<AuthenticatedLayout />}>
+        <Route index element={<ChatList />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="contacts" element={<ContactList />} />
+        <Route path="chat/new" element={<ContactList />} />
+        <Route path="chat/:threadId" element={<Chat />} />
       </Route>
 
       {/* Catch all */}
