@@ -4,16 +4,16 @@ import { HiChevronDown, HiChevronUp } from 'react-icons/hi';
 interface FAQItemProps {
   question: string;
   answer: string | React.ReactNode;
+  isOpen: boolean;
+  onClick: () => void;
 }
 
-const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
+const FAQItem: React.FC<FAQItemProps> = ({ question, answer, isOpen, onClick }) => {
   return (
     <div className="border-b border-gray-200 dark:border-gray-700">
       <button
         className="w-full py-6 text-left flex items-center justify-between focus:outline-none"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={onClick}
       >
         <span className="text-lg font-semibold text-gray-900 dark:text-white">{question}</span>
         {isOpen ? (
@@ -32,6 +32,12 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
 };
 
 export const FAQ: React.FC = () => {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const handleClick = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
   const faqs = [
     {
       question: "How secure is XRPchat.app?",
@@ -100,7 +106,13 @@ export const FAQ: React.FC = () => {
       <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md">
         <div className="p-8">
           {faqs.map((faq, index) => (
-            <FAQItem key={index} question={faq.question} answer={faq.answer} />
+            <FAQItem 
+              key={index} 
+              question={faq.question} 
+              answer={faq.answer}
+              isOpen={openIndex === index}
+              onClick={() => handleClick(index)}
+            />
           ))}
         </div>
       </div>

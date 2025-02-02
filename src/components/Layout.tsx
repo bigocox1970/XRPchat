@@ -193,8 +193,9 @@ export const Layout: React.FC = () => {
             {/* Bottom Links */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-2 space-y-2">
               <Link
-                to="/"
+                to="/website"
                 className="block px-4 py-3 text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary transition-colors"
+                onClick={() => setSidebarOpen(false)}
               >
                 Visit Website
               </Link>
