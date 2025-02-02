@@ -36,15 +36,15 @@ export const Layout: React.FC = () => {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Sidebar glow */}
         <div className="absolute top-0 left-0 w-96 h-screen">
-          <div className="absolute top-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-brand-primary opacity-10 dark:opacity-5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-green-400 opacity-10 dark:opacity-5 rounded-full blur-3xl"></div>
+          <div className="absolute top-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-brand-primary opacity-[0.0025] dark:opacity-5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-green-400 opacity-[0.0025] dark:opacity-5 rounded-full blur-3xl"></div>
         </div>
         {/* Main content glow */}
         <div className="absolute left-96 inset-y-0 right-0">
           <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2">
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-primary opacity-20 dark:opacity-10 rounded-full blur-3xl"></div>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-green-400 opacity-20 dark:opacity-10 rounded-full blur-3xl"></div>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-blue-400 opacity-20 dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-primary opacity-[0.004] dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-green-400 opacity-[0.004] dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-blue-400 opacity-[0.004] dark:opacity-10 rounded-full blur-3xl"></div>
           </div>
         </div>
       </div>
