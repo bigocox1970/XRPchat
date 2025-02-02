@@ -9,7 +9,7 @@ export const Security: React.FC = () => {
           Security Architecture
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          XRPchat.app is built with security at its core, using industry-standard encryption and blockchain technology.
+          The XRP chat <i>app</i> is built with security at its core, using industry-standard encryption and blockchain technology.
         </p>
       </section>
 
@@ -23,7 +23,7 @@ export const Security: React.FC = () => {
         </div>
         <div className="space-y-4 text-gray-600 dark:text-gray-300">
           <p>
-            All messages in SecureChat are protected with military-grade AES-256 encryption. Messages are encrypted on your device
+            All messages in the XRP chat app are protected with military-grade AES-256 encryption. Messages are encrypted on your device
             before being sent, and can only be decrypted by the intended recipient.
           </p>
           <h3 className="font-semibold text-gray-900 dark:text-white mt-6 mb-2">How It Works:</h3>
@@ -46,7 +46,7 @@ export const Security: React.FC = () => {
         </div>
         <div className="space-y-4 text-gray-600 dark:text-gray-300">
           <p>
-            Your identity is secured by the XRP Ledger blockchain, providing a decentralized and cryptographically secure
+            Your identity is secured by the XRP Ledger blockchain, providing a decentralised and cryptographically secure
             way to verify users and manage encryption keys.
           </p>
           <h3 className="font-semibold text-gray-900 dark:text-white mt-6 mb-2">Key Features:</h3>

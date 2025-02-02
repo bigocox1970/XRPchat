@@ -9,7 +9,7 @@ export const Features: React.FC = () => {
           Features
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          XRPchat.app combines powerful security features with an intuitive user experience.
+          The XRP chat <i>app</i> combines powerful security features with an intuitive user experience.
         </p>
       </section>
 
@@ -38,7 +38,7 @@ export const Features: React.FC = () => {
             <li>• Blockchain-based identity verification</li>
             <li>• Secure key management</li>
             <li>• QR code sharing for easy connections</li>
-            <li>• Decentralized authentication</li>
+            <li>• Decentralised authentication</li>
           </ul>
         </div>
 
@@ -52,7 +52,7 @@ export const Features: React.FC = () => {
             <li>• Instant message delivery</li>
             <li>• Live typing indicators</li>
             <li>• Read receipts</li>
-            <li>• Message synchronization</li>
+            <li>• Message synchronisation</li>
           </ul>
         </div>
 
