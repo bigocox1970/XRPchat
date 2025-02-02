@@ -9,7 +9,7 @@ export const Security: React.FC = () => {
           Security Architecture
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          SecureChat is built with security at its core, using industry-standard encryption and blockchain technology.
+          XRPchat.app is built with security at its core, using industry-standard encryption and blockchain technology.
         </p>
       </section>
 

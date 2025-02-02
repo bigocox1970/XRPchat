@@ -30,7 +30,7 @@ export const Website: React.FC = () => {
       {/* Features Section */}
       <section className="space-y-12">
         <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white">
-          Why Choose SecureChat
+          Why Choose XRPchat<span className="text-sm italic">.app</span>
         </h2>
         <div className="grid md:grid-cols-3 gap-8">
           <div className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md">
@@ -120,7 +120,7 @@ export const Website: React.FC = () => {
         <div className="max-w-3xl mx-auto space-y-8">
           <h2 className="text-3xl font-bold">Ready to Start Secure Messaging?</h2>
           <p className="text-xl">
-            Join SecureChat today and experience truly private conversations.
+            Join XRPchat<span className="text-sm italic">.app</span> today and experience truly private conversations.
           </p>
           <Link
             to={user ? '/app' : '/website/signup'}

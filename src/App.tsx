@@ -30,8 +30,8 @@ import { FAQ } from './components/FAQ';
 const RouteGuard: React.FC = () => {
   const { user, loading } = useUser();
   const location = useLocation();
-  const isPublicRoute = ['/website/signup', '/website/signin'].includes(location.pathname);
-  const isWebsiteRoute = location.pathname.startsWith('/website');
+  const isPublicRoute = ['/', '/website/signup', '/website/signin'].includes(location.pathname);
+  const isWebsiteRoute = location.pathname === '/' || location.pathname.startsWith('/website');
   const isAppRoute = location.pathname.startsWith('/app');
 
   if (loading) {
@@ -71,11 +71,9 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 // Layout wrapper for authenticated routes
-const AuthenticatedLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+const AuthenticatedLayout: React.FC = () => {
   return (
-    <Layout>
-      {children || <Outlet />}
-    </Layout>
+    <Layout />
   );
 };
 
@@ -85,6 +83,7 @@ const router = createBrowserRouter(
     <Route element={<RouteGuard />}>
       {/* Website Routes - Always use WebsiteLayout */}
       <Route element={<WebsiteLayout />}>
+        <Route path="/" element={<Website />} />
         <Route path="/website" element={<Website />} />
         <Route path="/website/features" element={<Features />} />
         <Route path="/website/security" element={<Security />} />

@@ -4,7 +4,9 @@ import { HiMenu, HiX, HiLockClosed } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
 import { useDarkMode } from '../context/DarkModeContext';
 
-export const WebsiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+import { Outlet } from 'react-router-dom';
+
+export const WebsiteLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, signOut } = useUser();
   const { DarkModeToggle } = useDarkMode();
@@ -49,7 +51,7 @@ export const WebsiteLayout: React.FC<{ children: React.ReactNode }> = ({ childre
           <div className="flex items-center space-x-2">
             <HiLockClosed size={24} className="text-brand-primary" />
             <div className="text-lg font-bold text-gray-900 dark:text-white">
-              SecureChat.<span className="italic font-normal text-base">Crypto</span>
+              XRPchat<span className="italic font-normal">.app</span>
             </div>
           </div>
 
@@ -204,7 +206,7 @@ export const WebsiteLayout: React.FC<{ children: React.ReactNode }> = ({ childre
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {children}
+          <Outlet />
         </div>
       </main>
 

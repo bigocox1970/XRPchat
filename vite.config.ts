@@ -11,10 +11,25 @@ export default defineConfig({
           strictMode: true
         }
       }
-    })
+    }),
+    {
+      name: 'rewrite-all',
+      configureServer(server) {
+        return () => {
+          server.middlewares.use((req, _, next) => {
+            if (!req.url?.includes('.')) {
+              req.url = '/index.html';
+            }
+            next();
+          });
+        };
+      }
+    }
   ],
+  base: '/',
   server: {
     port: 3000,
+    strictPort: false,
     headers: {
       // Set CSP headers
       'Content-Security-Policy': `

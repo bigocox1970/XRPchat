@@ -144,7 +144,7 @@ export const SignUp: React.FC = () => {
         <div className="flex items-center justify-center space-x-2">
           <HiLockClosed size={32} className="text-brand-primary" />
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
-            SecureChat.<span className="italic font-normal">Crypto</span>
+            XRPchat.<span className="italic font-normal">app</span>
           </div>
         </div>
         <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">

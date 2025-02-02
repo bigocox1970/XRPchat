@@ -9,7 +9,7 @@ export const Features: React.FC = () => {
           Features
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          SecureChat combines powerful security features with an intuitive user experience.
+          XRPchat.app combines powerful security features with an intuitive user experience.
         </p>
       </section>
 

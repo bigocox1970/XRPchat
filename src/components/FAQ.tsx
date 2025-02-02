@@ -34,16 +34,16 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
 export const FAQ: React.FC = () => {
   const faqs = [
     {
-      question: "How secure is SecureChat?",
-      answer: "SecureChat uses military-grade end-to-end encryption to protect your messages. All messages are encrypted on your device before being sent, and only the intended recipient can decrypt them. We use AES-256 encryption and XRPL blockchain technology for identity verification."
+      question: "How secure is XRPchat.app?",
+      answer: "XRPchat.app uses military-grade end-to-end encryption to protect your messages. All messages are encrypted on your device before being sent, and only the intended recipient can decrypt them. We use AES-256 encryption and XRPL blockchain technology for identity verification."
     },
     {
       question: "What is XRPL identity?",
       answer: "XRPL identity uses the XRP Ledger blockchain to create a secure, decentralized identity for each user. When you sign up, a unique wallet is generated that serves as your identity. This provides cryptographic security and allows for secure message encryption."
     },
     {
-      question: "Can SecureChat read my messages?",
-      answer: "No. SecureChat uses end-to-end encryption, which means messages are encrypted on your device and can only be decrypted by the intended recipient. We never have access to your decrypted messages or encryption keys."
+      question: "Can XRPchat.app read my messages?",
+      answer: "No. XRPchat.app uses end-to-end encryption, which means messages are encrypted on your device and can only be decrypted by the intended recipient. We never have access to your decrypted messages or encryption keys."
     },
     {
       question: "How do I start a chat with someone?",
@@ -63,14 +63,14 @@ export const FAQ: React.FC = () => {
       answer: "Your private keys are stored securely on your device. If you lose your device, you'll need to create a new account and establish new connections. For security reasons, we cannot recover your encryption keys or decrypted messages."
     },
     {
-      question: "Is SecureChat open source?",
-      answer: "Yes, SecureChat is open source. Our code is available for review on GitHub, ensuring transparency and allowing the community to verify our security implementations."
+      question: "Is XRPchat.app open source?",
+      answer: "Yes, XRPchat.app is open source. Our code is available for review on GitHub, ensuring transparency and allowing the community to verify our security implementations."
     },
     {
       question: "How does the encryption work?",
       answer: (
         <div className="space-y-2">
-          <p>SecureChat's encryption works in several steps:</p>
+          <p>XRPchat.app's encryption works in several steps:</p>
           <ol className="list-decimal list-inside pl-4 space-y-1">
             <li>Each user has a public and private key pair</li>
             <li>Messages are encrypted with the recipient's public key</li>
@@ -93,7 +93,7 @@ export const FAQ: React.FC = () => {
           Frequently Asked Questions
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          Find answers to common questions about SecureChat's security, features, and usage.
+          Find answers to common questions about XRPchat.app's security, features, and usage.
         </p>
       </section>
 

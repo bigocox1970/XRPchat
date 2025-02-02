@@ -1,4 +1,4 @@
-# Secure Chat Application v2
+# XRPchat.app
 
 A modern, secure chat application with end-to-end encryption using wallet-based keys.
 

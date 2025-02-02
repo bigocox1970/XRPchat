@@ -9,7 +9,9 @@ import { useDarkMode } from '../context/DarkModeContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
 
-export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+import { Outlet } from 'react-router-dom';
+
+export const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -68,7 +70,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <div className="flex items-center space-x-2">
                 <HiLockClosed size={24} className="text-white" />
                 <div className="text-lg font-bold">
-                  SecureChat.<span className="italic font-normal text-base">Crypto</span>
+                  XRPchat<span className="italic font-normal">.app</span>
                 </div>
               </div>
             </div>
@@ -211,7 +213,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       {/* Main Content */}
       <div className="flex-1 h-full overflow-hidden">
-        {children}
+        <Outlet />
       </div>
 
       {/* Overlay for mobile */}
