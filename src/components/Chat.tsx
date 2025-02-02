@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useNotification } from '../context/NotificationContext';
 import { useEncryption } from '../context/EncryptionContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
@@ -80,6 +81,7 @@ export const Chat: React.FC = () => {
   const [participants, setParticipants] = useState<ThreadParticipants>({});
   const { threadId } = useParams<{ threadId: string }>();
   const { user } = useUser();
+  const { notificationsEnabled } = useNotification();
   const { encryptForRecipient, decryptMessage } = useEncryption();
   const { showEncrypted } = useEncryptionMode();
   const { debugMode } = useDebugMode();
@@ -244,6 +246,14 @@ export const Chat: React.FC = () => {
           // Mark message as read if it's not from the current user
           if (message.sender_id !== user.id) {
             await markMessageAsRead(message.id, user.id);
+            
+            // Show notification if enabled and window is not focused
+            if (notificationsEnabled && !document.hasFocus() && 'Notification' in window && Notification.permission === 'granted') {
+              const senderName = participants[message.sender_id]?.username || 'Someone';
+              new Notification(`New message from ${senderName}`, {
+                body: showEncrypted ? 'New encrypted message' : await decryptMessage(message.content),
+              });
+            }
           }
           
           setMessages(prev => {

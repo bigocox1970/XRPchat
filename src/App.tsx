@@ -13,6 +13,7 @@ import { EncryptionProvider } from './context/EncryptionContext';
 import { DarkModeProvider } from './context/DarkModeContext';
 import { EncryptionModeProvider } from './context/EncryptionModeContext';
 import { DebugModeProvider } from './context/DebugModeContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { SignUp } from './components/SignUp';
 import { SignIn } from './components/SignIn';
 import { Profile } from './components/Profile';
@@ -61,9 +62,11 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     <DarkModeProvider>
       <DebugModeProvider>
         <UserProvider>
-          <EncryptionModeProvider>
-            {children}
-          </EncryptionModeProvider>
+          <NotificationProvider>
+            <EncryptionModeProvider>
+              {children}
+            </EncryptionModeProvider>
+          </NotificationProvider>
         </UserProvider>
       </DebugModeProvider>
     </DarkModeProvider>

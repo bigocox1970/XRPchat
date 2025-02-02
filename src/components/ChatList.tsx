@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useNotification } from '../context/NotificationContext';
 import { getUserThreads, subscribeToUserThreads, getProfile } from '../utils/supabase';
 import { HiPlus, HiDotsVertical, HiUser } from 'react-icons/hi';
 import { Avatar } from './Avatar';
@@ -17,6 +18,7 @@ type Thread = Database['public']['Tables']['threads']['Row'] & {
 export const ChatList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { notificationsEnabled } = useNotification();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export const ChatList: React.FC = () => {
           // Show notification if the thread was created by someone else
           if (payload.new.created_by !== user.id) {
             // Use browser notification if available
-            if ('Notification' in window && Notification.permission === 'granted') {
+            if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
               new Notification('New Chat', {
                 body: `New chat: ${payload.new.name}`,
               });
@@ -51,10 +53,6 @@ export const ChatList: React.FC = () => {
         }
       });
 
-      // Request notification permission
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
 
       return () => {
         unsubscribe();

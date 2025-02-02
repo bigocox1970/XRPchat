@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff, HiCog } from 'react-icons/hi';
+import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff, HiCog, HiBell } from 'react-icons/hi';
 import { Avatar } from './Avatar';
 import { HiQrCode } from 'react-icons/hi2';
 import { useDarkMode } from '../context/DarkModeContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
+import { useNotification } from '../context/NotificationContext';
 
 import { Outlet } from 'react-router-dom';
 
@@ -18,6 +19,7 @@ export const Layout: React.FC = () => {
   const { user, profile, signOut } = useUser();
   const { showEncrypted, toggleEncryptionMode, lockEncryption } = useEncryptionMode();
   const { debugMode, toggleDebugMode } = useDebugMode();
+  const { notificationsEnabled, toggleNotifications } = useNotification();
   const { DarkModeToggle } = useDarkMode();
   const navigate = useNavigate();
   const location = useLocation();
@@ -158,7 +160,20 @@ export const Layout: React.FC = () => {
                   <DarkModeToggle />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
+                      <HiBell size={20} />
+                      <span>Notifications</span>
+                    </div>
+                    <button
+                      onClick={toggleNotifications}
+                      className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${notificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
                       {!showEncrypted ? <HiEyeOff size={20} /> : <HiEye size={20} />}
