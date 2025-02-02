@@ -19,6 +19,7 @@ interface ThreadDetails {
 interface ParticipantProfile {
   username: string;
   avatar_url: string | null;
+  last_active: string | null;
 }
 
 interface ThreadParticipants {
@@ -166,24 +167,44 @@ export const Chat: React.FC = () => {
         setThreadDetails(data);
         
         // Load participant profiles
-        const profiles = await Promise.all(
-          data.participant_ids.map(async (id: string) => {
-            const profile = await getProfile(id);
-            return { id, profile };
-          })
-        );
+        try {
+          const profiles = await Promise.all(
+            data.participant_ids.map(async (id: string) => {
+              try {
+                const profile = await getProfile(id);
+                // Update last_active for the profile
+                await supabase
+                  .from('profiles')
+                  .update({ last_active: new Date().toISOString() })
+                  .eq('id', id);
+                return { id, profile };
+              } catch (error) {
+                console.error(`Error loading profile for ${id}:`, error);
+                return { 
+                  id, 
+                  profile: {
+                    username: 'Unknown User',
+                    avatar_url: null,
+                    last_active: new Date().toISOString()
+                  }
+                };
+              }
+            })
+          );
 
-        const participantMap = profiles.reduce((acc, { id, profile }) => {
-          if (profile) {
+          const participantMap = profiles.reduce((acc, { id, profile }) => {
             acc[id] = {
               username: profile.username,
-              avatar_url: profile.avatar_url
+              avatar_url: profile.avatar_url,
+              last_active: profile.last_active || new Date().toISOString()
             };
-          }
-          return acc;
-        }, {} as ThreadParticipants);
+            return acc;
+          }, {} as ThreadParticipants);
 
-        setParticipants(participantMap);
+          setParticipants(participantMap);
+        } catch (error) {
+          console.error('Error loading participant profiles:', error);
+        }
       } catch (error) {
         setError('Failed to load chat. Please try again.');
       }
@@ -204,7 +225,7 @@ export const Chat: React.FC = () => {
         // Mark unread messages as read
         messages.forEach(async (message) => {
           if (!message.read && message.sender_id !== user.id) {
-            await markMessageAsRead(message.id);
+            await markMessageAsRead(message.id, user.id);
           }
         });
       } catch (error) {
@@ -227,7 +248,7 @@ export const Chat: React.FC = () => {
           
           // Mark message as read if it's not from the current user
           if (message.sender_id !== user.id) {
-            await markMessageAsRead(message.id);
+            await markMessageAsRead(message.id, user.id);
           }
           
           setMessages(prev => {
@@ -250,15 +271,33 @@ export const Chat: React.FC = () => {
     };
   }, [threadId, user]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on mount, new messages, and when loading completes
   useEffect(() => {
-    if (messages.length > 0 && !loading) {
-      const timeout = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView();
-      }, 100);
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+
+    // Initial scroll on mount
+    scrollToBottom();
+
+    // Scroll when messages load or update
+    if (messages.length > 0) {
+      const timeout = setTimeout(scrollToBottom, 250);
       return () => clearTimeout(timeout);
     }
   }, [messages.length, loading]);
+
+  // Additional scroll when loading completes
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      const timeout = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 250);
+      return () => clearTimeout(timeout);
+    }
+  }, [loading]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -319,6 +358,28 @@ export const Chat: React.FC = () => {
                 `Chat with ${participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.username}` : 
                 'Chat'}
             </div>
+            <div className="text-xs text-white/80">
+              {(() => {
+                const participantId = threadDetails.participant_ids.find(id => id !== user?.id) || '';
+                const lastActive = participants[participantId]?.last_active;
+                if (!lastActive) return 'Never active';
+                
+                const date = new Date(lastActive);
+                const now = new Date();
+                const diff = now.getTime() - date.getTime();
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+                if (days === 0) {
+                  return `Last active today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                } else if (days === 1) {
+                  return `Last active yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                } else if (days < 7) {
+                  return `Last active ${date.toLocaleDateString([], { weekday: 'long' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                } else {
+                  return `Last active ${date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                }
+              })()}
+            </div>
           </div>
         </div>
         <button
@@ -351,23 +412,23 @@ export const Chat: React.FC = () => {
             return (
               <div
                 key={`${message.id}-${index}`}
-                className={`flex items-end space-x-2 ${isUserMessage ? 'justify-end' : 'justify-start'}`}
+                className={`flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'}`}
               >
                 {!isUserMessage && (
                   <Avatar 
                     url={participants[message.sender_id]?.avatar_url}
                     size={32}
-                    className="mb-1"
+                    className="flex-shrink-0 mr-2"
                   />
                 )}
-                <div
-                  className={`max-w-lg px-4 py-2 rounded-lg shadow ${
-                    isUserMessage
-                      ? 'bg-[#dcf8c6] dark:bg-brand-secondary text-gray-800 dark:text-white rounded-br-none'
-                      : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none'
-                  }`}
-                >
-                  <div>
+                <div className="relative">
+                  <div
+                    className={`max-w-lg px-4 py-2 rounded-lg shadow ${
+                      isUserMessage
+                        ? 'bg-[#dcf8c6] dark:bg-brand-secondary text-gray-800 dark:text-white rounded-br-none'
+                        : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none'
+                    }`}
+                  >
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                       {isUserMessage ? 'You' : participants[message.sender_id]?.username}
                     </p>
@@ -375,13 +436,20 @@ export const Chat: React.FC = () => {
                       content={message.content}
                       showEncrypted={showEncrypted}
                     />
+                    <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                      {new Date(message.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
                   </div>
-                  <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
-                    {new Date(message.created_at).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
+                  {isUserMessage && (
+                    <Avatar 
+                      url={participants[user?.id || '']?.avatar_url}
+                      size={32}
+                      className="absolute -right-10 bottom-0"
+                    />
+                  )}
                 </div>
               </div>
             );
