@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { HiMenu, HiX, HiLockClosed } from 'react-icons/hi';
+import { HiMenu, HiX, HiLockClosed, HiLogout, HiHome, HiSparkles, HiShieldCheck, HiQuestionMarkCircle, HiArrowRight } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
 import { useDarkMode } from '../context/DarkModeContext';
 
@@ -127,78 +127,85 @@ export const WebsiteLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Dropdown */}
+        {/* Mobile Navigation Sidebar */}
         <div
           className={`${
-            sidebarOpen ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
-          } lg:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 ease-in-out z-50`}
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:hidden fixed inset-y-0 left-0 w-full bg-white dark:bg-gray-800 shadow-lg transition-transform duration-300 ease-in-out z-50`}
         >
-          <nav className="p-4 space-y-2">
+          <nav className="h-full p-6 space-y-1 flex flex-col pt-20">
             <Link
               to="/website"
-              className={`block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
                 isActiveRoute('/website') ? 'text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              Home
+              <HiHome size={24} />
+              <span>Home</span>
             </Link>
             <Link
               to="/website/features"
-              className={`block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
                 isActiveRoute('/website/features') ? 'text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              Features
+              <HiSparkles size={24} />
+              <span>Features</span>
             </Link>
             <Link
               to="/website/security"
-              className={`block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
                 isActiveRoute('/website/security') ? 'text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              Security
+              <HiShieldCheck size={24} />
+              <span>Security</span>
             </Link>
             <Link
               to="/website/faq"
-              className={`block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
                 isActiveRoute('/website/faq') ? 'text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              FAQ
+              <HiQuestionMarkCircle size={24} />
+              <span>FAQ</span>
             </Link>
-            {user ? (
-              <button
-                onClick={handleSignOut}
-                className="block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
-              >
-                Sign Out
-              </button>
-            ) : (
-              <Link
-                to="/website/signin"
-                className="block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
-                onClick={() => setSidebarOpen(false)}
-              >
-                Sign In
-              </Link>
-            )}
-            <div className="px-4 py-2 flex items-center justify-between text-gray-700 dark:text-gray-200">
+            <div className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">
               <span>Theme</span>
-              <DarkModeToggle />
+              <div className="ml-auto">
+                <DarkModeToggle />
+              </div>
             </div>
             <button
               onClick={() => {
                 handleGoToApp();
                 setSidebarOpen(false);
               }}
-              className="w-full px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-dark transition-colors"
+              className="block px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 w-full text-left"
             >
               Go to App
             </button>
+            {user ? (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400"
+              >
+                <HiLogout size={24} />
+                <span>Logout</span>
+              </button>
+            ) : (
+              <Link
+                to="/website/signin"
+                className="block px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+                onClick={() => setSidebarOpen(false)}
+              >
+                Sign In
+              </Link>
+            )}
           </nav>
         </div>
       </header>
@@ -213,7 +220,7 @@ export const WebsiteLayout: React.FC = () => {
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={toggleSidebar}
         />
       )}
