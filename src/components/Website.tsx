@@ -30,7 +30,7 @@ export const Website: React.FC = () => {
       {/* Features Section */}
       <section className="space-y-12">
         <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white">
-          Why Choose XRPchat<span className="text-sm italic">.app</span>
+          Why Choose the XRP chat <i>app</i>?
         </h2>
         <div className="grid md:grid-cols-3 gap-8">
           <div className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md">
@@ -59,7 +59,7 @@ export const Website: React.FC = () => {
             </div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Real-Time Messaging</h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Instant message delivery with real-time updates and secure message synchronization.
+              Instant message delivery with real-time updates and secure message synchronisation.
             </p>
           </div>
         </div>
@@ -95,8 +95,11 @@ export const Website: React.FC = () => {
               </p>
             </div>
             <div className="flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-              {/* Placeholder for illustration */}
-              <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg"></div>
+              <img 
+                src="/img/encryption.webp" 
+                alt="End-to-end encryption illustration" 
+                className="w-full h-auto rounded-lg"
+              />
             </div>
           </div>
 
@@ -104,12 +107,15 @@ export const Website: React.FC = () => {
             <div className="flex-1 space-y-4">
               <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">3. Instant Delivery</h3>
               <p className="text-gray-600 dark:text-gray-300">
-                Messages are delivered instantly through our real-time system, ensuring your conversations stay synchronized and secure.
+                Messages are delivered instantly through our real-time system, ensuring your conversations stay synchronised and secure.
               </p>
             </div>
             <div className="flex-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-              {/* Placeholder for illustration */}
-              <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg"></div>
+              <img 
+                src="/img/real-time.webp" 
+                alt="Real-time message delivery illustration" 
+                className="w-full h-auto rounded-lg"
+              />
             </div>
           </div>
         </div>
@@ -120,7 +126,7 @@ export const Website: React.FC = () => {
         <div className="max-w-3xl mx-auto space-y-8">
           <h2 className="text-3xl font-bold">Ready to Start Secure Messaging?</h2>
           <p className="text-xl">
-            Join XRPchat<span className="text-sm italic">.app</span> today and experience truly private conversations.
+            Join the XRP chat <i>app</i> today and experience truly private conversations.
           </p>
           <Link
             to={user ? '/app' : '/website/signup'}
