@@ -69,7 +69,7 @@ export const Layout: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <HiLockClosed size={24} className="text-white" />
-                <div className="text-lg font-bold">
+                <div className="text-xl font-bold">
                   XRPchat<span className="italic font-normal">.app</span>
                 </div>
               </div>

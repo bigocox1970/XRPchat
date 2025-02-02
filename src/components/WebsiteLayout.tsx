@@ -50,7 +50,7 @@ export const WebsiteLayout: React.FC = () => {
           {/* Left side - Logo and Name */}
           <div className="flex items-center space-x-2">
             <HiLockClosed size={24} className="text-brand-primary" />
-            <div className="text-lg font-bold text-gray-900 dark:text-white">
+            <div className="text-xl font-bold text-gray-900 dark:text-white">
               XRPchat<span className="italic font-normal">.app</span>
             </div>
           </div>

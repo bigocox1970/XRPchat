@@ -20,6 +20,13 @@ export const ChatList: React.FC = () => {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter threads based on search query
+  const filteredThreads = threads.filter(thread => 
+    thread.otherParticipant?.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    getLastMessage(thread).toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     if (user) {
@@ -103,13 +110,13 @@ export const ChatList: React.FC = () => {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
     if (days === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     } else if (days === 1) {
-      return 'Yesterday';
+      return `Yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     } else if (days < 7) {
-      return date.toLocaleDateString([], { weekday: 'long' });
+      return `${date.toLocaleDateString([], { weekday: 'long' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
   };
 
@@ -142,14 +149,36 @@ export const ChatList: React.FC = () => {
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-4">
+          <div className="px-4 py-5">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
+              Search Chats
+            </h3>
+            <div className="max-w-xl">
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search chats..."
+                  className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 py-3 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
         {error && (
           <div className="p-4 text-sm text-red-600 bg-red-50">
             {error}
           </div>
         )}
 
-        {threads.length === 0 ? (
+        {filteredThreads.length === 0 && threads.length > 0 ? (
+          <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+            No chats found
+          </div>
+        ) : threads.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <p className="text-gray-500 mb-4">No chats yet</p>
@@ -162,8 +191,8 @@ export const ChatList: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {threads.map((thread) => (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 shadow rounded-lg">
+            {filteredThreads.map((thread) => (
               <div
                 key={thread.id}
                 onClick={() => navigate(`/app/chat/${thread.id}`)}

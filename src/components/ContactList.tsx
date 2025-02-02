@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { searchUsers, createThread, addContact, getContacts } from '../utils/supabase';
-import { HiUser, HiQrcode, HiPlus } from 'react-icons/hi';
+import { HiUser, HiPlus } from 'react-icons/hi';
 import { CopyButton } from './CopyButton';
 import type { Database } from '../types/supabase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 // Modify the Profile type to make updated_at optional to handle potential missing values
-type Profile = Omit<Database['public']['Tables']['profiles']['Row'], 'updated_at'> & {
-  updated_at?: string;
-};
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export const ContactList: React.FC = () => {
   const navigate = useNavigate();
@@ -55,14 +53,26 @@ export const ContactList: React.FC = () => {
     };
   }, [showScanner]);
 
-  // Load contacts on mount
+  // Load contacts on mount and refresh when needed
   useEffect(() => {
     const loadContacts = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        console.log('Loading contacts...');
         const userContacts = await getContacts();
-        setContacts(userContacts);
+        console.log('Contacts loaded:', userContacts);
+        if (userContacts && Array.isArray(userContacts)) {
+          setContacts(userContacts);
+        } else {
+          console.error('Invalid contacts data:', userContacts);
+          setError('Failed to load contacts: Invalid data format');
+        }
       } catch (error) {
         console.error('Error loading contacts:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load contacts');
+      } finally {
+        setLoading(false);
       }
     };
     loadContacts();
@@ -141,7 +151,7 @@ export const ContactList: React.FC = () => {
   const renderContactCard = (contact: Profile, showStartChat = true) => (
     <div
       key={contact.id}
-      className="relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 dark:hover:border-gray-500"
+      className="relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 dark:hover:border-gray-500 w-full"
     >
       <div className="flex-shrink-0">
         {contact.avatar_url ? (
@@ -219,14 +229,14 @@ export const ContactList: React.FC = () => {
               Search Contact
             </h3>
 
-            <div className="max-w-xl">
-              <div className="mb-4">
+            <div>
+              <div className="mb-4 max-w-xl mx-auto">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search contacts..."
-                  className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                  className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 py-3 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                 />
               </div>
               {showScanner && (

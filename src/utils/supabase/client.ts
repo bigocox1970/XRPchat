@@ -40,3 +40,22 @@ export const supabaseAdmin = createClient<Database>(
     }
   }
 );
+
+// Run the last_active migration
+export const runLastActiveMigration = async () => {
+  try {
+    // Add last_active column if it doesn't exist
+    await supabaseAdmin.rpc('add_last_active_column');
+    
+    // Create function to update last_active
+    await supabaseAdmin.rpc('create_update_last_active_function');
+    
+    // Create trigger to update last_active when user sends a message
+    await supabaseAdmin.rpc('create_update_last_active_trigger');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Migration error:', error);
+    return { success: false, error };
+  }
+};

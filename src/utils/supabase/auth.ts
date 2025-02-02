@@ -16,6 +16,7 @@ export const createProfile = async (
         id: userId,
         username,
         wallet_address: walletAddress,
+        last_active: new Date().toISOString()
       });
 
     if (error) throw error;
@@ -112,6 +113,7 @@ export const updateProfile = async (
   updates: {
     username?: string;
     avatar_url?: string;
+    last_active?: string;
   }
 ) => {
   try {
@@ -167,6 +169,20 @@ export const addContact = async (contactId: string) => {
     }
 
     console.log('Adding contact:', { userId: user.id, contactId });
+    
+    // Update last_active for both users
+    const now = new Date().toISOString();
+    await Promise.all([
+      supabase
+        .from('profiles')
+        .update({ last_active: now })
+        .eq('id', user.id),
+      supabase
+        .from('profiles')
+        .update({ last_active: now })
+        .eq('id', contactId)
+    ]);
+
     const { error, data } = await supabase
       .from('contacts')
       .insert({
@@ -198,43 +214,50 @@ export const addContact = async (contactId: string) => {
 /**
  * Gets a user's contacts
  */
-type ContactWithProfile = {
-  contact_id: string;
-  contact: Database['public']['Tables']['profiles']['Row'];
-};
-
 export const getContacts = async (): Promise<Database['public']['Tables']['profiles']['Row'][]> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No authenticated user');
 
-    const { data, error } = await supabase
+    // Get contact IDs first
+    const { data: contactsData, error: contactsError } = await supabase
       .from('contacts')
-      .select(`
-        contact_id,
-        contact:profiles!contacts_contact_id_fkey (
-          id,
-          username,
-          wallet_address,
-          avatar_url,
-          updated_at
-        )
-      `)
-      .eq('user_id', user.id);
+      .select('contact_id')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    
-    if (!data) return [];
+    if (contactsError) {
+      console.error('Error fetching contacts:', contactsError);
+      if (contactsError.code === '42P01') {
+        console.error('Contacts table does not exist');
+        return [];
+      }
+      throw contactsError;
+    }
 
-    // Type assertion and transformation
-    const contacts = data as unknown as ContactWithProfile[];
-    return contacts.map(item => ({
-      id: item.contact.id,
-      username: item.contact.username,
-      wallet_address: item.contact.wallet_address,
-      avatar_url: item.contact.avatar_url,
-      updated_at: item.contact.updated_at
-    }));
+    if (!contactsData || !Array.isArray(contactsData)) {
+      console.error('Invalid contacts data:', contactsData);
+      return [];
+    }
+
+    // Get profiles for contacts
+    const contactIds = contactsData.map(c => c.contact_id);
+    if (contactIds.length === 0) return [];
+
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', contactIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw profilesError;
+    }
+
+    if (!profilesData) return [];
+
+    // Return the profiles data
+    return profilesData;
   } catch (error) {
     console.error('Error getting contacts:', error);
     throw error;
@@ -262,7 +285,8 @@ export const searchUsers = async (query: string): Promise<Database['public']['Ta
       username: profile.username,
       wallet_address: profile.wallet_address,
       avatar_url: profile.avatar_url,
-      updated_at: profile.updated_at
+      updated_at: profile.updated_at,
+      last_active: profile.last_active
     }));
   } catch (error) {
     console.error('Error searching users:', error);

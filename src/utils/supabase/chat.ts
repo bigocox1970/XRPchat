@@ -124,16 +124,20 @@ export const sendMessage = async (
 
     if (messageError) throw messageError;
 
-    // Update thread's last_message_at
-    const { error: threadError } = await supabase
-      .from('threads')
-      .update({ last_message_at: new Date().toISOString() })
-      .eq('id', threadId);
+      // Update thread's last_message_at
+      const now = new Date().toISOString();
+      await Promise.all([
+        supabase
+          .from('threads')
+          .update({ last_message_at: now })
+          .eq('id', threadId),
+        supabase
+          .from('profiles')
+          .update({ last_active: now })
+          .eq('id', senderId)
+      ]);
 
-    if (threadError) {
-      // Don't throw here as message was sent successfully
-    }
-
+    // Don't throw on update errors as message was sent successfully
     return { data: message };
   } catch (error) {
     throw error;
@@ -143,14 +147,19 @@ export const sendMessage = async (
 /**
  * Updates message read status
  */
-export const markMessageAsRead = async (messageId: string) => {
+export const markMessageAsRead = async (messageId: string, userId: string) => {
   try {
-    const { error } = await supabase
-      .from('messages')
-      .update({ read: true })
-      .eq('id', messageId);
-
-    if (error) throw error;
+    const now = new Date().toISOString();
+    await Promise.all([
+      supabase
+        .from('messages')
+        .update({ read: true })
+        .eq('id', messageId),
+      supabase
+        .from('profiles')
+        .update({ last_active: now })
+        .eq('id', userId)
+    ]);
   } catch (error) {
     throw error;
   }

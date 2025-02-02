@@ -343,9 +343,9 @@ export const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#efeae2] dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-[#efeae2] dark:bg-gray-900 relative">
       {/* Chat Header */}
-      <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
+      <div className="sticky top-0 bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-20">
         <div className="flex items-center space-x-3">
           <Avatar 
             url={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url} 
@@ -414,43 +414,61 @@ export const Chat: React.FC = () => {
                 key={`${message.id}-${index}`}
                 className={`flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'}`}
               >
-                {!isUserMessage && (
-                  <Avatar 
-                    url={participants[message.sender_id]?.avatar_url}
-                    size={32}
-                    className="flex-shrink-0 mr-2"
-                  />
-                )}
-                <div className="relative">
-                  <div
-                    className={`max-w-lg px-4 py-2 rounded-lg shadow ${
-                      isUserMessage
-                        ? 'bg-[#dcf8c6] dark:bg-brand-secondary text-gray-800 dark:text-white rounded-br-none'
-                        : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none'
-                    }`}
-                  >
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      {isUserMessage ? 'You' : participants[message.sender_id]?.username}
-                    </p>
-                    <MessageContent 
-                      content={message.content}
-                      showEncrypted={showEncrypted}
+                {!isUserMessage ? (
+                  <>
+                    <Avatar 
+                      url={participants[message.sender_id]?.avatar_url}
+                      size={32}
+                      className="flex-shrink-0 mr-2"
                     />
-                    <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
-                      {new Date(message.created_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                  {isUserMessage && (
+                    <div>
+                      <div
+                        className="max-w-lg px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none"
+                      >
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          {participants[message.sender_id]?.username}
+                        </p>
+                        <MessageContent 
+                          content={message.content}
+                          showEncrypted={showEncrypted}
+                        />
+                        <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                          {new Date(message.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <div
+                        className="max-w-lg px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary text-gray-800 dark:text-white rounded-br-none"
+                      >
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          You
+                        </p>
+                        <MessageContent 
+                          content={message.content}
+                          showEncrypted={showEncrypted}
+                        />
+                        <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                          {new Date(message.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
                     <Avatar 
                       url={participants[user?.id || '']?.avatar_url}
                       size={32}
-                      className="absolute -right-10 bottom-0"
+                      className="flex-shrink-0 ml-2"
                     />
-                  )}
-                </div>
+                  </>
+                )}
               </div>
             );
           })}

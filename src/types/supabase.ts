@@ -16,6 +16,7 @@ export interface Database {
           avatar_url: string | null;
           wallet_address: string;
           updated_at: string;
+          last_active: string | null;
         };
         Insert: {
           id: string;
@@ -23,6 +24,7 @@ export interface Database {
           avatar_url?: string | null;
           wallet_address: string;
           updated_at?: string;
+          last_active?: string | null;
         };
         Update: {
           id?: string;
@@ -30,6 +32,7 @@ export interface Database {
           avatar_url?: string | null;
           wallet_address?: string;
           updated_at?: string;
+          last_active?: string | null;
         };
       };
       wallets: {
