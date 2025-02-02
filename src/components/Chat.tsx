@@ -172,11 +172,6 @@ export const Chat: React.FC = () => {
             data.participant_ids.map(async (id: string) => {
               try {
                 const profile = await getProfile(id);
-                // Update last_active for the profile
-                await supabase
-                  .from('profiles')
-                  .update({ last_active: new Date().toISOString() })
-                  .eq('id', id);
                 return { id, profile };
               } catch (error) {
                 console.error(`Error loading profile for ${id}:`, error);

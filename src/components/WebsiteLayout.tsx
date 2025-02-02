@@ -39,18 +39,18 @@ export const WebsiteLayout: React.FC = () => {
       {/* Background glow effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-primary opacity-10 dark:opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-400 opacity-10 dark:opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-400 opacity-10 dark:opacity-10 rounded-full blur-3xl"></div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-primary opacity-[0.05] dark:opacity-10 rounded-full blur-3xl"></div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-400 opacity-[0.05] dark:opacity-10 rounded-full blur-3xl"></div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-400 opacity-[0.05] dark:opacity-10 rounded-full blur-3xl"></div>
         </div>
       </div>
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-md relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
+      <header className="bg-brand-primary text-white shadow-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-[22px] flex items-center justify-between">
           {/* Left side - Logo and Name */}
           <div className="flex items-center space-x-2">
-            <HiLockClosed size={24} className="text-brand-primary" />
-            <div className="text-xl font-bold text-gray-900 dark:text-white">
+            <HiLockClosed size={24} className="text-white" />
+            <div className="text-xl font-bold text-white">
               XRPchat<span className="italic font-normal">.app</span>
             </div>
           </div>
@@ -62,46 +62,46 @@ export const WebsiteLayout: React.FC = () => {
               {user ? (
                 <button
                   onClick={handleSignOut}
-                  className="text-gray-700 dark:text-gray-200 hover:text-brand-primary dark:hover:text-white"
+                  className="text-white/80 hover:text-white"
                 >
                   Sign Out
                 </button>
               ) : (
                 <Link
                   to="/website/signin"
-                  className="text-gray-700 dark:text-gray-200 hover:text-brand-primary dark:hover:text-white"
+                  className="text-white/80 hover:text-white"
                 >
                   Sign In
                 </Link>
               )}
               <Link
                 to="/website"
-                className={`text-gray-700 dark:text-gray-200 hover:text-brand-primary dark:hover:text-white ${
-                  isActiveRoute('/website') ? 'text-brand-primary dark:text-white' : ''
+                className={`text-white/80 hover:text-white ${
+                  isActiveRoute('/website') ? 'text-white' : ''
                 }`}
               >
                 Home
               </Link>
               <Link
                 to="/website/features"
-                className={`text-gray-700 dark:text-gray-200 hover:text-brand-primary dark:hover:text-white ${
-                  isActiveRoute('/website/features') ? 'text-brand-primary dark:text-white' : ''
+                className={`text-white/80 hover:text-white ${
+                  isActiveRoute('/website/features') ? 'text-white' : ''
                 }`}
               >
                 Features
               </Link>
               <Link
                 to="/website/security"
-                className={`text-gray-700 dark:text-gray-200 hover:text-brand-primary dark:hover:text-white ${
-                  isActiveRoute('/website/security') ? 'text-brand-primary dark:text-white' : ''
+                className={`text-white/80 hover:text-white ${
+                  isActiveRoute('/website/security') ? 'text-white' : ''
                 }`}
               >
                 Security
               </Link>
               <Link
                 to="/website/faq"
-                className={`text-gray-700 dark:text-gray-200 hover:text-brand-primary dark:hover:text-white ${
-                  isActiveRoute('/website/faq') ? 'text-brand-primary dark:text-white' : ''
+                className={`text-white/80 hover:text-white ${
+                  isActiveRoute('/website/faq') ? 'text-white' : ''
                 }`}
               >
                 FAQ
@@ -112,7 +112,7 @@ export const WebsiteLayout: React.FC = () => {
             {/* Go to App Button */}
             <button
               onClick={handleGoToApp}
-              className="hidden lg:block px-6 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-dark transition-colors"
+              className="hidden lg:block px-6 py-2 bg-white text-brand-primary rounded-lg hover:bg-white/90 transition-colors"
             >
               Go to App
             </button>
@@ -120,9 +120,9 @@ export const WebsiteLayout: React.FC = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={toggleSidebar}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="lg:hidden p-2 rounded-lg hover:bg-white/10"
             >
-              {sidebarOpen ? <HiX size={24} className="text-gray-600 dark:text-gray-300" /> : <HiMenu size={24} className="text-gray-600 dark:text-gray-300" />}
+              {sidebarOpen ? <HiX size={24} className="text-white" /> : <HiMenu size={24} className="text-white" />}
             </button>
           </div>
         </div>
@@ -133,7 +133,17 @@ export const WebsiteLayout: React.FC = () => {
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:hidden fixed inset-y-0 left-0 w-full bg-white dark:bg-gray-800 shadow-lg transition-transform duration-300 ease-in-out z-50`}
         >
-          <nav className="h-full p-6 space-y-1 flex flex-col pt-20">
+          <nav className="h-full flex flex-col">
+            {/* Sidebar Header */}
+            <div className="bg-brand-primary text-white py-[22px] px-4 shadow-md">
+              <div className="flex items-center space-x-2">
+                <HiLockClosed size={24} className="text-white" />
+                <div className="text-xl font-bold">
+                  XRPchat<span className="italic font-normal">.app</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-1 flex-1">
             <Link
               to="/website"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
@@ -206,6 +216,7 @@ export const WebsiteLayout: React.FC = () => {
                 Sign In
               </Link>
             )}
+            </div>
           </nav>
         </div>
       </header>
