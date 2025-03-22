@@ -25,13 +25,13 @@ export const WebsiteLayout: React.FC = () => {
     if (user) {
       navigate('/app');
     } else {
-      navigate('/website/signup');
+      navigate('/signup');
     }
   };
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/website/signin');
+    navigate('/signin');
   };
 
   return (
@@ -68,16 +68,16 @@ export const WebsiteLayout: React.FC = () => {
                 </button>
               ) : (
                 <Link
-                  to="/website/signin"
+                  to="/signin"
                   className="text-white/80 hover:text-white"
                 >
                   Sign In
                 </Link>
               )}
               <Link
-                to="/website"
+                to="/"
                 className={`text-white/80 hover:text-white ${
-                  isActiveRoute('/website') ? 'text-white' : ''
+                  isActiveRoute('/') ? 'text-white' : ''
                 }`}
               >
                 Home
@@ -145,9 +145,9 @@ export const WebsiteLayout: React.FC = () => {
             </div>
             <div className="p-6 space-y-1 flex-1">
             <Link
-              to="/website"
+              to="/"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/website') ? 'text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+                isActiveRoute('/') ? 'text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -209,7 +209,7 @@ export const WebsiteLayout: React.FC = () => {
               </button>
             ) : (
               <Link
-                to="/website/signin"
+                to="/signin"
                 className="block px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
                 onClick={() => setSidebarOpen(false)}
               >

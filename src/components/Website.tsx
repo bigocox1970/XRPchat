@@ -19,7 +19,7 @@ export const Website: React.FC = () => {
         </p>
         <div className="flex justify-center gap-4">
           <Link
-            to={user ? '/app' : '/website/signup'}
+            to={user ? '/app' : '/signup'}
             className="px-8 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-dark transition-colors text-lg font-semibold"
           >
             {user ? 'Go to App' : 'Get Started'}
@@ -129,7 +129,7 @@ export const Website: React.FC = () => {
             Join the XRP chat <i>app</i> today and experience truly private conversations.
           </p>
           <Link
-            to={user ? '/app' : '/website/signup'}
+            to={user ? '/app' : '/signup'}
             className="inline-block px-8 py-3 bg-white text-brand-primary rounded-lg hover:bg-gray-100 transition-colors text-lg font-semibold"
           >
             {user ? 'Go to App' : 'Get Started'}

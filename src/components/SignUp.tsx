@@ -128,7 +128,7 @@ export const SignUp: React.FC = () => {
           </p>
           <div className="mt-4 flex justify-center">
             <button
-              onClick={() => navigate('/website/signin')}
+              onClick={() => navigate('/signin')}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#075e54] hover:bg-[#128c7e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54]"
             >
               Go to Sign In
@@ -271,14 +271,14 @@ export const SignUp: React.FC = () => {
 
             <div className="mt-6 space-y-4">
               <button
-                onClick={() => navigate('/website/signin')}
+                onClick={() => navigate('/signin')}
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54] dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
               >
                 Sign in
               </button>
               <Link
-                to="/website"
+                to="/"
                 className="block text-center text-sm text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary"
               >
                 View Website

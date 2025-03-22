@@ -34,7 +34,7 @@ import './index.css';
 const RouteGuard: React.FC = () => {
   const { user, loading } = useUser();
   const location = useLocation();
-  const isPublicRoute = ['/', '/website/signup', '/website/signin'].includes(location.pathname);
+  const isPublicRoute = ['/', '/signin', '/signup', '/website', '/website/signin', '/website/signup'].includes(location.pathname);
   const isWebsiteRoute = location.pathname === '/' || location.pathname.startsWith('/website');
   const isAppRoute = location.pathname.startsWith('/app');
 
@@ -48,7 +48,7 @@ const RouteGuard: React.FC = () => {
 
   // Require authentication only for app routes
   if (!user && isAppRoute) {
-    return <Navigate to="/website/signin" replace />;
+    return <Navigate to="/signin" replace />;
   }
 
   // Redirect authenticated users trying to access auth pages
@@ -99,11 +99,22 @@ const ProtectedRoute: React.FC<{ element: React.ReactNode }> = ({ element }) => 
 const createAppRoutes = () => {
   return (
     <>
+      {/* Website Routes */}
       <Route path="/" element={<WebsiteLayout />}>
         <Route index element={<Website />} />
-        <Route path="signin" element={<SignIn />} />
-        <Route path="signup" element={<SignUp />} />
+        <Route path="website" element={<Website />} />
+        <Route path="website/features" element={<Features />} />
+        <Route path="website/security" element={<Security />} />
+        <Route path="website/faq" element={<FAQ />} />
       </Route>
+      
+      {/* Auth Routes - placed at root level for easier access */}
+      <Route path="/signin" element={<SignIn />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route path="/website/signin" element={<Navigate to="/signin" replace />} />
+      <Route path="/website/signup" element={<Navigate to="/signup" replace />} />
+      
+      {/* Protected App Routes */}
       <Route path="/app" element={<ProtectedRoute element={<AuthenticatedLayout />} />}>
         <Route index element={<Navigate to="/app/chats" />} />
         <Route path="chats" element={<ChatList />} />
@@ -111,6 +122,8 @@ const createAppRoutes = () => {
         <Route path="contacts" element={<ContactList />} />
         <Route path="profile" element={<Profile />} />
       </Route>
+      
+      {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/" />} />
     </>
   );
