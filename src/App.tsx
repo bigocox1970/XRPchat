@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   createBrowserRouter,
   RouterProvider,
@@ -6,14 +6,15 @@ import {
   createRoutesFromElements,
   Route,
   useLocation,
-  Outlet
+  Outlet,
+  Routes
 } from 'react-router-dom';
 import { UserProvider, useUser } from './context/UserContext';
 import { EncryptionProvider } from './context/EncryptionContext';
 import { DarkModeProvider } from './context/DarkModeContext';
 import { EncryptionModeProvider } from './context/EncryptionModeContext';
 import { DebugModeProvider } from './context/DebugModeContext';
-import { NotificationProvider } from './context/NotificationContext';
+import { NotificationProvider, useNotification } from './context/NotificationContext';
 import { SignUp } from './components/SignUp';
 import { SignIn } from './components/SignIn';
 import { Profile } from './components/Profile';
@@ -26,6 +27,8 @@ import { Website } from './components/Website';
 import { Features } from './components/Features';
 import { Security } from './components/Security';
 import { FAQ } from './components/FAQ';
+import { supabase, subscribeToUserThreads, subscribeToThread } from './utils/supabase/index';
+import './index.css';
 
 // Separate component for route protection logic
 const RouteGuard: React.FC = () => {
@@ -80,41 +83,46 @@ const AuthenticatedLayout: React.FC = () => {
   );
 };
 
-// Main routes configuration
-const router = createBrowserRouter(
-  createRoutesFromElements(
-    <Route element={<RouteGuard />}>
-      {/* Website Routes - Always use WebsiteLayout */}
-      <Route element={<WebsiteLayout />}>
-        <Route path="/" element={<Website />} />
-        <Route path="/website" element={<Website />} />
-        <Route path="/website/features" element={<Features />} />
-        <Route path="/website/security" element={<Security />} />
-        <Route path="/website/faq" element={<FAQ />} />
-        <Route path="/website/signup" element={<SignUp />} />
-        <Route path="/website/signin" element={<SignIn />} />
-      </Route>
+const ProtectedRoute: React.FC<{ element: React.ReactNode }> = ({ element }) => {
+  const { user } = useUser();
 
-      {/* App Routes - Protected and use AuthenticatedLayout */}
-      <Route path="/app" element={<AuthenticatedLayout />}>
-        <Route index element={<ChatList />} />
-        <Route path="profile" element={<Profile />} />
+  // If not authenticated, redirect to sign in
+  if (!user) {
+    return <Navigate to="/signin" />;
+  }
+  
+  // If authenticated, render the protected route
+  return <>{element}</>;
+};
+
+// Change from a component to a function that returns routes
+const createAppRoutes = () => {
+  return (
+    <>
+      <Route path="/" element={<WebsiteLayout />}>
+        <Route index element={<Website />} />
+        <Route path="signin" element={<SignIn />} />
+        <Route path="signup" element={<SignUp />} />
+      </Route>
+      <Route path="/app" element={<ProtectedRoute element={<AuthenticatedLayout />} />}>
+        <Route index element={<Navigate to="/app/chats" />} />
+        <Route path="chats" element={<ChatList />} />
+        <Route path="chat/:id" element={<Chat />} />
         <Route path="contacts" element={<ContactList />} />
-        <Route path="chat/new" element={<ContactList />} />
-        <Route path="chat/:threadId" element={<Chat />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
-
-      {/* Catch all */}
-      <Route path="*" element={<Navigate to="/website" replace />} />
-    </Route>
-  )
-);
+      <Route path="*" element={<Navigate to="/" />} />
+    </>
+  );
+};
 
 const App: React.FC = () => {
   return (
     <AppProviders>
       <EncryptionProvider>
-        <RouterProvider router={router} />
+        <RouterProvider router={createBrowserRouter(createRoutesFromElements(
+          createAppRoutes()
+        ))} />
       </EncryptionProvider>
     </AppProviders>
   );

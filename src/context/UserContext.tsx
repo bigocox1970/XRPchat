@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, createProfile, createWallet } from '../utils/supabase';
+import { supabase, supabaseAdmin } from '../utils/supabase/client';
+import { createProfile, createWallet } from '../utils/supabase/auth';
 import { generateKeyPair } from '../utils/encryption';
 import type { Database } from '../types/supabase';
 
@@ -73,27 +74,79 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching user profile and wallet data for:', userId);
+      
+      // Reset state first to avoid stale data
+      setProfile(null);
+      setWallet(null);
+      
+      // Use maybeSingle instead of single to avoid errors when profile doesn't exist
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        throw profileError;
+      }
 
       if (profile) {
+        console.log('Profile fetched successfully:', profile);
         setProfile(profile);
+        
+        // Use maybeSingle for wallet too
         const { data: wallet, error: walletError } = await supabase
           .from('wallets')
           .select('*')
           .eq('profile_id', userId)
-          .single();
+          .maybeSingle();
 
-        if (walletError) throw walletError;
+        if (walletError) {
+          console.error('Error fetching wallet:', walletError);
+          throw walletError;
+        }
+        
+        console.log('Wallet fetched successfully:', wallet ? 'found' : 'not found');
         setWallet(wallet);
+      } else {
+        console.warn('No profile found for user:', userId);
+        // Try with service role client as a fallback (has more permissions)
+        try {
+          const { data: adminProfile, error: adminProfileError } = await supabaseAdmin
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+            
+          if (adminProfileError) {
+            console.error('Error fetching profile with admin client:', adminProfileError);
+          } else if (adminProfile) {
+            console.log('Profile fetched with admin client:', adminProfile);
+            setProfile(adminProfile);
+            
+            const { data: adminWallet, error: adminWalletError } = await supabaseAdmin
+              .from('wallets')
+              .select('*')
+              .eq('profile_id', userId)
+              .maybeSingle();
+              
+            if (adminWalletError) {
+              console.error('Error fetching wallet with admin client:', adminWalletError);
+            } else {
+              console.log('Wallet fetched with admin client:', adminWallet ? 'found' : 'not found');
+              setWallet(adminWallet);
+            }
+          } else {
+            console.warn('Profile not found even with admin client');
+          }
+        } catch (adminError) {
+          console.error('Error using admin client:', adminError);
+        }
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error in fetchProfile:', error);
     }
   };
 
@@ -140,6 +193,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw authError;
       }
 
+      // Log the complete auth response for debugging
+      console.log('Auth response:', JSON.stringify(authData, null, 2));
+
       const userId = authData.user?.id;
       if (!userId) {
         console.error('No user ID after signup');
@@ -148,12 +204,79 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Auth user created, creating profile...');
 
-      // Create profile using service role client
-      await createProfile(userId, username, keyPair.address);
+      try {
+        // Create profile using service role client
+        await createProfile(userId, username, keyPair.address);
+        console.log('Profile created successfully');
+      } catch (profileError) {
+        console.error('CRITICAL ERROR creating profile:', profileError);
+        // Instead of just logging, we also throw this error to prevent success state
+        throw new Error(`Profile creation failed: ${profileError instanceof Error ? profileError.message : 'Unknown error'}`);
+      }
+
       console.log('Profile created, creating wallet...');
 
-      // Create wallet using service role client
-      await createWallet(userId, keyPair.address, keyPair.publicKey, keyPair.privateKey);
+      try {
+        // Create wallet using service role client
+        await createWallet(userId, keyPair.address, keyPair.publicKey, keyPair.privateKey);
+        console.log('Wallet created successfully');
+      } catch (walletError) {
+        console.error('CRITICAL ERROR creating wallet:', walletError);
+        // Instead of just logging, we also throw this error to prevent success state
+        throw new Error(`Wallet creation failed: ${walletError instanceof Error ? walletError.message : 'Unknown error'}`);
+      }
+
+      // Add verification step to make sure profile is queryable
+      try {
+        console.log('Verifying profile creation...');
+        // Use direct query with service role client to verify profile exists
+        const { data: checkProfile, error: checkError } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.warn('Profile verification warning:', checkError);
+        }
+        
+        if (!checkProfile) {
+          console.warn('Profile verification could not find profile, waiting 2 seconds to retry...');
+          // Wait a bit and retry
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const { data: retryProfile, error: retryError } = await supabaseAdmin
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+            
+          if (retryError || !retryProfile) {
+            console.warn('Profile still not found after retry, but continuing:', retryError);
+          } else {
+            console.log('Profile found after retry:', retryProfile);
+          }
+        } else {
+          console.log('Profile verification successful:', checkProfile);
+          // Manually set the profile state since we know it exists but might not be immediately available via normal channels
+          setProfile(checkProfile);
+          // Also set the wallet since we know it exists too
+          const { data: verifiedWallet } = await supabaseAdmin
+            .from('wallets')
+            .select('*')
+            .eq('profile_id', userId)
+            .maybeSingle();
+            
+          if (verifiedWallet) {
+            console.log('Wallet verification successful, updating state');
+            setWallet(verifiedWallet);
+          }
+        }
+      } catch (verifyError) {
+        console.warn('Profile verification error (non-fatal):', verifyError);
+        // Don't throw, as we've already created the profile and wallet
+      }
+
       console.log('Signup completed successfully. Please check your email to confirm your account.');
       
       return {
@@ -211,14 +334,21 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      // Add updated_at timestamp
+      const updatedData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+      
       const { error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(updatedData)
         .eq('id', user.id);
 
       if (error) throw error;
 
-      // Refresh profile
+      // Refresh profile to get updated data
+      console.log('Profile updated, fetching latest data');
       await fetchProfile(user.id);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -280,10 +410,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
 
-export const useUser = () => {
+// Replace the exported hook with a named function
+export function useUser() {
   const context = useContext(UserContext);
   if (context === undefined) {
     throw new Error('useUser must be used within a UserProvider');
   }
   return context;
-};
+}

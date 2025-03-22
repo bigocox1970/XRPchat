@@ -10,6 +10,8 @@ A modern, secure chat application with end-to-end encryption using wallet-based 
 - Contact management
 - Message read receipts
 - Typing indicators
+- In-app and push notifications for new messages
+- Notification sound alerts
 - Modern, responsive UI
 - Comprehensive security features
 
@@ -20,6 +22,7 @@ A modern, secure chat application with end-to-end encryption using wallet-based 
 - Tailwind CSS for styling
 - Supabase for backend and real-time
 - XRP-crypto for encryption
+- Service Worker API for push notifications
 
 ## Prerequisites
 
@@ -57,6 +60,9 @@ src/
 ├── utils/              # Utility functions
 ├── types/              # TypeScript types
 └── docs/              # Documentation
+public/
+├── sounds/             # Notification sound files
+└── img/                # Image assets
 ```
 
 ### Key Components
@@ -67,11 +73,13 @@ src/
 - `ContactList.tsx`: Contact management
 - `Profile.tsx`: User profile
 - `SignUp.tsx`: Authentication
+- `NotificationSettings.tsx`: Notification preferences
 
 ### Context Providers
 
 - `UserContext`: Authentication and user state
 - `EncryptionContext`: Message encryption/decryption
+- `NotificationContext`: Notification management
 
 ## Documentation
 
@@ -134,3 +142,68 @@ For support, please check:
 ## Roadmap
 
 See [RECOMMENDATION.md](docs/RECOMMENDATION.md) for future plans and improvements.
+
+## Notifications
+
+### Notification System
+
+XRPChat includes a comprehensive notification system:
+
+- In-app notifications for new messages
+- Browser notifications when the app is in the background
+- Push notifications when the browser is closed (supported browsers only)
+- Customizable notification sounds
+
+### Setting Up Notifications
+
+1. Enable notifications in your browser when prompted
+2. Navigate to Profile > Notification Settings to configure preferences
+3. Test your notification sound to ensure it's working properly
+
+### Notification Sounds
+
+The application uses a default notification sound located at `/public/sounds/notification.mp3`. You can:
+
+1. Replace this file with your own sound (same filename)
+2. Test the sound in the Notification Settings panel
+3. Restart the application to apply changes
+
+For more information, see the README in the `/public/sounds` directory.
+
+## Troubleshooting
+
+### SQL Policy Errors
+
+If you encounter SQL errors when running the database setup scripts, such as:
+```
+ERROR: 42704: policy "Users can view their own profile information." for table "profiles" does not exist
+```
+
+This occurs because the policy names in your Supabase project might be different from the ones specified in the script. 
+
+To fix this:
+1. Use the updated script in `sql/add_push_notification_column.sql` which checks for existing policies before attempting to alter them
+2. Run the script in the Supabase SQL Editor
+3. The script will create new policies if they don't exist, or update existing ones
+
+### Windows PowerShell Issues
+
+If you encounter issues running commands with `&&` in PowerShell, use the provided PowerShell script instead:
+
+```powershell
+# Run this command in PowerShell
+.\start-dev.ps1
+```
+
+This script is included in the repository and will properly start the development server.
+
+### Notification Troubleshooting
+
+If notifications aren't working:
+
+1. **Check browser permissions**: Ensure your browser has granted notification permissions
+2. **Verify sound file**: Make sure the notification sound file exists at `/public/sounds/notification.mp3`
+3. **Check the console**: Look for any error messages related to notifications
+4. **Database column**: Confirm the `push_subscription` column exists in your `profiles` table
+
+See the [SQL README](sql/README.md) for instructions on adding the required database columns.

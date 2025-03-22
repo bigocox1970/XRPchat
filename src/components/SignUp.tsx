@@ -37,34 +37,35 @@ export const SignUp: React.FC = () => {
       }
 
       const walletInfo = await signUp(email.trim(), password, username.trim());
+      
       if (walletInfo) {
         setWalletInfo(walletInfo);
         setSuccess(true);
         setShowPrivateKey(true);
+      } else {
+        throw new Error('Failed to create account: No wallet information returned');
       }
     } catch (error) {
       console.error('Signup error:', error);
+      
+      // Display a more descriptive error message for debugging
+      let errorMessage = 'An unexpected error occurred during sign up';
       if (error instanceof Error) {
+        // Preserve the original error message for debugging purposes
+        errorMessage = error.message;
+        
+        // Provide more user-friendly messages for common errors
         if (error.message.includes('Username is already taken')) {
-          setError('This username is already taken. Please choose another one.');
+          errorMessage = 'This username is already taken. Please choose another one.';
         } else if (error.message.includes('User already registered')) {
-          setError('An account with this email already exists. Please sign in instead.');
-        } else if (error.message.includes('connect() timed out')) {
-          setError('Network error. Please try again.');
-        } else if (error.message.includes('Missing required metadata')) {
-          setError('An error occurred during signup. Please try again.');
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
         } else if (error.message.includes('duplicate key value violates unique constraint')) {
-          setError('This username or email is already taken. Please choose another one.');
-        } else if (error.message.includes('invalid_grant')) {
-          setError('Invalid email or password format.');
-        } else if (error.message.includes('Permission denied')) {
-          setError('Unable to create account. Please try again.');
-        } else {
-          setError(error.message);
+          errorMessage = 'This username or email is already taken. Please choose another one.';
         }
-      } else {
-        setError('An unexpected error occurred during sign up');
       }
+      
+      setError(errorMessage);
+      setSuccess(false);
     } finally {
       setLoading(false);
     }

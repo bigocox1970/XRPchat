@@ -1,5 +1,9 @@
 import { supabase } from './client';
 
+// Global tracker for active subscriptions
+// This helps prevent multiple components from subscribing to the same channel
+export const activeSubscriptions: Record<string, boolean> = {};
+
 /**
  * Sets up real-time subscriptions for a thread
  */
@@ -13,6 +17,19 @@ export const subscribeToThread = (
   let retryAttempts = 0;
   let isSubscribed = false;
   let shouldRetry = true;
+
+  // Check if already subscribed
+  const channelKey = `thread:${threadId}`;
+  if (activeSubscriptions[channelKey]) {
+    console.log(`Already subscribed to ${channelKey}, skipping subscription`);
+    // Return a dummy cleanup function
+    return () => {
+      console.log(`Unsubscribe called for already subscribed channel ${channelKey}`);
+    };
+  }
+
+  // Mark as active
+  activeSubscriptions[channelKey] = true;
 
   const channel = supabase.channel(`thread:${threadId}`);
 
@@ -62,7 +79,11 @@ export const subscribeToThread = (
       },
       (payload) => {
         if (isSubscribed) {
-          onUpdate(payload);
+          try {
+            onUpdate(payload);
+          } catch (error) {
+            console.warn(`Error handling thread update for ${threadId}:`, error);
+          }
         }
       }
     )
@@ -71,6 +92,8 @@ export const subscribeToThread = (
   return () => {
     shouldRetry = false;
     channel.unsubscribe();
+    // Remove from active subscriptions
+    delete activeSubscriptions[channelKey];
   };
 };
 
@@ -78,6 +101,19 @@ export const subscribeToThread = (
  * Sets up real-time subscriptions for user's threads
  */
 export const subscribeToUserThreads = (userId: string, onNewThread: (thread: any) => void) => {
+  // Check if already subscribed
+  const channelKey = `user_threads:${userId}`;
+  if (activeSubscriptions[channelKey]) {
+    console.log(`Already subscribed to ${channelKey}, skipping subscription`);
+    // Return a dummy cleanup function
+    return () => {
+      console.log(`Unsubscribe called for already subscribed channel ${channelKey}`);
+    };
+  }
+  
+  // Mark as active
+  activeSubscriptions[channelKey] = true;
+
   const channel = supabase
     .channel(`user_threads:${userId}`)
     .on(
@@ -94,5 +130,7 @@ export const subscribeToUserThreads = (userId: string, onNewThread: (thread: any
 
   return () => {
     channel.unsubscribe();
+    // Remove from active subscriptions
+    delete activeSubscriptions[channelKey];
   };
 };

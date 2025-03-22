@@ -1,35 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff, HiCog, HiBell } from 'react-icons/hi';
+import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff, HiCog, HiBell, HiVolumeUp } from 'react-icons/hi';
 import { Avatar } from './Avatar';
 import { HiQrCode } from 'react-icons/hi2';
 import { useDarkMode } from '../context/DarkModeContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
 import { useNotification } from '../context/NotificationContext';
+import { useNotificationSubscriptions } from '../hooks/useNotificationSubscriptions';
 
 import { Outlet } from 'react-router-dom';
 
 export const Layout: React.FC = () => {
+  // Initialize notification subscriptions
+  useNotificationSubscriptions();
+  
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const { user, profile, signOut } = useUser();
   const { showEncrypted, toggleEncryptionMode, lockEncryption } = useEncryptionMode();
   const { debugMode, toggleDebugMode } = useDebugMode();
-  const { notificationsEnabled, toggleNotifications } = useNotification();
+  const { 
+    notificationsEnabled, 
+    requestNotificationPermission,
+    unreadCount,
+    soundUnlocked,
+    unlockAudio,
+    playNotificationSound
+  } = useNotification();
   const { DarkModeToggle } = useDarkMode();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Add state to track if audio is being unlocked
+  const [unlockingAudio, setUnlockingAudio] = useState(false);
+
+  // Request notification permission on component mount if not already granted
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Ask for permission when the user visits the app
+      requestNotificationPermission();
+    }
+  }, [requestNotificationPermission]);
+  
+  // Handle unlocking audio with user interaction
+  const handleUnlockAudio = async () => {
+    setUnlockingAudio(true);
+    try {
+      const success = await unlockAudio();
+      if (success) {
+        // Play a test sound to confirm it's working
+        setTimeout(() => {
+          playNotificationSound();
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Failed to unlock audio:', error);
+    } finally {
+      setUnlockingAudio(false);
+    }
+  };
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
   const isActiveRoute = (path: string) => {
+    // For chat routes, we want to match if the current path starts with "/app/chat/"
+    if (path === '/app/chats' && location.pathname.startsWith('/app/chat/')) {
+      return true;
+    }
+    // For other routes, exact matching
     return location.pathname === path;
+  };
+
+  // Handle toggling notifications
+  const handleToggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      await requestNotificationPermission();
+      // Also try to unlock audio when enabling notifications
+      await unlockAudio();
+    }
   };
 
   return (
@@ -50,6 +104,26 @@ export const Layout: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Notification Sound Status and Unlock Button - shown when sound is not unlocked */}
+      {!soundUnlocked && (
+        <div className="fixed top-20 right-4 z-50 bg-yellow-50 dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-yellow-200 dark:border-gray-700 max-w-sm">
+          <div className="flex items-center space-x-2">
+            <HiVolumeUp className="text-yellow-500 dark:text-yellow-400" size={20} />
+            <div className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+              Notification sounds require user interaction. Click the button to enable sounds.
+            </div>
+            <button
+              onClick={handleUnlockAudio}
+              disabled={unlockingAudio}
+              className="px-3 py-1 bg-brand-primary text-white rounded-md text-sm font-medium hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary transition-colors disabled:opacity-50"
+            >
+              {unlockingAudio ? 'Enabling...' : 'Enable Sounds'}
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Sidebar Toggle Button - Mobile */}
       <button
         onClick={toggleSidebar}
@@ -75,6 +149,18 @@ export const Layout: React.FC = () => {
                   XRPchat<span className="italic font-normal">.app</span>
                 </div>
               </div>
+              
+              {/* Notification indicator */}
+              {unreadCount > 0 && (
+                <div className="flex items-center">
+                  <div className="relative">
+                    <HiBell size={20} className="text-white" />
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -109,13 +195,20 @@ export const Layout: React.FC = () => {
             </button>
 
             <Link
-              to="/app"
+              to="/app/chats"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/app') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+                isActiveRoute('/app/chats') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <HiChat size={24} />
+              <div className="relative">
+                <HiChat size={24} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
               <span>Chat History</span>
             </Link>
 
@@ -167,7 +260,7 @@ export const Layout: React.FC = () => {
                       <span>Notifications</span>
                     </div>
                     <button
-                      onClick={toggleNotifications}
+                      onClick={handleToggleNotifications}
                       className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${notificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                     >
                       <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -177,11 +270,13 @@ export const Layout: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
                       {!showEncrypted ? <HiEyeOff size={20} /> : <HiEye size={20} />}
-                      <span>Decrypt Messages</span>
+                      <span>{!showEncrypted ? "Show Decrypted" : "Show Encrypted"}</span>
                     </div>
                     <button
                       onClick={toggleEncryptionMode}
                       className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${!showEncrypted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                      aria-label={!showEncrypted ? "Currently showing decrypted messages" : "Currently showing encrypted messages"}
+                      title={!showEncrypted ? "Currently showing decrypted messages" : "Currently showing encrypted messages"}
                     >
                       <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${!showEncrypted ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>

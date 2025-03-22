@@ -10,16 +10,31 @@ export const createProfile = async (
   walletAddress: string
 ) => {
   try {
-    const { error } = await supabaseAdmin
+    // Get the current timestamp for consistency across fields
+    const now = new Date().toISOString();
+    
+    // Insert bare minimum profile data according to the schema
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .insert({
         id: userId,
-        username,
+        username: username,
         wallet_address: walletAddress,
-        last_active: new Date().toISOString()
+        updated_at: now
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Profile creation error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw error;
+    }
+
+    console.log('Profile created successfully');
+    return data;
   } catch (error) {
     console.error('Error creating profile:', error);
     throw error;
@@ -36,16 +51,32 @@ export const createWallet = async (
   privateKey: string
 ) => {
   try {
-    const { error } = await supabaseAdmin
+    // Get the current timestamp for consistency
+    const now = new Date().toISOString();
+    
+    const { data, error } = await supabaseAdmin
       .from('wallets')
       .insert({
         profile_id: profileId,
-        address,
+        address: address,
         public_key: publicKey,
         private_key: privateKey,
+        created_at: now,
+        updated_at: now
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Wallet creation error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw error;
+    }
+
+    console.log('Wallet created successfully');
+    return data;
   } catch (error) {
     console.error('Error creating wallet:', error);
     throw error;
@@ -72,13 +103,19 @@ export const confirmUser = async (userId: string) => {
  */
 export const getProfile = async (userId: string) => {
   try {
+    console.log('Fetching profile for user:', userId);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching profile:', error);
+      throw error;
+    }
+    
+    console.log('Profile fetched successfully:', data);
     return data;
   } catch (error) {
     console.error('Error getting profile:', error);
@@ -117,12 +154,27 @@ export const updateProfile = async (
   }
 ) => {
   try {
-    const { error } = await supabase
+    console.log('Updating profile for user:', userId, 'with data:', updates);
+    
+    // Add updated_at timestamp
+    const updatedData = {
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
       .from('profiles')
-      .update(updates)
-      .eq('id', userId);
+      .update(updatedData)
+      .eq('id', userId)
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+    
+    console.log('Profile updated successfully:', data);
+    return data;
   } catch (error) {
     console.error('Error updating profile:', error);
     throw error;
@@ -170,19 +222,41 @@ export const addContact = async (contactId: string) => {
 
     console.log('Adding contact:', { userId: user.id, contactId });
     
-    // Update last_active for both users
-    const now = new Date().toISOString();
-    await Promise.all([
-      supabase
+    // First check if the last_active column exists on profiles
+    let canUpdateLastActive = false;
+    try {
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .update({ last_active: now })
-        .eq('id', user.id),
-      supabase
-        .from('profiles')
-        .update({ last_active: now })
-        .eq('id', contactId)
-    ]);
+        .select('id, last_active')
+        .eq('id', user.id)
+        .single();
+      
+      canUpdateLastActive = !profileError && profile && 'last_active' in profile;
+    } catch (checkError) {
+      console.warn('Error checking if last_active exists:', checkError);
+      // Continue with adding contact even if check fails
+    }
+    
+    // Only update the last_active for the current user if the column exists
+    if (canUpdateLastActive) {
+      try {
+        const now = new Date().toISOString();
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ last_active: now })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.warn('Non-critical error updating last_active:', updateError);
+          // Continue anyway as this is non-critical
+        }
+      } catch (updateError) {
+        console.warn('Non-critical error updating profile:', updateError);
+        // Continue anyway as this is non-critical
+      }
+    }
 
+    // Add the contact
     const { error, data } = await supabase
       .from('contacts')
       .insert({

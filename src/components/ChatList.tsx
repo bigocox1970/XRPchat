@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
-import { getUserThreads, subscribeToUserThreads, getProfile } from '../utils/supabase';
+import { getUserThreads, subscribeToUserThreads, getProfile, subscribeToThread } from '../utils/supabase/index';
 import { HiPlus, HiDotsVertical, HiUser } from 'react-icons/hi';
 import { Avatar } from './Avatar';
 import type { Database } from '../types/supabase';
+import { supabase } from '../utils/supabase/index';
 
 type Thread = Database['public']['Tables']['threads']['Row'] & {
   messages: Database['public']['Tables']['messages']['Row'][];
@@ -15,14 +16,26 @@ type Thread = Database['public']['Tables']['threads']['Row'] & {
   };
 };
 
+// Define the Message type
+type Message = Database['public']['Tables']['messages']['Row'];
+
 export const ChatList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
-  const { notificationsEnabled } = useNotification();
+  const { 
+    notificationsEnabled, 
+    showNotification, 
+    incrementUnread,
+    playNotificationSound 
+  } = useNotification();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // Keep track of threads with unread messages
+  const [unreadThreads, setUnreadThreads] = useState<Record<string, number>>({});
+  // Keep track of our own subscriptions for cleanup
+  const messageUnsubscribesRef = useRef<(() => void)[]>([]);
 
   // Filter threads based on search query
   const filteredThreads = threads.filter(thread => 
@@ -35,7 +48,7 @@ export const ChatList: React.FC = () => {
       loadThreadsWithParticipants();
       
       // Subscribe to new threads
-      const unsubscribe = subscribeToUserThreads(user.id, (payload) => {
+      const userThreadUnsubscribe = subscribeToUserThreads(user.id, (payload) => {
         console.log('New thread notification received:', payload);
         if (payload.new) {
           // Refresh threads list to include the new thread
@@ -43,34 +56,128 @@ export const ChatList: React.FC = () => {
           
           // Show notification if the thread was created by someone else
           if (payload.new.created_by !== user.id) {
-            // Use browser notification if available
-            if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
-              new Notification('New Chat', {
+            // Use enhanced notification system
+            if (notificationsEnabled && !document.hasFocus()) {
+              showNotification('New Chat', {
                 body: `New chat: ${payload.new.name}`,
+                data: {
+                  threadId: payload.new.id,
+                  url: `/app/chat/${payload.new.id}`
+                },
+                tag: `thread-${payload.new.id}`
               });
+              
+              // Increment unread counter
+              incrementUnread();
+              
+              // Update unread threads state
+              setUnreadThreads(prev => ({
+                ...prev,
+                [payload.new.id]: (prev[payload.new.id] || 0) + 1
+              }));
             }
           }
         }
       });
 
+      // Setup subscriptions for existing threads
+      const setupThreadSubscriptions = async () => {
+        if (threads.length > 0) {
+          // Clean up any previous message subscriptions
+          messageUnsubscribesRef.current.forEach(unsub => unsub());
+          messageUnsubscribesRef.current = [];
+          
+          threads.forEach(thread => {
+            // Add subscription for each thread to track new messages
+            const unsubscribe = subscribeToThread(
+              thread.id, 
+              (payload: { new: Message; old: Message | null }) => {
+                if (payload.new && payload.new.sender_id !== user.id) {
+                  console.log('New message in thread:', thread.id, payload.new);
+                  
+                  // Update unread count for this thread
+                  setUnreadThreads(prev => ({
+                    ...prev,
+                    [thread.id]: (prev[thread.id] || 0) + 1
+                  }));
+                  
+                  // Also refresh the threads to update last_message timestamp
+                  loadThreadsWithParticipants();
+                  
+                  // NOTE: We no longer need to play notification sound here
+                  // The global notification subscription in useNotificationSubscriptions will handle it
+                  
+                  // Show visual notification if not in focus and notifications are enabled
+                  if (notificationsEnabled && !document.hasFocus()) {
+                    const senderName = thread.otherParticipant?.username || 'Someone';
+                    showNotification(`New message from ${senderName}`, {
+                      body: payload.new.content,
+                      data: {
+                        threadId: thread.id,
+                        url: `/app/chat/${thread.id}`
+                      },
+                      tag: `thread-${thread.id}`
+                    });
+                    
+                    // Increment global unread counter
+                    incrementUnread();
+                  }
+                }
+              },
+              (updatePayload) => {
+                // Handle thread updates
+                if (updatePayload && updatePayload.new) {
+                  console.log(`Thread ${thread.id} updated:`, updatePayload);
+                  
+                  // Refresh threads to get updated data like last_message_at
+                  loadThreadsWithParticipants();
+                }
+              }
+            );
+            
+            // Track this subscription for cleanup
+            messageUnsubscribesRef.current.push(unsubscribe);
+          });
+        }
+      };
+      
+      // Setup subscriptions when threads are loaded
+      if (threads.length > 0) {
+        setupThreadSubscriptions();
+      }
 
       return () => {
-        unsubscribe();
+        if (userThreadUnsubscribe) {
+          userThreadUnsubscribe();
+        }
+        
+        // Clean up all message subscriptions
+        messageUnsubscribesRef.current.forEach(unsub => {
+          unsub();
+        });
+        messageUnsubscribesRef.current = [];
       };
     }
-  }, [user]);
+  }, [user, notificationsEnabled, showNotification, incrementUnread, threads.length]);
 
   const loadThreadsWithParticipants = async () => {
-    if (!user) return;
+    setLoading(true);
+    setError(null);
 
     try {
-      setLoading(true);
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Get threads with participant details
       const threads = await getUserThreads(user.id);
       
       // Load participant profiles for each thread
       const threadsWithParticipants = await Promise.all(
         threads.map(async (thread) => {
           const otherParticipantId = thread.participant_ids.find((id: string) => id !== user.id);
+          
           if (otherParticipantId) {
             const profile = await getProfile(otherParticipantId);
             return {
@@ -84,8 +191,34 @@ export const ChatList: React.FC = () => {
           return thread;
         })
       );
-
+      
       setThreads(threadsWithParticipants);
+
+      // Initialize unread counters for each thread
+      const unreadCounters: Record<string, number> = {};
+      
+      // For each thread, count unread messages
+      await Promise.all(threadsWithParticipants.map(async (thread: Thread) => {
+        try {
+          // Fetch messages for this thread
+          const { data: messagesData } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('thread_id', thread.id)
+            .eq('read', false)
+            .neq('sender_id', user.id); // Only count messages not sent by current user
+            
+          // Set unread count for this thread
+          if (messagesData && messagesData.length > 0) {
+            unreadCounters[thread.id] = messagesData.length;
+          }
+        } catch (error) {
+          console.error(`Error counting unread messages for thread ${thread.id}:`, error);
+        }
+      }));
+      
+      // Update unread threads state with the initial counts
+      setUnreadThreads(unreadCounters);
     } catch (error) {
       console.error('Error loading threads:', error);
       setError('Failed to load chats');
@@ -193,8 +326,17 @@ export const ChatList: React.FC = () => {
             {filteredThreads.map((thread) => (
               <div
                 key={thread.id}
-                onClick={() => navigate(`/app/chat/${thread.id}`)}
-                className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer transition-colors ${thread.id === window.location.pathname.split('/').pop() ? 'bg-gray-100 dark:bg-gray-750' : ''}`}
+                onClick={() => {
+                  // Clear unread counter for this thread when clicked
+                  if (unreadThreads[thread.id]) {
+                    setUnreadThreads(prev => ({
+                      ...prev,
+                      [thread.id]: 0
+                    }));
+                  }
+                  navigate(`/app/chat/${thread.id}`);
+                }}
               >
                 <div className="px-4 py-4 sm:px-6 flex items-center">
                   <Avatar 
@@ -215,10 +357,10 @@ export const ChatList: React.FC = () => {
                       {getLastMessage(thread)}
                     </p>
                   </div>
-                  {thread.messages?.some(m => !m.read && m.sender_id !== user?.id) && (
+                  {unreadThreads[thread.id] && unreadThreads[thread.id] > 0 && (
                     <div className="ml-4">
-                      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-[#25d366] text-white text-xs font-medium">
-                        {thread.messages.filter(m => !m.read && m.sender_id !== user?.id).length}
+                      <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-green-500 text-white text-xs font-medium">
+                        {unreadThreads[thread.id]}
                       </span>
                     </div>
                   )}

@@ -21,7 +21,22 @@ export const EncryptionModeProvider: React.FC<{ children: React.ReactNode }> = (
   const [isMaxSecurityEnabled, setIsMaxSecurityEnabled] = useState(false);
   const [temporaryPrivateKey, setTemporaryPrivateKey] = useState<string | null>(null);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
-  const [showEncrypted, setShowEncrypted] = useState(false);
+  
+  // Initialize showEncrypted from localStorage if available
+  const [showEncrypted, setShowEncrypted] = useState<boolean>(() => {
+    const saved = localStorage.getItem('xrpchat_show_encrypted');
+    // Parse the stored value, defaulting to false if not present or invalid
+    try {
+      return saved ? JSON.parse(saved) : false;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  // Sync showEncrypted with localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('xrpchat_show_encrypted', JSON.stringify(showEncrypted));
+  }, [showEncrypted]);
 
   // Reset state when user logs out
   useEffect(() => {
@@ -29,6 +44,7 @@ export const EncryptionModeProvider: React.FC<{ children: React.ReactNode }> = (
       setIsMaxSecurityEnabled(false);
       setTemporaryPrivateKey(null);
       setShowPrivateKey(false);
+      // Don't reset showEncrypted as it should persist across sessions
     }
   }, [user]);
 
@@ -66,10 +82,10 @@ export const EncryptionModeProvider: React.FC<{ children: React.ReactNode }> = (
   return <EncryptionModeContext.Provider value={value}>{children}</EncryptionModeContext.Provider>;
 };
 
-export const useEncryptionMode = () => {
+export function useEncryptionMode() {
   const context = useContext(EncryptionModeContext);
   if (context === undefined) {
     throw new Error('useEncryptionMode must be used within an EncryptionModeProvider');
   }
   return context;
-};
+}

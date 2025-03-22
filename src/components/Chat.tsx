@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
 import { useEncryption } from '../context/EncryptionContext';
@@ -34,28 +34,42 @@ const MessageContent: React.FC<{
   const { decryptMessage } = useEncryption();
   const [decryptedContent, setDecryptedContent] = useState<string>(content);
   const [isDecrypted, setIsDecrypted] = useState(false);
+  const [decryptionFailed, setDecryptionFailed] = useState(false);
+
+  // When showEncrypted changes, we need to force a re-decryption if needed
+  useEffect(() => {
+    // If we're switching to "show decrypted" mode and haven't successfully decrypted yet or previously failed
+    if (!showEncrypted && (!isDecrypted || decryptionFailed)) {
+      setIsDecrypted(false); // Mark as not decrypted to trigger decryption
+      setDecryptionFailed(false); // Reset failure status
+    }
+  }, [showEncrypted, isDecrypted, decryptionFailed]);
 
   useEffect(() => {
     let mounted = true;
 
     const decrypt = async () => {
-      if (!isDecrypted) {
+      if (!isDecrypted && !showEncrypted) {
         try {
           const decrypted = await decryptMessage(content);
           if (mounted) {
             setDecryptedContent(decrypted);
             setIsDecrypted(true);
+            setDecryptionFailed(false);
           }
         } catch (error) {
+          console.error('Failed to decrypt message:', error);
           if (mounted) {
-            setDecryptedContent(content);
+            // For failed decryption, show a friendly error instead of raw encrypted content
+            setDecryptedContent("⚠️ Could not decrypt this message. Toggle to see encrypted format.");
             setIsDecrypted(true);
+            setDecryptionFailed(true);
           }
         }
       }
     };
 
-    if (!isDecrypted) {
+    if (!isDecrypted && !showEncrypted) {
       decrypt();
     }
 
@@ -69,7 +83,9 @@ const MessageContent: React.FC<{
       {showEncrypted ? (
         <span className="font-mono text-xs">{content}</span>
       ) : (
-        decryptedContent
+        <span className={decryptionFailed ? "text-red-500 italic" : ""}>
+          {decryptedContent}
+        </span>
       )}
     </p>
   );
@@ -77,15 +93,17 @@ const MessageContent: React.FC<{
 
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [threadDetails, setThreadDetails] = useState<ThreadDetails | null>(null);
   const [participants, setParticipants] = useState<ThreadParticipants>({});
-  const { threadId } = useParams<{ threadId: string }>();
+  const { id: threadId } = useParams<{ id: string }>();
   const { user } = useUser();
-  const { notificationsEnabled } = useNotification();
+  const { notificationsEnabled, showNotification, incrementUnread, clearUnread } = useNotification();
   const { encryptForRecipient, decryptMessage } = useEncryption();
   const { showEncrypted } = useEncryptionMode();
   const { debugMode } = useDebugMode();
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -126,14 +144,14 @@ export const Chat: React.FC = () => {
   // Validate thread ID and handle navigation
   useEffect(() => {
     if (!threadId || threadId === 'new') {
-      navigate('/contacts');
+      navigate('/app/contacts');
       return;
     }
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(threadId)) {
-      navigate('/');
+      navigate('/app');
       return;
     }
   }, [threadId, navigate]);
@@ -156,13 +174,13 @@ export const Chat: React.FC = () => {
         }
         
         if (!data) {
-          navigate('/');
+          navigate('/app');
           return;
         }
 
         // Verify user is a participant
         if (!data.participant_ids.includes(user.id)) {
-          navigate('/');
+          navigate('/app');
           return;
         }
 
@@ -219,13 +237,29 @@ export const Chat: React.FC = () => {
         const messages = await getThreadMessages(threadId);
         setMessages(messages.reverse()); // Reverse to show oldest first
         
-        // Mark unread messages as read
-        messages.forEach(async (message) => {
-          if (!message.read && message.sender_id !== user.id) {
-            await markMessageAsRead(message.id, user.id);
-          }
-        });
+        // When entering a thread, clear unread counter for this thread
+        clearUnread();
+        
+        // Mark unread messages as read - only for messages sent TO the current user
+        const unreadMessages = messages.filter(msg => !msg.read && msg.sender_id !== user.id);
+        console.log(`Marking ${unreadMessages.length} messages as read in thread ${threadId}`);
+        
+        if (unreadMessages.length > 0) {
+          await Promise.all(unreadMessages.map(async (message) => {
+            try {
+              // Only update the message read status, not the profile
+              await markMessageAsRead(message.id, user.id);
+            } catch (error) {
+              console.error(`Error marking message ${message.id} as read:`, error);
+            }
+          }));
+        }
+        
+        // Temporarily skip updating last_active since the column might not exist yet
+        // This helps avoid unnecessary console errors while using the app
+        console.log('Skipping last_active update until column is confirmed to exist');
       } catch (error) {
+        console.error('Failed to load messages:', error);
         setError('Failed to load messages');
       } finally {
         setLoading(false);
@@ -243,17 +277,41 @@ export const Chat: React.FC = () => {
         if (payload.new && user) {
           const message = payload.new;
           
-          // Mark message as read if it's not from the current user
-          if (message.sender_id !== user.id) {
-            await markMessageAsRead(message.id, user.id);
-            
-            // Show notification if enabled and window is not focused
-            if (notificationsEnabled && !document.hasFocus() && 'Notification' in window && Notification.permission === 'granted') {
-              const senderName = participants[message.sender_id]?.username || 'Someone';
-              new Notification(`New message from ${senderName}`, {
-                body: showEncrypted ? 'New encrypted message' : await decryptMessage(message.content),
-              });
+          // Mark message as read immediately if it's not from the current user
+          // and the user is actively viewing this chat thread
+          if (message.sender_id !== user.id && document.hasFocus()) {
+            console.log(`Marking new message ${message.id} as read immediately`);
+            try {
+              await markMessageAsRead(message.id, user.id);
+            } catch (error) {
+              console.error(`Error marking new message ${message.id} as read:`, error);
             }
+          }
+          
+          // Show notification if it's from another user
+          try {
+            // Show notification if enabled and window is not focused
+            if (notificationsEnabled && !document.hasFocus()) {
+              const senderName = participants[message.sender_id]?.username || 'Someone';
+              
+              // Use the enhanced notification system
+              const decryptedContent = showEncrypted ? 'New encrypted message' : 
+                await decryptMessage(message.content);
+                
+              showNotification(`New message from ${senderName}`, {
+                body: decryptedContent,
+                data: {
+                  threadId: threadId,
+                  url: `/app/chat/${threadId}`
+                },
+                tag: `thread-${threadId}`
+              });
+              
+              // Increment unread counter
+              incrementUnread();
+            }
+          } catch (error) {
+            console.error('Error showing notification:', error);
           }
           
           setMessages(prev => {
@@ -274,7 +332,49 @@ export const Chat: React.FC = () => {
     return () => {
       unsubscribe();
     };
-  }, [threadId, user]);
+  }, [threadId, user, notificationsEnabled, showNotification, incrementUnread, clearUnread]);
+
+  // Also add an effect to mark messages as read when user focuses window
+  useEffect(() => {
+    if (!threadId || !user || !messages.length) return;
+    
+    const handleFocus = async () => {
+      const unreadMessages = messages.filter(msg => !msg.read && msg.sender_id !== user.id);
+      
+      if (unreadMessages.length > 0) {
+        console.log(`Focus event: Marking ${unreadMessages.length} messages as read`);
+        
+        await Promise.all(unreadMessages.map(async (message) => {
+          try {
+            await markMessageAsRead(message.id, user.id);
+          } catch (error) {
+            console.error(`Error marking message ${message.id} as read on focus:`, error);
+          }
+        }));
+        
+        // Update the messages to reflect the read status
+        setMessages(prev => 
+          prev.map(msg => 
+            unreadMessages.some(unread => unread.id === msg.id) 
+              ? { ...msg, read: true } 
+              : msg
+          )
+        );
+      }
+    };
+    
+    // Add event listener for window focus
+    window.addEventListener('focus', handleFocus);
+    
+    // Mark messages as read immediately if window is already focused
+    if (document.hasFocus()) {
+      handleFocus();
+    }
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [threadId, user, messages]);
 
   // Scroll to bottom on mount, new messages, and when loading completes
   useEffect(() => {
@@ -303,6 +403,21 @@ export const Chat: React.FC = () => {
       return () => clearTimeout(timeout);
     }
   }, [loading]);
+
+  // Focus input when ?focus=reply is in the URL (from notification action)
+  useEffect(() => {
+    // Check for focus=reply in query params
+    const params = new URLSearchParams(location.search);
+    if (params.get('focus') === 'reply' && inputRef.current) {
+      // Focus the input field with a slight delay to ensure the component is fully rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+        // Remove the query parameter to avoid focusing again on re-renders
+        const newUrl = location.pathname;
+        navigate(newUrl, { replace: true });
+      }, 500);
+    }
+  }, [location, navigate]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,7 +503,7 @@ export const Chat: React.FC = () => {
           </div>
         </div>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/app')}
           className="p-2 hover:bg-white/10 rounded-full transition-colors"
           aria-label="Close chat"
         >
@@ -491,6 +606,7 @@ export const Chat: React.FC = () => {
 
         <form onSubmit={handleSend} className="flex items-center space-x-2">
           <input
+            ref={inputRef}
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}

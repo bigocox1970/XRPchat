@@ -58,12 +58,24 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (!temporaryPrivateKey) {
           throw new Error('Please enter your private key to decrypt messages');
         }
-        return await decryptMessage(encryptedMessage, temporaryPrivateKey);
+        try {
+          return await decryptMessage(encryptedMessage, temporaryPrivateKey);
+        } catch (decryptError) {
+          console.error('Failed to decrypt with temporary private key:', decryptError);
+          throw new Error('Decryption failed. Please check your private key.');
+        }
       }
       
       // Normal mode uses stored private key
-      return await decryptMessage(encryptedMessage, wallet.private_key);
+      try {
+        return await decryptMessage(encryptedMessage, wallet.private_key);
+      } catch (decryptError) {
+        console.error('Failed to decrypt with stored private key:', decryptError);
+        // Return a more user-friendly error message but don't expose the actual error
+        throw new Error('Unable to decrypt message. The message may be corrupted or encrypted for someone else.');
+      }
     } catch (error) {
+      console.error('Error in decryptIncomingMessage:', error);
       throw error;
     }
   }, [wallet, isMaxSecurityEnabled, temporaryPrivateKey]);
@@ -78,10 +90,10 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   return <EncryptionContext.Provider value={value}>{children}</EncryptionContext.Provider>;
 };
 
-export const useEncryption = () => {
+export function useEncryption() {
   const context = useContext(EncryptionContext);
   if (context === undefined) {
     throw new Error('useEncryption must be used within an EncryptionProvider');
   }
   return context;
-};
+}

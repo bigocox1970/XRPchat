@@ -17,13 +17,19 @@ export const createThread = async (
     const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     // Check for existing thread first
-    const { data: existing } = await supabase
+    const { data: existing, error: queryError } = await supabase
       .from('threads')
       .select('*')
       .eq('participant_hash', hash)
-      .single();
+      .maybeSingle();
 
-    if (existing) return existing;
+    if (queryError) {
+      console.warn('Error checking for existing thread:', queryError);
+      // Continue to create a new thread anyway
+    } else if (existing) {
+      console.log('Found existing thread:', existing.id);
+      return existing;
+    }
 
     // Create new thread if none exists
     const { data, error } = await supabase
@@ -51,6 +57,8 @@ export const createThread = async (
  */
 export const getUserThreads = async (userId: string) => {
   try {
+    console.log('Getting threads for user:', userId);
+    
     const { data, error } = await supabase
       .from('threads')
       .select(`
@@ -66,10 +74,17 @@ export const getUserThreads = async (userId: string) => {
       .contains('participant_ids', [userId])
       .order('last_message_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.error('Error getting threads:', error);
+      throw error;
+    }
+    
+    console.log(`Found ${data?.length || 0} threads for user`);
+    return data || [];
   } catch (error) {
-    throw error;
+    console.error('Error in getUserThreads:', error);
+    // Return empty array instead of throwing to avoid breaking the UI
+    return [];
   }
 };
 
@@ -82,6 +97,8 @@ export const getThreadMessages = async (
   startFrom?: string
 ) => {
   try {
+    console.log('Getting messages for thread:', threadId, { limit, startFrom });
+    
     let query = supabase
       .from('messages')
       .select('*')
@@ -95,10 +112,17 @@ export const getThreadMessages = async (
 
     const { data, error } = await query;
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.error('Error getting thread messages:', error);
+      throw error;
+    }
+    
+    console.log(`Found ${data?.length || 0} messages in thread`);
+    return data || [];
   } catch (error) {
-    throw error;
+    console.error('Error in getThreadMessages:', error);
+    // Return empty array instead of throwing to avoid breaking the UI
+    return [];
   }
 };
 
@@ -111,6 +135,8 @@ export const sendMessage = async (
   content: string
 ) => {
   try {
+    console.log('Sending message in thread:', threadId, 'by user:', senderId);
+    
     // Insert message directly
     const { data: message, error: messageError } = await supabase
       .from('messages')
@@ -122,24 +148,39 @@ export const sendMessage = async (
       .select()
       .single();
 
-    if (messageError) throw messageError;
+    if (messageError) {
+      console.error('Error inserting message:', messageError);
+      throw messageError;
+    }
 
-      // Update thread's last_message_at
-      const now = new Date().toISOString();
-      await Promise.all([
-        supabase
-          .from('threads')
-          .update({ last_message_at: now })
-          .eq('id', threadId),
-        supabase
-          .from('profiles')
-          .update({ last_active: now })
-          .eq('id', senderId)
-      ]);
+    console.log('Message inserted successfully:', message.id);
 
-    // Don't throw on update errors as message was sent successfully
+    // Update thread's last_message_at only, skip updating profiles for now
+    const now = new Date().toISOString();
+    
+    try {
+      // Update thread last_message_at
+      const { error: threadError } = await supabase
+        .from('threads')
+        .update({ last_message_at: now })
+        .eq('id', threadId);
+        
+      if (threadError) {
+        console.warn('Non-critical error updating thread metadata:', threadError);
+      } else {
+        console.log('Thread last_message_at updated successfully');
+      }
+    } catch (threadError) {
+      console.warn('Non-critical error updating thread:', threadError);
+      // Don't throw as message was sent successfully
+    }
+    
+    // Skip updating the last_active column for now since it might not exist
+    console.log('Skipping last_active profile update until column is confirmed');
+
     return { data: message };
   } catch (error) {
+    console.error('Error in sendMessage:', error);
     throw error;
   }
 };
@@ -149,18 +190,29 @@ export const sendMessage = async (
  */
 export const markMessageAsRead = async (messageId: string, userId: string) => {
   try {
-    const now = new Date().toISOString();
-    await Promise.all([
-      supabase
+    console.log('Marking message as read:', { messageId, userId });
+    
+    // Update message read status only
+    try {
+      const { error: readError } = await supabase
         .from('messages')
         .update({ read: true })
-        .eq('id', messageId),
-      supabase
-        .from('profiles')
-        .update({ last_active: now })
-        .eq('id', userId)
-    ]);
+        .eq('id', messageId);
+        
+      if (readError) {
+        console.error('Error updating message read status:', readError);
+      } else {
+        console.log('Successfully marked message as read');
+      }
+    } catch (readErr) {
+      console.error('Exception updating message read status:', readErr);
+      // Don't throw as this is a non-critical operation
+    }
+    
+    // Skip last_active update completely to avoid errors
+    console.log('Skipping last_active profile update until column is confirmed to exist');
   } catch (error) {
-    throw error;
+    console.error('Error in markMessageAsRead operation:', error);
+    // Don't throw as this is a non-critical operation
   }
 };

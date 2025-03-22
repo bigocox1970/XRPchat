@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { isValidAddress, generateKeyPair } from '../utils/encryption';
-import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh } from 'react-icons/hi';
+import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh, HiBell } from 'react-icons/hi';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { uploadAvatar } from '../utils/supabase/storage';
 import { CopyButton } from './CopyButton';
 import { QRCodeSVG } from 'qrcode.react';
+import { NotificationSettings } from './NotificationSettings';
 
 export const Profile: React.FC = () => {
   const { profile, wallet, updateUserProfile, loading, user, regenerateWallet } = useUser();
@@ -13,7 +14,8 @@ export const Profile: React.FC = () => {
   
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState(profile?.username || '');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUrlMode, setIsUrlMode] = useState(true);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,29 +35,13 @@ export const Profile: React.FC = () => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user?.id) return;
-
+    if (!file) return;
+    
     setUploadError(null);
-    setUpdateLoading(true);
-
-    try {
-      // Check file type
-      if (!file.type.startsWith('image/')) {
-        throw new Error('Please upload an image file');
-      }
-
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error('Image must be less than 5MB');
-      }
-
-      const publicUrl = await uploadAvatar(file, user.id);
-      setAvatarUrl(publicUrl);
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Failed to upload image');
-    } finally {
-      setUpdateLoading(false);
-    }
+    setAvatar(file);
+    
+    // Create local preview URL
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,12 +50,44 @@ export const Profile: React.FC = () => {
     setUpdateLoading(true);
 
     try {
-      await updateUserProfile({
-        username: username.trim(),
-        avatar_url: avatarUrl.trim() || undefined,
-      });
+      const updates: { username?: string; avatar_url?: string } = {};
+      
+      if (username !== profile?.username) {
+        updates.username = username;
+      }
+      
+      if (avatar && user) {
+        console.log('Uploading new avatar...');
+        try {
+          // Upload avatar and get URL
+          const uploadedAvatarUrl = await uploadAvatar(avatar, user.id);
+          console.log('Avatar uploaded successfully:', uploadedAvatarUrl);
+          if (uploadedAvatarUrl) {
+            updates.avatar_url = uploadedAvatarUrl;
+          }
+        } catch (error) {
+          console.error('Error uploading avatar:', error);
+          setUploadError(error instanceof Error ? error.message : 'Failed to upload avatar');
+          setUpdateLoading(false);
+          return;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        console.log('Updating profile with:', updates);
+        await updateUserProfile(updates);
+        console.log('Profile updated successfully');
+      }
+
+      // Reset form state
+      setAvatar(null);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
       setIsEditing(false);
     } catch (error) {
+      console.error('Error updating profile:', error);
       setUpdateError(error instanceof Error ? error.message : 'Failed to update profile');
     } finally {
       setUpdateLoading(false);
@@ -78,7 +96,8 @@ export const Profile: React.FC = () => {
 
   const handleCancel = () => {
     setUsername(profile.username);
-    setAvatarUrl(profile.avatar_url || '');
+    setAvatar(null);
+    setPreviewUrl(null);
     setIsEditing(false);
     setUpdateError(null);
     setNewWalletInfo(null);
@@ -101,7 +120,7 @@ export const Profile: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Profile Information</h3>
             
@@ -144,81 +163,51 @@ export const Profile: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Avatar
                   </label>
-                  <div className="mt-1 space-y-4">
-                    <div className="flex space-x-4">
-                      <button
-                        type="button"
-                        onClick={() => setIsUrlMode(true)}
-                        className={`flex-1 inline-flex items-center justify-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${
-                          isUrlMode
-                            ? 'border-brand-primary text-brand-primary bg-white dark:bg-gray-700'
-                            : 'border-gray-300 text-gray-700 bg-white dark:border-gray-600 dark:text-gray-300 dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        <HiLink className="-ml-1 mr-2 h-5 w-5" />
-                        URL
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsUrlMode(false);
-                          fileInputRef.current?.click();
-                        }}
-                        className={`flex-1 inline-flex items-center justify-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium ${
-                          !isUrlMode
-                            ? 'border-brand-primary text-brand-primary bg-white dark:bg-gray-700'
-                            : 'border-gray-300 text-gray-700 bg-white dark:border-gray-600 dark:text-gray-300 dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                        }`}
-                      >
-                        <HiUpload className="-ml-1 mr-2 h-5 w-5" />
-                        Upload
-                      </button>
-                    </div>
-
-                    {isUrlMode ? (
-                      <input
-                        type="text"
-                        name="avatar"
-                        id="avatar"
-                        value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        placeholder="Enter image URL"
-                        className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                      />
-                    ) : (
-                      <div>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          accept="image/*"
-                          className="hidden"
+                  <div className="mt-1 flex items-center space-x-5">
+                    <span className="inline-block h-12 w-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt="Avatar preview"
+                          className="h-full w-full object-cover"
                         />
-                        <div className="flex items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md">
-                          <div className="space-y-1 text-center">
-                            <HiUpload className="mx-auto h-12 w-12 text-gray-400" />
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-brand-primary hover:text-brand-secondary"
-                              >
-                                Click to upload
-                              </button>
-                              {' or drag and drop'}
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              PNG, JPG, GIF up to 5MB
-                            </p>
-                            {updateLoading ? (
-                              <p className="text-xs text-blue-500">Uploading image...</p>
-                            ) : avatarUrl && (
-                              <p className="text-xs text-green-500">Image uploaded successfully</p>
-                            )}
-                          </div>
+                      ) : profile.avatar_url ? (
+                        <div className="mt-1 h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
+                          <img
+                            src={`${profile.avatar_url}?t=${new Date().getTime()}`}
+                            alt="Profile avatar"
+                            className="h-full w-full object-cover"
+                          />
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <svg className="h-full w-full text-gray-300 dark:text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      )}
+                    </span>
+                    
+                    <div>
+                      <input
+                        type="file"
+                        id="file-upload"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="file-upload"
+                        className="cursor-pointer bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                      >
+                        Change
+                      </label>
+                      
+                      {uploadError && (
+                        <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+                      )}
+                      {previewUrl && !uploadError && (
+                        <p className="mt-2 text-sm text-green-600">Image ready to upload</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -398,11 +387,13 @@ export const Profile: React.FC = () => {
                 {profile.avatar_url && (
                   <div>
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
-                    <img
-                      src={profile.avatar_url}
-                      alt="Profile avatar"
-                      className="mt-1 h-20 w-20 rounded-full"
-                    />
+                    <div className="mt-1 h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
+                      <img
+                        src={`${profile.avatar_url}?t=${new Date().getTime()}`}
+                        alt="Profile avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -451,6 +442,222 @@ export const Profile: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+        
+        {/* Notification Settings Section */}
+        <div className="mb-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <HiBell className="text-gray-900 dark:text-white" size={24} />
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+              Notification Settings
+            </h3>
+          </div>
+          <NotificationSettings />
+        </div>
+        
+        {/* Encryption Settings Section */}
+        <div>
+          <div className="flex items-center space-x-2 mb-4">
+            <HiShieldCheck className="text-gray-900 dark:text-white" size={24} />
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+              Encryption Settings
+            </h3>
+          </div>
+        
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Wallet Information</h3>
+              <div className="mt-5 space-y-6">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Wallet Address</h4>
+                  <p className="mt-1 text-sm text-gray-900 dark:text-white font-mono break-all">
+                    {wallet.address}
+                  </p>
+                  {isValidAddress(wallet.address) ? (
+                    <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Valid XRP Address
+                    </span>
+                  ) : (
+                    <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Invalid XRP Address
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">QR Code</h4>
+                  <div className="mt-2 bg-white p-2 rounded-lg inline-block">
+                    <QRCodeSVG value={wallet.address} size={150} />
+                  </div>
+                </div>
+
+                {wallet.private_key && (
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Private Key</h4>
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivateKey(!showPrivateKey)}
+                        className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                      >
+                        {showPrivateKey ? <HiKey size={12} /> : <HiKey size={12} />}
+                      </button>
+                    </div>
+                    {showPrivateKey ? (
+                      <div className="mt-1 relative">
+                        <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
+                          {wallet.private_key}
+                        </p>
+                        <div className="mt-1">
+                          <CopyButton text={wallet.private_key} />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        [Hidden for security] Click the key icon to view.
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Max Security Mode</h4>
+                  <div className="mt-2">
+                    <div className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={isMaxSecurityEnabled ? disableMaxSecurity : enableMaxSecurity}
+                        className={`${
+                          isMaxSecurityEnabled ? 'bg-brand-primary' : 'bg-gray-200 dark:bg-gray-700'
+                        } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary`}
+                      >
+                        <span
+                          className={`${
+                            isMaxSecurityEnabled ? 'translate-x-5' : 'translate-x-0'
+                          } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
+                        />
+                      </button>
+                      <span className="ml-3 text-sm">
+                        <span className="text-gray-900 dark:text-white">
+                          {isMaxSecurityEnabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </span>
+                    </div>
+                    {isMaxSecurityEnabled ? (
+                      <p className="text-sm text-green-600 mt-1">
+                        <HiShieldCheck className="inline mr-1" />
+                        Maximum security mode is ON. You'll need to provide your private key for each decryption.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Enable maximum security mode to prevent storing your private key in browser storage.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Regenerate Wallet Keys</h4>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Warning: Regenerating your wallet will create new encryption keys. You will no longer be able to decrypt previous messages.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setRegenerating(true);
+                      try {
+                        // Generate new keypair locally first
+                        const keyPair = await generateKeyPair();
+                        setNewWalletInfo({ privateKey: keyPair.privateKey, address: keyPair.address });
+                      } catch (error) {
+                        console.error('Error generating new wallet:', error);
+                        setUpdateError('Failed to generate new wallet keys');
+                      } finally {
+                        setRegenerating(false);
+                      }
+                    }}
+                    disabled={regenerating || !!newWalletInfo}
+                    className="mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {regenerating ? 'Generating...' : <><HiRefresh className="mr-1" /> Regenerate Wallet</>}
+                  </button>
+                </div>
+
+                {newWalletInfo && (
+                  <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900 rounded-md">
+                    <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">New Wallet Information</h4>
+                    <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
+                      Please save this information in a safe place. It will not be shown again.
+                    </p>
+                    
+                    <div className="mt-3">
+                      <h5 className="text-xs font-medium text-yellow-800 dark:text-yellow-200">New Address:</h5>
+                      <p className="text-sm font-mono text-yellow-700 dark:text-yellow-300 break-all">{newWalletInfo.address}</p>
+                      <div className="mt-1">
+                        <CopyButton text={newWalletInfo.address} />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3">
+                      <h5 className="text-xs font-medium text-yellow-800 dark:text-yellow-200">New Private Key:</h5>
+                      <p className="text-sm font-mono text-yellow-700 dark:text-yellow-300 break-all">{newWalletInfo.privateKey}</p>
+                      <div className="mt-1">
+                        <CopyButton text={newWalletInfo.privateKey} />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 flex space-x-3">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setRegenerating(true);
+                          try {
+                            await regenerateWallet(newWalletInfo.privateKey, newWalletInfo.address);
+                            setNewWalletInfo(null);
+                            setHasConfirmedSave(false);
+                          } catch (error) {
+                            console.error('Error saving new wallet:', error);
+                            setUpdateError('Failed to save new wallet keys');
+                          } finally {
+                            setRegenerating(false);
+                          }
+                        }}
+                        disabled={regenerating || !hasConfirmedSave}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {regenerating ? 'Saving...' : 'Save New Wallet'}
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewWalletInfo(null);
+                          setHasConfirmedSave(false);
+                        }}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    
+                    <div className="mt-3 flex items-center">
+                      <input
+                        id="confirm-save"
+                        name="confirm-save"
+                        type="checkbox"
+                        checked={hasConfirmedSave}
+                        onChange={(e) => setHasConfirmedSave(e.target.checked)}
+                        className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                      />
+                      <label htmlFor="confirm-save" className="ml-2 block text-sm text-yellow-700 dark:text-yellow-300">
+                        I confirm that I have saved the new wallet information and understand that I will lose access to previously encrypted messages.
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
