@@ -44,9 +44,12 @@ export const Settings: React.FC = () => {
   const { debugMode, toggleDebugMode } = useDebugMode();
   const { 
     notificationsEnabled, 
-    requestNotificationPermission 
+    notificationPermission,
+    requestNotificationPermission,
+    updateNotificationState
   } = useNotification();
 
+  const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState(notificationsEnabled);
   const [showBurnConfirm, setShowBurnConfirm] = useState(false);
   const [burnLoading, setBurnLoading] = useState(false);
   const [burnError, setBurnError] = useState<string | null>(null);
@@ -71,11 +74,68 @@ export const Settings: React.FC = () => {
     }
   }, []);
 
+  // Initialize local state based on the context value
+  useEffect(() => {
+    // Check localStorage first for the most accurate state
+    const notificationsEnabledInStorage = localStorage.getItem('xrpchat_notifications_enabled') === 'true';
+    // If there's a difference between context and localStorage, prefer localStorage
+    if (notificationsEnabledInStorage !== notificationsEnabled) {
+      console.log('Notification state differs between localStorage and context, using localStorage value');
+      setLocalNotificationsEnabled(notificationsEnabledInStorage);
+    } else {
+      setLocalNotificationsEnabled(notificationsEnabled);
+    }
+  }, [notificationsEnabled]);
+
   // Handle toggling notifications
   const handleToggleNotifications = async () => {
-    if (!notificationsEnabled) {
-      await requestNotificationPermission();
+    // Toggle the local state first for immediate UI feedback
+    const newEnabledState = !localNotificationsEnabled;
+    setLocalNotificationsEnabled(newEnabledState);
+    
+    if (newEnabledState) {
+      // User wants to enable notifications
+      console.log('User is enabling notifications from settings');
+      
+      // Update localStorage values to enable notifications
+      localStorage.setItem('xrpchat_notification_user_choice', 'true');
+      localStorage.setItem('xrpchat_notification_permission', 'granted');
+      localStorage.setItem('xrpchat_notifications_enabled', 'true');
+      
+      // Show a toast message to confirm the change
+      setSaveSettingsMessage({
+        type: 'success',
+        text: 'Notifications enabled - new messages will trigger notifications when the app is in the background'
+      });
+    } else {
+      // User wants to disable notifications
+      console.log('User is disabling notifications from settings');
+      
+      // Update localStorage values to disable notifications
+      localStorage.setItem('xrpchat_notification_permission', 'disabled');
+      localStorage.setItem('xrpchat_notification_user_choice', 'false');
+      localStorage.setItem('xrpchat_notifications_enabled', 'false');
+      
+      // Show a toast message to confirm the change
+      setSaveSettingsMessage({
+        type: 'success',
+        text: 'Notifications disabled - you won\'t receive alerts for new messages'
+      });
     }
+    
+    // Force update of the notification context state to match localStorage
+    updateNotificationState();
+    
+    // Clear toast after 3 seconds
+    setTimeout(() => {
+      setSaveSettingsMessage(null);
+    }, 3000);
+    
+    // Manually dispatch a storage event to trigger listeners in other components
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'xrpchat_notifications_enabled',
+      newValue: newEnabledState ? 'true' : 'false'
+    }));
   };
 
   // Toggle maximum security mode
@@ -265,6 +325,15 @@ export const Settings: React.FC = () => {
     }
   };
 
+  // Add a function to reset notification permissions
+  const resetNotificationPermissions = () => {
+    // Clear saved preference
+    localStorage.removeItem('xrpchat_notification_permission');
+    localStorage.removeItem('xrpchat_notification_requested');
+    // Request permissions again
+    requestNotificationPermission();
+  };
+
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900 overflow-auto">
       {/* Header */}
@@ -315,9 +384,9 @@ export const Settings: React.FC = () => {
                 </div>
                 <button
                   onClick={handleToggleNotifications}
-                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${notificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${localNotificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                 >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${localNotificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
             </div>
@@ -524,6 +593,55 @@ export const Settings: React.FC = () => {
             </div>
           </div>
 
+          {/* Notification Settings Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Notification Settings
+              </h3>
+            </div>
+            
+            <div className="px-4 py-5 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
+                  <HiBell size={20} />
+                  <span>Notifications</span>
+                </div>
+                <button
+                  onClick={handleToggleNotifications}
+                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${localNotificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  aria-label={localNotificationsEnabled ? "Notifications enabled" : "Notifications disabled"}
+                  title={localNotificationsEnabled ? "Notifications enabled" : "Notifications disabled"}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${localNotificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {notificationPermission === 'denied' ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                    <p className="text-red-600 dark:text-red-400">
+                      Notifications are blocked by your browser. To enable them, you need to reset permissions.
+                    </p>
+                    <button
+                      onClick={resetNotificationPermissions}
+                      className="mt-2 flex items-center space-x-2 text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm"
+                    >
+                      <HiRefresh size={16} />
+                      <span>Reset Notification Permissions</span>
+                    </button>
+                  </div>
+                ) : (
+                  <p>
+                    {localNotificationsEnabled 
+                      ? "You'll receive notifications when you get new messages." 
+                      : "Enable notifications to be alerted when you receive new messages, even when the app is in the background."}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Danger Zone */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
             <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
@@ -538,6 +656,9 @@ export const Settings: React.FC = () => {
                   <p className="mb-2">
                     <strong>Warning:</strong> Burning your wallet will permanently delete all your chat history, contacts, and wallet information. 
                     This action cannot be undone.
+                  </p>
+                  <p className="mb-2">
+                    <strong>Note:</strong> A new wallet address will be generated for you when you log in again. You will need to share this new address with your contacts to reconnect.
                   </p>
                 </div>
                 
@@ -570,6 +691,10 @@ export const Settings: React.FC = () => {
                 <li>Your wallet information</li>
               </ul>
               <span className="block mt-2 font-semibold">This action cannot be undone.</span>
+            </p>
+            
+            <p className="text-gray-700 dark:text-gray-300 mb-4">
+              When you log in again, a new wallet address will be generated. You will need to share this new address with your contacts to continue chatting with them.
             </p>
             
             {burnError && (
