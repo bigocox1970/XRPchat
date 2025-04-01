@@ -1,15 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { isValidAddress, generateKeyPair } from '../utils/encryption';
-import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh, HiBell } from 'react-icons/hi';
+import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh } from 'react-icons/hi';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { uploadAvatar } from '../utils/supabase/storage';
 import { CopyButton } from './CopyButton';
 import { QRCodeSVG } from 'qrcode.react';
-import { NotificationSettings } from './NotificationSettings';
 
 export const Profile: React.FC = () => {
-  const { profile, wallet, updateUserProfile, loading, user, regenerateWallet } = useUser();
+  const { profile, wallet, updateUserProfile, loading, user, regenerateWallet, changePassword, deleteAccount } = useUser();
   const { isMaxSecurityEnabled, enableMaxSecurity, disableMaxSecurity, showPrivateKey, setShowPrivateKey } = useEncryptionMode();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -24,6 +23,22 @@ export const Profile: React.FC = () => {
   const [regenerating, setRegenerating] = useState(false);
   const [newWalletInfo, setNewWalletInfo] = useState<{ privateKey: string; address: string } | null>(null);
   const [hasConfirmedSave, setHasConfirmedSave] = useState(false);
+  
+  // For change password
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  
+  // For delete account
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   if (loading || !profile || !wallet) {
     return (
@@ -105,6 +120,67 @@ export const Profile: React.FC = () => {
     setHasConfirmedSave(false);
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    setPasswordLoading(true);
+
+    // Validate passwords
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New passwords do not match');
+      setPasswordLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters');
+      setPasswordLoading(false);
+      return;
+    }
+
+    try {
+      await changePassword(currentPassword, newPassword);
+      setPasswordSuccess(true);
+      
+      // Reset form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      
+      // Auto-close form after success
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess(false);
+      }, 2000);
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : 'Failed to change password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError(null);
+    setDeleteLoading(true);
+
+    // Validate confirmation
+    if (deleteConfirmation !== 'DELETE') {
+      setDeleteError('Please type DELETE to confirm');
+      setDeleteLoading(false);
+      return;
+    }
+
+    try {
+      await deleteAccount(deletePassword);
+      // No need to do anything here - user will be signed out and redirected
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete account');
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
       {/* Header */}
@@ -114,35 +190,19 @@ export const Profile: React.FC = () => {
             <HiUser size={24} />
           </div>
           <div>
-          <div className="font-semibold">Profile {isMaxSecurityEnabled && <span className="text-xs">(Max Security)</span>}</div>
+          <div className="font-semibold">Profile</div>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
+        {/* User Profile Section */}
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Profile Information</h3>
             
             {isEditing ? (
               <form onSubmit={handleSubmit} className="mt-5 space-y-6">
-                <div>
-                  <label className="flex items-center justify-between">
-                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">Max Security Mode</span>
-                    <button
-                      type="button"
-                      onClick={() => isMaxSecurityEnabled ? disableMaxSecurity() : enableMaxSecurity()}
-                      className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white ${
-                        isMaxSecurityEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'
-                      } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary`}
-                    >
-                      <HiShieldCheck className="-ml-0.5 mr-2 h-4 w-4" />
-                      {isMaxSecurityEnabled ? 'Max Security On' : 'Max Security Off'}
-                    </button>
-                  </label>
-                  <p className="mt-1 text-sm text-gray-500">Enable for enhanced security features and encryption.</p>
-                </div>
-
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Username
@@ -154,7 +214,7 @@ export const Profile: React.FC = () => {
                       id="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                      className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
                     />
                   </div>
                 </div>
@@ -211,147 +271,6 @@ export const Profile: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Wallet
-                  </label>
-                  <div className="mt-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
-                            {newWalletInfo?.address || wallet.address}
-                          </p>
-                          <CopyButton text={newWalletInfo?.address || profile.wallet_address} size={5} />
-                        </div>
-                        {isValidAddress(newWalletInfo?.address || wallet.address) ? (
-                          <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Valid XRP Address
-                          </span>
-                        ) : (
-                          <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Invalid XRP Address
-                          </span>
-                        )}
-                      </div>
-                      
-                      {!newWalletInfo && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              setRegenerating(true);
-                              setUpdateError(null);
-                              const keyPair = await generateKeyPair();
-                              setNewWalletInfo({
-                                privateKey: keyPair.privateKey,
-                                address: keyPair.address
-                              });
-                              setShowPrivateKey(true);
-                              setHasConfirmedSave(false);
-                            } catch (error) {
-                              setUpdateError(error instanceof Error ? error.message : 'Failed to generate new wallet');
-                            } finally {
-                              setRegenerating(false);
-                            }
-                          }}
-                          disabled={regenerating}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
-                        >
-                          <HiRefresh className={`-ml-0.5 mr-2 h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
-                          Regenerate Wallet
-                        </button>
-                      )}
-                    </div>
-
-                    {newWalletInfo && showPrivateKey && (
-                      <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
-                        <div className="flex items-start">
-                          <HiKey className="h-5 w-5 text-red-400 mt-0.5" />
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Important: Save Your Private Key</h3>
-                            <div className="mt-2 space-y-4">
-                              <div>
-                                <div className="flex items-center space-x-2">
-                                  <p className="text-sm text-red-700 dark:text-red-300 font-mono break-all">
-                                    {newWalletInfo.privateKey}
-                                  </p>
-                                  <CopyButton text={newWalletInfo.privateKey} size={5} />
-                                </div>
-                              </div>
-                              <div>
-                                <h4 className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">Scan to Import Private Key</h4>
-                                <div className="p-4 bg-white dark:bg-gray-700 rounded-lg inline-block">
-                                  <QRCodeSVG
-                                    value={newWalletInfo.privateKey}
-                                    size={200}
-                                    level="H"
-                                    includeMargin={true}
-                                    className="dark:bg-white p-2 rounded"
-                                  />
-                                </div>
-                                <p className="mt-2 text-sm text-red-700 dark:text-red-300">
-                                  Use this QR code to import your private key into a hardware wallet
-                                </p>
-                              </div>
-                            </div>
-                            <div className="mt-4 space-y-4">
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  checked={hasConfirmedSave}
-                                  onChange={(e) => setHasConfirmedSave(e.target.checked)}
-                                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                                />
-                                <span className="text-sm text-red-700 dark:text-red-300">
-                                  I confirm that I have saved my private key in a secure location
-                                </span>
-                              </label>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    setRegenerating(true);
-                                    setUpdateError(null);
-                                    await regenerateWallet(newWalletInfo.privateKey, newWalletInfo.address);
-                                    setNewWalletInfo(null);
-                                    setShowPrivateKey(false);
-                                    setHasConfirmedSave(false);
-                                  } catch (error) {
-                                    setUpdateError(error instanceof Error ? error.message : 'Failed to update wallet');
-                                  } finally {
-                                    setRegenerating(false);
-                                  }
-                                }}
-                                disabled={!hasConfirmedSave}
-                                className={`inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${!hasConfirmedSave ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              >
-                                I've Saved My Private Key - Continue
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-4">
-                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Share Your Address</h4>
-                      <div className="mt-2 p-4 bg-white dark:bg-gray-700 rounded-lg inline-block">
-                        <QRCodeSVG
-                          value={newWalletInfo?.address || wallet.address}
-                          size={200}
-                          level="H"
-                          includeMargin={true}
-                          className="dark:bg-white p-2 rounded"
-                        />
-                      </div>
-                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Scan this QR code to share your wallet address
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
                 {(updateError || uploadError) && (
                   <div className="text-red-600 text-sm">
                     {updateError || uploadError}
@@ -397,40 +316,6 @@ export const Profile: React.FC = () => {
                   </div>
                 )}
 
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Wallet Address</h4>
-                  <div className="mt-1 flex items-center space-x-2">
-                    <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
-                      {wallet.address}
-                    </p>
-                    <CopyButton text={profile.wallet_address} size={5} />
-                  </div>
-                  {isValidAddress(wallet.address) ? (
-                    <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Valid XRP Address
-                    </span>
-                  ) : (
-                    <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      Invalid XRP Address
-                    </span>
-                  )}
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Share Your Address</h4>
-                    <div className="mt-2 p-4 bg-white dark:bg-gray-700 rounded-lg inline-block">
-                      <QRCodeSVG
-                        value={wallet.address}
-                        size={200}
-                        level="H"
-                        includeMargin={true}
-                        className="dark:bg-white p-2 rounded"
-                      />
-                    </div>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      Scan this QR code to share your wallet address
-                    </p>
-                  </div>
-                </div>
-
                 <div className="flex justify-end">
                   <button
                     type="button"
@@ -445,15 +330,232 @@ export const Profile: React.FC = () => {
           </div>
         </div>
         
-        {/* Notification Settings Section */}
-        <div className="mb-6">
+        {/* Security Section */}
+        <div className="mt-6">
           <div className="flex items-center space-x-2 mb-4">
-            <HiBell className="text-gray-900 dark:text-white" size={24} />
+            <HiKey className="text-gray-900 dark:text-white" size={24} />
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-              Notification Settings
+              Security Settings
             </h3>
           </div>
-          <NotificationSettings />
+          
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="space-y-4">
+                {/* Change Password */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Password</h4>
+                  {!showChangePassword ? (
+                    <button
+                      onClick={() => setShowChangePassword(true)}
+                      className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                    >
+                      Change Password
+                    </button>
+                  ) : (
+                    <form onSubmit={handleChangePassword} className="mt-3 space-y-4">
+                      <div>
+                        <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Current Password
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            id="current-password"
+                            name="current-password"
+                            type="password"
+                            autoComplete="current-password"
+                            required
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          New Password
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            id="new-password"
+                            name="new-password"
+                            type="password"
+                            autoComplete="new-password"
+                            required
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="confirm-new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Confirm New Password
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            id="confirm-new-password"
+                            name="confirm-new-password"
+                            type="password"
+                            autoComplete="new-password"
+                            required
+                            value={confirmNewPassword}
+                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                          />
+                        </div>
+                      </div>
+                      
+                      {passwordError && (
+                        <div className="text-red-600 text-sm">
+                          {passwordError}
+                        </div>
+                      )}
+                      
+                      {passwordSuccess && (
+                        <div className="text-green-600 text-sm">
+                          Password changed successfully!
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-end space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowChangePassword(false);
+                            setCurrentPassword('');
+                            setNewPassword('');
+                            setConfirmNewPassword('');
+                            setPasswordError(null);
+                            setPasswordSuccess(false);
+                          }}
+                          className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={passwordLoading}
+                          className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 ${
+                            passwordLoading ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          {passwordLoading ? 'Changing...' : 'Change Password'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+                
+                {/* Delete Account */}
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h4 className="text-sm font-medium text-red-500">Danger Zone</h4>
+                  {!showDeleteAccount ? (
+                    <button
+                      onClick={() => setShowDeleteAccount(true)}
+                      className="mt-2 inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-700 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800"
+                    >
+                      Delete Account
+                    </button>
+                  ) : (
+                    <form onSubmit={handleDeleteAccount} className="mt-3 space-y-4">
+                      <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md">
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
+                              Warning: This action cannot be undone
+                            </h3>
+                            <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+                              <p>
+                                Deleting your account will permanently remove all your data, including:
+                                <ul className="list-disc pl-5 mt-1">
+                                  <li>Your profile information</li>
+                                  <li>Your wallet data and encryption keys</li>
+                                  <li>Your chat history and contacts</li>
+                                </ul>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    
+                      <div>
+                        <label htmlFor="delete-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Enter your password to confirm
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            id="delete-password"
+                            name="delete-password"
+                            type="password"
+                            autoComplete="current-password"
+                            required
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="delete-confirmation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Type DELETE to confirm
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            id="delete-confirmation"
+                            name="delete-confirmation"
+                            type="text"
+                            required
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                          />
+                        </div>
+                      </div>
+                      
+                      {deleteError && (
+                        <div className="text-red-600 text-sm">
+                          {deleteError}
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-end space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowDeleteAccount(false);
+                            setDeletePassword('');
+                            setDeleteConfirmation('');
+                            setDeleteError(null);
+                          }}
+                          className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={deleteLoading || deleteConfirmation !== 'DELETE'}
+                          className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                            deleteLoading || deleteConfirmation !== 'DELETE' ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          {deleteLoading ? 'Deleting...' : 'Delete My Account'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         
         {/* Encryption Settings Section */}
@@ -461,19 +563,21 @@ export const Profile: React.FC = () => {
           <div className="flex items-center space-x-2 mb-4">
             <HiShieldCheck className="text-gray-900 dark:text-white" size={24} />
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-              Encryption Settings
+              Wallet & Encryption Settings
             </h3>
           </div>
         
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Wallet Information</h3>
               <div className="mt-5 space-y-6">
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Wallet Address</h4>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-white font-mono break-all">
-                    {wallet.address}
-                  </p>
+                  <div className="mt-1 flex items-center space-x-2">
+                    <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
+                      {wallet.address}
+                    </p>
+                    <CopyButton text={profile.wallet_address} size={5} />
+                  </div>
                   {isValidAddress(wallet.address) ? (
                     <span className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       Valid XRP Address
@@ -521,42 +625,6 @@ export const Profile: React.FC = () => {
                   </div>
                 )}
                 
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Max Security Mode</h4>
-                  <div className="mt-2">
-                    <div className="flex items-center">
-                      <button
-                        type="button"
-                        onClick={isMaxSecurityEnabled ? disableMaxSecurity : enableMaxSecurity}
-                        className={`${
-                          isMaxSecurityEnabled ? 'bg-brand-primary' : 'bg-gray-200 dark:bg-gray-700'
-                        } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary`}
-                      >
-                        <span
-                          className={`${
-                            isMaxSecurityEnabled ? 'translate-x-5' : 'translate-x-0'
-                          } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`}
-                        />
-                      </button>
-                      <span className="ml-3 text-sm">
-                        <span className="text-gray-900 dark:text-white">
-                          {isMaxSecurityEnabled ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </span>
-                    </div>
-                    {isMaxSecurityEnabled ? (
-                      <p className="text-sm text-green-600 mt-1">
-                        <HiShieldCheck className="inline mr-1" />
-                        Maximum security mode is ON. You'll need to provide your private key for each decryption.
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Enable maximum security mode to prevent storing your private key in browser storage.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Regenerate Wallet Keys</h4>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

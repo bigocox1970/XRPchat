@@ -61,6 +61,8 @@ export const SignUp: React.FC = () => {
           errorMessage = 'An account with this email already exists. Please sign in instead.';
         } else if (error.message.includes('duplicate key value violates unique constraint')) {
           errorMessage = 'This username or email is already taken. Please choose another one.';
+        } else if (error.message.includes('email rate limit exceeded')) {
+          errorMessage = 'Too many signup attempts. Please wait a few minutes before trying again.';
         }
       }
       
@@ -126,13 +128,35 @@ export const SignUp: React.FC = () => {
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Please check your email to confirm your account.
           </p>
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={() => navigate('/signin')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#075e54] hover:bg-[#128c7e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54]"
-            >
-              Go to Sign In
-            </button>
+          <div className="mt-6 bg-white dark:bg-gray-800 py-6 px-4 shadow sm:rounded-lg sm:px-10">
+            <div className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4 mb-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+                    Verification Required
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-200">
+                    <p>
+                      A verification email has been sent to <strong>{email}</strong>. 
+                      You must verify your email before you can sign in.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => navigate('/signin')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#075e54] hover:bg-[#128c7e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54]"
+              >
+                Go to Sign In
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -172,7 +196,7 @@ export const SignUp: React.FC = () => {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   placeholder="Choose a unique username"
                   disabled={loading}
                 />
@@ -192,7 +216,7 @@ export const SignUp: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   placeholder="Enter your email"
                   disabled={loading}
                 />
@@ -212,7 +236,7 @@ export const SignUp: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#075e54] focus:border-[#075e54] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   placeholder="Create a secure password"
                   disabled={loading}
                 />
@@ -238,7 +262,7 @@ export const SignUp: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#075e54] hover:bg-[#128c7e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54] ${
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 ${
                   loading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
@@ -273,7 +297,7 @@ export const SignUp: React.FC = () => {
               <button
                 onClick={() => navigate('/signin')}
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#075e54] dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
               >
                 Sign in
               </button>
