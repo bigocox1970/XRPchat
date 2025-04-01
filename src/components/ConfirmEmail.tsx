@@ -1,30 +1,71 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { HiLockClosed, HiCheckCircle } from 'react-icons/hi';
+import { HiLockClosed, HiCheckCircle, HiRefresh } from 'react-icons/hi';
 import { supabase } from '../utils/supabase/client';
 import { EmailOtpType } from '@supabase/supabase-js';
 
 export const ConfirmEmail: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'retrying'>('loading');
   const [message, setMessage] = useState('Confirming your email...');
   const [debug, setDebug] = useState<string[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3;
 
-  useEffect(() => {
-    const verifySession = async () => {
-      try {
-        addDebug('Starting email verification process');
-        addDebug(`URL Parameters: ${window.location.search}`);
-        
-        // Check for token_hash and type parameters
-        const tokenHash = searchParams.get('token_hash');
-        const type = searchParams.get('type');
-        
-        addDebug(`Found token_hash: ${tokenHash ? 'Yes' : 'No'}`);
-        addDebug(`Found type: ${type ? type : 'No'}`);
+  // Function for manual retrying
+  const handleRetry = () => {
+    setStatus('retrying');
+    setMessage('Retrying verification...');
+    setRetryCount(0); // Reset retry count for manual retry
+    verifySession();
+  };
 
-        if (tokenHash && type) {
+  // Handle direct navigation to sign in
+  const handleSignIn = () => {
+    navigate('/signin');
+  };
+
+  const verifySession = async () => {
+    try {
+      addDebug(`Verification attempt ${retryCount + 1}/${maxRetries + 1}`);
+      addDebug(`URL Parameters: ${window.location.search}`);
+      addDebug(`URL Hash: ${window.location.hash}`);
+      addDebug(`Device/browser info: ${navigator.userAgent}`);
+      
+      // For mobile detection
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      addDebug(`Detected as ${isMobile ? 'mobile' : 'desktop'} device`);
+      
+      // Check for token_hash and type in query parameters
+      let tokenHash = searchParams.get('token_hash');
+      let type = searchParams.get('type');
+      
+      // If not in query params, check the URL hash (common with Supabase redirects)
+      if ((!tokenHash || !type) && window.location.hash) {
+        try {
+          addDebug('Checking URL hash for token information');
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          
+          if (hashParams.has('access_token')) {
+            tokenHash = hashParams.get('access_token');
+            addDebug('Found token in URL hash');
+          }
+          
+          if (hashParams.has('type')) {
+            type = hashParams.get('type');
+            addDebug('Found type in URL hash');
+          }
+        } catch (hashErr) {
+          addDebug(`Error parsing URL hash: ${hashErr instanceof Error ? hashErr.message : 'Unknown error'}`);
+        }
+      }
+      
+      addDebug(`Final token_hash: ${tokenHash ? 'Yes' : 'No'}`);
+      addDebug(`Final type: ${type ? type : 'No'}`);
+
+      if (tokenHash && type) {
+        try {
           addDebug('Verifying token with Supabase');
           // Verify the token using the Supabase verify OTP method
           const { error: verifyError } = await supabase.auth.verifyOtp({
@@ -38,32 +79,58 @@ export const ConfirmEmail: React.FC = () => {
           }
           
           addDebug('Token verified successfully');
-        } else {
-          addDebug('No token_hash or type found in URL, checking session directly');
+        } catch (verifyErr) {
+          addDebug(`Verification attempt failed: ${verifyErr instanceof Error ? verifyErr.message : 'Unknown error'}`);
+          // Continue to check session even if verification fails - it might have worked
         }
+      } else {
+        addDebug('No token_hash or type found, checking session directly');
+      }
 
-        // Check if we have a session now
-        addDebug('Checking for active session');
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Check if we have a session now
+      addDebug('Checking for active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (sessionError) {
-          addDebug(`Session error: ${sessionError.message}`);
-          throw sessionError;
-        }
+      if (sessionError) {
+        addDebug(`Session error: ${sessionError.message}`);
+        throw sessionError;
+      }
 
-        if (session) {
-          addDebug(`Session found, user is confirmed: ${session.user?.email}`);
-          // If we have a session, the email has been confirmed
-          setStatus('success');
-          setMessage('Your email has been confirmed successfully! Thank you for verifying your account.');
+      if (session) {
+        addDebug(`Session found, user is confirmed: ${session.user?.email}`);
+        // If we have a session, the email has been confirmed
+        setStatus('success');
+        setMessage('Your email has been confirmed successfully! Thank you for verifying your account.');
+        
+        // Redirect to the sign-in page after a delay of 5 seconds
+        addDebug('Scheduling redirect to sign-in page in 5 seconds');
+        setTimeout(() => {
+          navigate('/signin');
+        }, 5000);
+      } else {
+        // Sometimes it takes a moment for the session to be established
+        // especially on mobile, so let's retry a few times with increasing delays
+        if (retryCount < maxRetries) {
+          const delayMs = Math.pow(2, retryCount) * 1000; // Exponential backoff
+          addDebug(`No session found. Retrying in ${delayMs}ms (retry ${retryCount + 1}/${maxRetries})`);
           
-          // Redirect to the sign-in page after a delay of 5 seconds
-          addDebug('Scheduling redirect to sign-in page in 5 seconds');
           setTimeout(() => {
-            navigate('/signin');
-          }, 5000);
+            setRetryCount(prev => prev + 1);
+            verifySession();
+          }, delayMs);
         } else {
-          addDebug('No session found after verification attempt');
+          addDebug('Max retries reached. Verification may have succeeded but session not established.');
+          
+          // On mobile especially, the session might not be immediately available
+          // Let the user know they should try signing in directly
+          if (isMobile) {
+            setStatus('success');
+            setMessage('Verification likely successful. Please sign in with your email and password.');
+            addDebug('Mobile device detected - suggesting direct sign in');
+            
+            // Instead of automatic redirect, guide user to click button
+            return;
+          }
           
           // Check if there's an error message in the URL
           const errorDescription = searchParams.get('error_description');
@@ -81,16 +148,18 @@ export const ConfirmEmail: React.FC = () => {
             }
           }
         }
-      } catch (error) {
-        addDebug(`Error in verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        setStatus('error');
-        setMessage(error instanceof Error ? error.message : 'An error occurred while confirming your email');
-        console.error('Error confirming email:', error);
       }
-    };
-
+    } catch (error) {
+      addDebug(`Error in verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setStatus('error');
+      setMessage(error instanceof Error ? error.message : 'An error occurred while confirming your email');
+      console.error('Error confirming email:', error);
+    }
+  };
+  
+  useEffect(() => {
     verifySession();
-  }, [searchParams, navigate]);
+  }, [searchParams]); // Only run on search params change, retries handled internally
   
   function addDebug(message: string) {
     console.log(`[ConfirmEmail] ${message}`);
@@ -125,27 +194,48 @@ export const ConfirmEmail: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <div className="text-center">
             <div className={`text-lg mb-4 ${
-              status === 'loading' ? 'text-gray-700 dark:text-gray-300' :
+              status === 'loading' || status === 'retrying' ? 'text-gray-700 dark:text-gray-300' :
               status === 'success' ? 'text-green-600' : 'text-red-600'
             }`}>
               {message}
             </div>
 
-            {status === 'loading' && (
+            {(status === 'loading' || status === 'retrying') && (
               <div className="animate-pulse flex justify-center">
                 <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
               </div>
             )}
 
             {status === 'success' && (
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-4">
-                Redirecting to sign-in...
+              <div className="mt-4 space-y-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  {/mobile/i.test(navigator.userAgent) ? 
+                    "Click the button below to sign in:" : 
+                    "Redirecting to sign-in..."}
+                </div>
+                
+                {/mobile/i.test(navigator.userAgent) && (
+                  <button
+                    onClick={handleSignIn}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                  >
+                    Sign In Now
+                  </button>
+                )}
               </div>
             )}
 
             {status === 'error' && (
               <div className="mt-4 space-y-4">
                 <div>
+                  <button
+                    onClick={handleRetry}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <HiRefresh className="mr-2" /> Retry Verification
+                  </button>
+                </div>
+                <div className="pt-2">
                   <Link
                     to="/signup"
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
@@ -161,18 +251,6 @@ export const ConfirmEmail: React.FC = () => {
                     Back to sign in
                   </Link>
                 </div>
-              </div>
-            )}
-            
-            {/* Debug information - can be removed in production */}
-            {debug.length > 0 && (
-              <div className="mt-8 text-left p-4 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono overflow-auto max-h-64">
-                <div className="font-bold mb-2">Debug Info:</div>
-                {debug.map((msg, i) => (
-                  <div key={i} className="text-gray-600 dark:text-gray-300">
-                    &gt; {msg}
-                  </div>
-                ))}
               </div>
             )}
           </div>

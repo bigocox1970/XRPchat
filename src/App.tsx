@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, lazy } from 'react';
 import { 
   createBrowserRouter,
   RouterProvider,
@@ -7,7 +7,6 @@ import {
   Route,
   useLocation,
   Outlet,
-  Routes
 } from 'react-router-dom';
 import { UserProvider, useUser } from './context/UserContext';
 import { EncryptionProvider } from './context/EncryptionContext';
@@ -175,6 +174,21 @@ const createAppRoutes = () => {
         <Route path="settings" element={<Settings />} />
       </Route>
       
+      {/* Special route for mobile auth callback */}
+      <Route path="/auth/callback" element={
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="animate-pulse">
+              <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mx-auto mb-2"></div>
+              <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded mx-auto"></div>
+            </div>
+            <div className="mt-4 text-gray-600 dark:text-gray-400">
+              Completing authentication...
+            </div>
+          </div>
+        </div>
+      } />
+      
       {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/" />} />
     </>
@@ -207,8 +221,71 @@ const App: React.FC = () => {
         localStorage.setItem('xrpchat_notification_permission', 'disabled');
       }
       
-      // Make sure to handle wallet related state consistently
-      // If we don't have wallet state yet, don't change it
+      // Check for auth parameters in URL hash (common with Supabase email confirmations)
+      if ((window.location.pathname === '/' || window.location.pathname === '/website') && 
+          window.location.hash && window.location.hash.includes('access_token')) {
+        console.log('Detected auth redirect with hash fragment, extracting token data');
+        
+        try {
+          // Extract the hash without the # symbol
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          
+          // If this looks like an auth confirmation redirect
+          if (hashParams.has('access_token') && hashParams.has('type')) {
+            console.log('Found auth parameters in URL hash, redirecting to confirm-email');
+            
+            // Store the token info in localStorage
+            localStorage.setItem('pendingConfirmation', JSON.stringify({
+              token_hash: hashParams.get('access_token'),
+              type: hashParams.get('type'),
+              timestamp: Date.now()
+            }));
+            
+            // Redirect to the confirmation page
+            window.location.href = '/confirm-email';
+            return; // Stop execution as we're redirecting
+          }
+        } catch (e) {
+          console.error('Error processing auth hash parameters:', e);
+        }
+      }
+      
+      // Check for and handle mobile auth tokens in localStorage
+      try {
+        const pendingAuth = localStorage.getItem('pendingConfirmation');
+        if (pendingAuth && window.location.pathname === '/confirm-email') {
+          console.log('Found pending auth data for confirmation page');
+          const authData = JSON.parse(pendingAuth);
+          
+          // Only use recent data (within last hour)
+          const isRecent = (Date.now() - authData.timestamp) < (60 * 60 * 1000);
+          if (isRecent) {
+            console.log('Using stored auth data to modify URL parameters');
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('token_hash') && authData.token_hash) {
+              params.set('token_hash', authData.token_hash);
+            }
+            if (!params.has('type') && authData.type) {
+              params.set('type', authData.type);
+            }
+            
+            if (params.toString() !== window.location.search.slice(1)) {
+              window.history.replaceState(
+                {}, 
+                '', 
+                `${window.location.pathname}?${params.toString()}`
+              );
+            }
+          }
+          
+          // Clear the stored data regardless
+          localStorage.removeItem('pendingConfirmation');
+        }
+      } catch (e) {
+        console.error('Error processing stored auth data:', e);
+        localStorage.removeItem('pendingConfirmation');
+      }
+      
       console.log('App initialized - notification permissions state has been reset');
     };
     
