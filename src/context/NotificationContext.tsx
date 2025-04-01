@@ -1,11 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabase/client';
+import { useUser } from '../context/UserContext';
 import { 
   isPushNotificationSupported, 
   subscribeToPushNotifications, 
   unsubscribeFromPushNotifications,
   getCurrentPushSubscription
 } from '../utils/pushNotifications';
+
+// Additional safeties to prevent auto-requesting
+const AUTO_REQUEST_ENABLED = false; // Set to false to completely disable auto-requesting
+const CHECK_NOTIFICATION_REQUESTED_KEY = 'xrpchat_notification_user_choice';
 
 // Extend the notification context type
 interface NotificationContextType {
@@ -23,6 +28,7 @@ interface NotificationContextType {
   clearUnread: () => void;
   playNotificationSound: () => void;
   unlockAudio: () => Promise<boolean>;
+  updateNotificationState: () => void;
 }
 
 export const NotificationContext = createContext<NotificationContextType>({
@@ -40,27 +46,112 @@ export const NotificationContext = createContext<NotificationContextType>({
   clearUnread: () => {},
   playNotificationSound: () => {},
   unlockAudio: async () => false,
+  updateNotificationState: () => {},
 });
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useUser();
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
   const [pushNotificationsSupported, setPushNotificationsSupported] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
+  const [autoRequestAttempted, setAutoRequestAttempted] = useState(false);
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
+  // Track if we've had user interaction that would unlock audio
+  const hasUserInteractedRef = useRef<boolean>(false);
+  // Track audio playback state to prevent overlapping calls
+  const isPlayingRef = useRef<boolean>(false);
+  // Track the last time the sound was played for debouncing
+  const lastPlayedTimeRef = useRef<number>(0);
+
+  // Function to update notification state from localStorage
+  const updateNotificationState = () => {
+    console.log('Manually updating notification state from localStorage');
+    if ('Notification' in window) {
+      // Get current status from localStorage
+      const notificationsEnabledSetting = localStorage.getItem('xrpchat_notifications_enabled');
+      const savedPermission = localStorage.getItem('xrpchat_notification_permission');
+      
+      console.log('Current localStorage notification settings:', {
+        enabled: notificationsEnabledSetting,
+        permission: savedPermission,
+        currentContext: notificationsEnabled
+      });
+      
+      // Update state based on localStorage values
+      if (notificationsEnabledSetting === 'true' && savedPermission === 'granted') {
+        setNotificationsEnabled(true);
+      } else {
+        setNotificationsEnabled(false);
+      }
+      
+      // Update permission state
+      setNotificationPermission(Notification.permission);
+      
+      console.log('Notification state updated:', { 
+        enabled: notificationsEnabledSetting === 'true',
+        permission: Notification.permission
+      });
+      
+      // Broadcast this change to ensure all components are in sync
+      // Use a different event than 'storage' to prevent infinite loops
+      const event = new CustomEvent('notificationStateChange', {
+        detail: {
+          enabled: notificationsEnabledSetting === 'true',
+          permission: Notification.permission
+        }
+      });
+      window.dispatchEvent(event);
+    }
+  };
 
   useEffect(() => {
-    // Initialize notification sound
-    const audio = new Audio('/sounds/notification.mp3');
-    audio.preload = 'auto';
-    notificationSoundRef.current = audio;
+    // Initialize notification sound with cache-busting parameter
+    try {
+      // Add random parameter to prevent caching issues
+      const audio = new Audio(`/sounds/notification.mp3?v=${Date.now()}`);
+      audio.preload = 'auto';
+      audio.volume = 0.5; // Set a reasonable volume level
+      
+      // Use the load() method to start preloading the sound
+      audio.load();
+      
+      notificationSoundRef.current = audio;
+      
+      console.log('Notification sound initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize notification sound:', error);
+    }
+
+    // Try to play a silent sound on initialization to check if audio is already unlocked
+    try {
+      // Simplified initialization - just check if audio API is available
+      if (typeof AudioContext !== 'undefined' || typeof (window as any).webkitAudioContext !== 'undefined') {
+        console.log('Audio API is available, may need user interaction to unlock');
+      } else {
+        console.log('Audio API not available in this browser');
+      }
+    } catch (error) {
+      console.log('Audio context check failed:', error);
+    }
 
     // Check if notifications are supported
     if ('Notification' in window) {
+      // Check if notifications are enabled in user settings
+      const notificationsEnabledSetting = localStorage.getItem('xrpchat_notifications_enabled');
+      const savedPermission = localStorage.getItem('xrpchat_notification_permission');
+      
+      // Set notifications enabled state based on user preference
+      if (notificationsEnabledSetting === 'true' && savedPermission === 'granted') {
+        setNotificationsEnabled(true);
+      } else {
+        setNotificationsEnabled(false);
+      }
+      
+      // Set current permission state for UI feedback
       setNotificationPermission(Notification.permission);
-      setNotificationsEnabled(Notification.permission === 'granted');
     }
 
     // Check if push notifications are supported
@@ -77,22 +168,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     };
 
-    // Try to unlock audio on various user interactions
-    const unlockAudioOnInteraction = () => {
-      unlockAudio().then(success => {
-        if (success) {
-          // Remove event listeners once audio is successfully unlocked
-          document.removeEventListener('click', unlockAudioOnInteraction);
-          document.removeEventListener('touchstart', unlockAudioOnInteraction);
-          document.removeEventListener('keydown', unlockAudioOnInteraction);
+    // Track user interactions that would unlock audio
+    const markUserInteraction = () => {
+      hasUserInteractedRef.current = true;
+      unlockAudio().then(unlocked => {
+        if (unlocked) {
+          document.removeEventListener('click', markUserInteraction, true);
+          document.removeEventListener('touchstart', markUserInteraction, true);
+          document.removeEventListener('keydown', markUserInteraction, true);
         }
       });
     };
 
-    // Add event listeners to unlock audio on user interaction
-    document.addEventListener('click', unlockAudioOnInteraction);
-    document.addEventListener('touchstart', unlockAudioOnInteraction);
-    document.addEventListener('keydown', unlockAudioOnInteraction);
+    // Add event listeners with capture to ensure they run first
+    document.addEventListener('click', markUserInteraction, true);
+    document.addEventListener('touchstart', markUserInteraction, true);
+    document.addEventListener('keydown', markUserInteraction, true);
 
     // Add event listener for messages from service worker
     if ('serviceWorker' in navigator) {
@@ -114,14 +205,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
     }
 
+    // Add storage event listener to respond to changes in localStorage
+    // This will allow notification settings to update across tabs/windows
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'xrpchat_notifications_enabled' || 
+          event.key === 'xrpchat_notification_permission' ||
+          event.key === 'xrpchat_notification_user_choice') {
+        console.log('Notification settings changed in localStorage, updating state');
+        updateNotificationState();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+
     // Clean up event listener
     return () => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
       }
-      document.removeEventListener('click', unlockAudioOnInteraction);
-      document.removeEventListener('touchstart', unlockAudioOnInteraction);
-      document.removeEventListener('keydown', unlockAudioOnInteraction);
+      document.removeEventListener('click', markUserInteraction, true);
+      document.removeEventListener('touchstart', markUserInteraction, true);
+      document.removeEventListener('keydown', markUserInteraction, true);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -129,22 +234,80 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const unlockAudio = async (): Promise<boolean> => {
     if (soundUnlocked) return true;
     
+    // If audio is currently playing, don't try to unlock again
+    if (isPlayingRef.current) return false;
+    
     try {
       console.log('Attempting to unlock audio...');
-      // Try to play a silent sound
-      if (notificationSoundRef.current) {
-        notificationSoundRef.current.volume = 0.01; // Very low volume
-        await notificationSoundRef.current.play();
-        notificationSoundRef.current.pause();
-        notificationSoundRef.current.currentTime = 0;
-        notificationSoundRef.current.volume = 1.0; // Reset volume
-        console.log('Audio successfully unlocked');
-        setSoundUnlocked(true);
-        return true;
+      
+      // Set a flag to prevent concurrent unlock operations
+      isPlayingRef.current = true;
+      
+      try {
+        // Strategy 1: Play silent sound with our notification sound reference
+        if (notificationSoundRef.current) {
+          try {
+            // Make it silent
+            notificationSoundRef.current.volume = 0.001;
+            // Add delay between operations to ensure they complete
+            await notificationSoundRef.current.play();
+            await new Promise(r => setTimeout(r, 50));
+            notificationSoundRef.current.pause();
+            await new Promise(r => setTimeout(r, 50));
+            notificationSoundRef.current.currentTime = 0;
+            notificationSoundRef.current.volume = 0.5;
+            console.log('Audio successfully unlocked with notification sound ref');
+            setSoundUnlocked(true);
+            return true;
+          } catch (playError) {
+            console.warn('Could not unlock with notification sound ref:', playError);
+          }
+        }
+        
+        // Strategy 2: Create a new audio element and try to play it
+        try {
+          const tempAudio = new Audio();
+          tempAudio.volume = 0.001;
+          await tempAudio.play();
+          await new Promise(r => setTimeout(r, 50));
+          tempAudio.pause();
+          console.log('Audio successfully unlocked with temp audio');
+          setSoundUnlocked(true);
+          return true;
+        } catch (tempError) {
+          console.warn('Could not unlock with temp audio:', tempError);
+        }
+        
+        // Strategy 3: Web Audio API
+        try {
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContext) {
+            const audioCtx = new AudioContext();
+            // Create an oscillator and handle it safely
+            const oscillator = audioCtx.createOscillator();
+            oscillator.frequency.value = 0; // Silent
+            oscillator.connect(audioCtx.destination);
+            oscillator.start();
+            await new Promise(r => setTimeout(r, 50));
+            oscillator.stop(audioCtx.currentTime + 0.001);
+            console.log('Audio successfully unlocked with AudioContext');
+            setSoundUnlocked(true);
+            return true;
+          }
+        } catch (audioContextError) {
+          console.warn('Could not unlock with AudioContext:', audioContextError);
+        }
+        
+        console.warn('All audio unlock strategies failed');
+        return false;
+      } finally {
+        // Reset the playing flag no matter what happens
+        isPlayingRef.current = false;
       }
-      return false;
     } catch (error) {
-      console.warn('Could not unlock audio:', error);
+      // Handle any unexpected errors
+      console.warn('Unexpected error in unlockAudio:', error);
+      isPlayingRef.current = false;
       return false;
     }
   };
@@ -155,19 +318,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return 'denied';
     }
 
-    try {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      setNotificationsEnabled(permission === 'granted');
-      
-      // Try to unlock audio when requesting notification permission
-      await unlockAudio();
-      
-      return permission;
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
-      return 'denied';
-    }
+    // COMPLETELY DISABLE NOTIFICATION PERMISSION REQUESTS
+    console.log('Notification permission request blocked - disabled in this version');
+    
+    // Always set to disabled in localStorage no matter what
+    localStorage.setItem('xrpchat_notification_requested', 'false');
+    localStorage.setItem('xrpchat_notification_user_choice', 'false');
+    localStorage.setItem('xrpchat_notification_permission', 'disabled');
+    
+    // Keep current permission without requesting new permissions
+    setNotificationsEnabled(false);
+    return Notification.permission;
   };
 
   // Subscribe to push notifications
@@ -214,27 +375,36 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   // Show a notification
-  const showNotification = (title: string, options?: NotificationOptions) => {
-    if (!notificationsEnabled) return;
-
-    try {
-      // Play notification sound
-      playNotificationSound();
-
-      // Check if we can use the service worker for notifications
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SHOW_NOTIFICATION',
-          title,
-          options
-        });
-      } else {
-        // Fallback to using the Notification API directly
-        new Notification(title, options);
-      }
-    } catch (error) {
-      console.error('Error showing notification:', error);
+  const showNotification = (title: string, options?: NotificationOptions & { senderId?: string }) => {
+    // Extract the sender ID if provided
+    const senderId = options?.senderId;
+    
+    // Check if this is our own message - never play sounds for our own messages
+    if (senderId && user?.id === senderId) {
+      console.log('Not playing sound for our own message');
+      return;
     }
+    
+    // Check if notifications are enabled by user preference
+    const notificationsEnabled = localStorage.getItem('xrpchat_notifications_enabled') === 'true';
+    const permissionGranted = localStorage.getItem('xrpchat_notification_permission') === 'granted';
+    
+    if (!notificationsEnabled || !permissionGranted) {
+      console.log('Notification not shown - disabled by user preference:', title, options);
+      return;
+    }
+    
+    // Log the notification that would have been shown
+    console.log('Notification received:', title, options);
+    
+    // If already playing, don't try to unlock audio again
+    if (isPlayingRef.current) {
+      console.log('Audio already playing, skipping additional unlocking attempts');
+      return;
+    }
+    
+    // Simply call playNotificationSound which now has debounce and safety checks
+    playNotificationSound();
   };
 
   // Increment unread counter
@@ -247,35 +417,74 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setUnreadCount(0);
   };
 
-  // Play notification sound
+  // Play notification sound with better handling and debounce
   const playNotificationSound = () => {
+    if (!notificationSoundRef.current) {
+      console.warn('No notification sound reference available');
+      return;
+    }
+    
+    // Debounce - don't play sounds too frequently (at least 1 second apart)
+    const now = Date.now();
+    if (now - lastPlayedTimeRef.current < 1000) {
+      console.log('Notification sound debounced - played too recently');
+      return;
+    }
+    
+    // Don't attempt to play if already playing
+    if (isPlayingRef.current) {
+      console.log('Notification sound already playing, skipping');
+      return;
+    }
+    
     try {
-      // Play sound in the main thread
-      if (notificationSoundRef.current) {
-        // Reset the audio to the beginning if it's already playing
-        notificationSoundRef.current.pause();
-        notificationSoundRef.current.currentTime = 0;
-        
-        console.log('Playing notification sound');
-        
-        // Only try to play if we have user interaction or sound is unlocked
-        if (soundUnlocked || document.hasFocus()) {
-          notificationSoundRef.current.play().catch(error => {
-            console.error('Error playing notification sound:', error);
-            // If we get an error, we might need to unlock audio again
-            if (error.name === 'NotAllowedError') {
-              console.warn('Audio not unlocked yet - waiting for user interaction');
-              setSoundUnlocked(false);
-            }
-          });
-        } else {
-          console.warn('Audio not played - waiting for user interaction to unlock audio');
-        }
-      } else {
-        console.warn('No notification sound reference available');
+      // Mark as playing to prevent overlapping calls
+      isPlayingRef.current = true;
+      
+      // Try unlocking audio if needed
+      if (!soundUnlocked && hasUserInteractedRef.current) {
+        unlockAudio().catch(() => {
+          console.warn('Failed to unlock audio before playing');
+        });
       }
+      
+      // Create a promise to handle sequential audio operations with minimal delays
+      const playSound = async () => {
+        try {
+          // Reset to start with small delay to ensure previous operations complete
+          notificationSoundRef.current!.pause();
+          await new Promise(r => setTimeout(r, 10)); // Small delay
+          notificationSoundRef.current!.currentTime = 0;
+          await new Promise(r => setTimeout(r, 10)); // Small delay
+          
+          console.log('Attempting to play notification sound...');
+          notificationSoundRef.current!.volume = 0.5; // Set appropriate volume
+          
+          // Play the sound and handle result
+          await notificationSoundRef.current!.play();
+          console.log('Notification sound played successfully');
+          
+          // Record the time to implement debouncing
+          lastPlayedTimeRef.current = Date.now();
+          setSoundUnlocked(true);
+        } catch (error) {
+          console.error('Error playing notification sound:', error);
+          if (error instanceof Error && error.name === 'NotAllowedError') {
+            console.warn('Audio not unlocked yet - needs user interaction');
+            setSoundUnlocked(false);
+          }
+        } finally {
+          // Reset playing flag when done
+          isPlayingRef.current = false;
+        }
+      };
+      
+      // Execute the sound playing sequence
+      playSound();
     } catch (error) {
-      console.error('Error playing notification sound:', error);
+      // If any unexpected error occurs, make sure to reset the playing flag
+      console.error('Unexpected error in playNotificationSound:', error);
+      isPlayingRef.current = false;
     }
   };
 
@@ -295,7 +504,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         incrementUnread,
         clearUnread,
         playNotificationSound,
-        unlockAudio
+        unlockAudio,
+        updateNotificationState
       }}
     >
       {children}

@@ -36,7 +36,13 @@ export const useNotificationSubscriptions = () => {
   }, []);
 
   // Custom function to play notification sound that doesn't depend on the context
-  const playSound = () => {
+  const playSound = (senderId?: string) => {
+    // Extra safety check - NEVER play sounds for our own messages
+    if (senderId && user?.id === senderId) {
+      console.log('Skipping notification sound for our own message');
+      return;
+    }
+    
     try {
       // If sound is unlocked from context, we can try to play our local audio
       if (soundUnlocked && audioRef.current) {
@@ -79,7 +85,7 @@ export const useNotificationSubscriptions = () => {
       // Show notification if the thread was created by someone else and window is not focused
       if (payload.new && payload.new.created_by !== user.id && !document.hasFocus()) {
         // Always play sound for new threads
-        playSound();
+        playSound(payload.new.created_by);
         
         if (notificationsEnabled) {
           showNotification('New Chat', {
@@ -88,8 +94,9 @@ export const useNotificationSubscriptions = () => {
               threadId: payload.new.id,
               url: `/app/chat/${payload.new.id}`
             },
-            tag: `thread-${payload.new.id}`
-          });
+            tag: `thread-${payload.new.id}`,
+            senderId: payload.new.created_by
+          } as any);
           
           // Increment unread counter
           incrementUnread();
@@ -126,9 +133,8 @@ export const useNotificationSubscriptions = () => {
                 if (payload.new && payload.new.sender_id !== user.id) {
                   console.log('New message received in App:', payload.new);
                   
-                  // Always play notification sound for new messages
-                  // regardless of which page the user is on
-                  playSound();
+                  // Only play notification sound for messages from OTHER users
+                  playSound(payload.new.sender_id);
                   
                   // Show notification if enabled
                   if (notificationsEnabled && !document.hasFocus()) {
@@ -163,8 +169,9 @@ export const useNotificationSubscriptions = () => {
                                     threadId,
                                     url: `/app/chat/${threadId}`
                                   },
-                                  tag: `thread-${threadId}`
-                                });
+                                  tag: `thread-${threadId}`,
+                                  senderId: payload.new.sender_id
+                                } as any);
                                 
                                 // Increment unread counter
                                 incrementUnread();
