@@ -75,8 +75,9 @@ export const ChatList: React.FC = () => {
                   threadId: payload.new.id,
                   url: `/app/chat/${payload.new.id}`
                 },
-                tag: `thread-${payload.new.id}`
-              });
+                tag: `thread-${payload.new.id}`,
+                senderId: payload.new.created_by // Add sender ID to prevent notification for our own messages
+              } as any); // Cast to any to allow our custom property
               
               // Increment unread counter
               incrementUnread();
@@ -86,6 +87,11 @@ export const ChatList: React.FC = () => {
                 ...prev,
                 [payload.new.id]: (prev[payload.new.id] || 0) + 1
               }));
+              
+              // Play notification sound for new chat if we didn't create it
+              if (payload.new.created_by !== user.id) {
+                playNotificationSound();
+              }
             }
           }
         }
@@ -118,17 +124,29 @@ export const ChatList: React.FC = () => {
                   // Show visual notification if not in focus and notifications are enabled
                   if (notificationsEnabled && !document.hasFocus()) {
                     const senderName = thread.otherParticipant?.username || 'Someone';
-                    showNotification(`New message from ${senderName}`, {
-                      body: payload.new.content,
-                      data: {
-                        threadId: thread.id,
-                        url: `/app/chat/${thread.id}`
-                      },
-                      tag: `thread-${thread.id}`
-                    });
                     
-                    // Increment global unread counter
-                    incrementUnread();
+                    // Only send notification if the current URL doesn't include this thread ID
+                    // This prevents notifications when already in the chat
+                    const currentThreadId = window.location.pathname.split('/').pop();
+                    if (currentThreadId !== thread.id) {
+                      showNotification(`New message from ${senderName}`, {
+                        body: payload.new.content,
+                        data: {
+                          threadId: thread.id,
+                          url: `/app/chat/${thread.id}`
+                        },
+                        tag: `thread-${thread.id}`,
+                        senderId: payload.new.sender_id // Add sender ID to prevent notification for our own messages
+                      } as any); // Cast to any to allow our custom property
+                      
+                      // Increment global unread counter
+                      incrementUnread();
+                      
+                      // Make sure the sound plays for new messages if we have notification permissions
+                      if (Notification.permission === 'granted') {
+                        playNotificationSound();
+                      }
+                    }
                   }
                 }
               },
@@ -166,7 +184,56 @@ export const ChatList: React.FC = () => {
         messageUnsubscribesRef.current = [];
       };
     }
-  }, [user, notificationsEnabled, showNotification, incrementUnread, threads.length]);
+  }, [user, notificationsEnabled, showNotification, incrementUnread, playNotificationSound, threads.length]);
+
+  // Add an interval to periodically refresh unread counts - this ensures they stay up to date
+  useEffect(() => {
+    if (user) {
+      // Refresh unread counts every 30 seconds
+      const intervalId = setInterval(() => {
+        refreshUnreadCounts();
+      }, 30000); // 30 seconds
+      
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [user]);
+  
+  // Function to refresh unread counts without loading all thread data
+  const refreshUnreadCounts = async () => {
+    if (!user) return;
+    
+    try {
+      // For each thread, count unread messages
+      const unreadCounters: Record<string, number> = {};
+      
+      await Promise.all(threads.map(async (thread: Thread) => {
+        try {
+          // Fetch messages for this thread
+          const { data: messagesData } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('thread_id', thread.id)
+            .eq('read', false)
+            .neq('sender_id', user.id); // Only count messages not sent by current user
+            
+          // Set unread count for this thread
+          if (messagesData && messagesData.length > 0) {
+            unreadCounters[thread.id] = messagesData.length;
+          }
+        } catch (error) {
+          console.error(`Error counting unread messages for thread ${thread.id}:`, error);
+        }
+      }));
+      
+      // Update unread threads state with the latest counts
+      setUnreadThreads(unreadCounters);
+      console.log('Unread counts refreshed:', unreadCounters);
+    } catch (error) {
+      console.error('Error refreshing unread counts:', error);
+    }
+  };
 
   const loadThreadsWithParticipants = async () => {
     setLoading(true);
@@ -573,19 +640,28 @@ export const ChatList: React.FC = () => {
                     {/* Action Buttons */}
                     <div className={`${selectionMode ? 'col-span-1' : 'col-span-1'} flex justify-center`}>
                       {!selectionMode ? (
-                        <button
-                          onClick={(e) => handleOpenDeleteDialog(thread.id, e)}
-                          className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                          title="Delete chat"
-                        >
-                          <HiTrash size={16} />
-                        </button>
+                        <div className="flex items-center space-x-1">
+                          {unreadThreads[thread.id] && unreadThreads[thread.id] > 0 && (
+                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 text-white text-xs font-medium">
+                              {unreadThreads[thread.id] > 9 ? '9+' : unreadThreads[thread.id]}
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => handleOpenDeleteDialog(thread.id, e)}
+                            className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            title="Delete chat"
+                          >
+                            <HiTrash size={16} />
+                          </button>
+                        </div>
                       ) : (
-                        unreadThreads[thread.id] && unreadThreads[thread.id] > 0 && (
-                          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 text-white text-xs font-medium">
-                            {unreadThreads[thread.id] > 9 ? '9+' : unreadThreads[thread.id]}
-                          </span>
-                        )
+                        <div className="flex items-center">
+                          {unreadThreads[thread.id] && unreadThreads[thread.id] > 0 && (
+                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 text-white text-xs font-medium">
+                              {unreadThreads[thread.id] > 9 ? '9+' : unreadThreads[thread.id]}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
