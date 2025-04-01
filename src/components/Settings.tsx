@@ -46,7 +46,8 @@ export const Settings: React.FC = () => {
     notificationsEnabled, 
     notificationPermission,
     requestNotificationPermission,
-    updateNotificationState
+    updateNotificationState,
+    playNotificationSound
   } = useNotification();
 
   const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState(notificationsEnabled);
@@ -334,6 +335,11 @@ export const Settings: React.FC = () => {
     requestNotificationPermission();
   };
 
+  // Add test notification sound function
+  const testNotificationSound = () => {
+    playNotificationSound();
+  };
+
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900 overflow-auto">
       {/* Header */}
@@ -389,6 +395,44 @@ export const Settings: React.FC = () => {
                   <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${localNotificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+              
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {notificationPermission === 'denied' ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                    <p className="text-red-600 dark:text-red-400">
+                      Notifications are blocked by your browser. To enable them, you need to reset permissions.
+                    </p>
+                    <button
+                      onClick={resetNotificationPermissions}
+                      className="mt-2 flex items-center space-x-2 text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm"
+                    >
+                      <HiRefresh size={16} />
+                      <span>Reset Notification Permissions</span>
+                    </button>
+                  </div>
+                ) : (
+                  <p>
+                    {localNotificationsEnabled 
+                      ? "You'll receive notifications when you get new messages, even when the app is in the background or another tab." 
+                      : "Enable notifications to be alerted when you receive new messages, even when the app is in the background."}
+                  </p>
+                )}
+              </div>
+              
+              {/* Add sound test button */}
+              {localNotificationsEnabled && (
+                <div className="mt-3">
+                  <button
+                    onClick={testNotificationSound}
+                    className="px-3 py-1.5 bg-brand-primary hover:bg-brand-secondary text-white text-sm rounded-md transition-colors"
+                  >
+                    Test Notification Sound
+                  </button>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Make sure your volume is turned up to hear the notification sound.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -410,7 +454,7 @@ export const Settings: React.FC = () => {
                 {saveSettingsMessage && (
                   <div className={`text-sm px-3 py-2 rounded-md ${
                     saveSettingsMessage.type === 'success' 
-                      ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' 
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-white' 
                       : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                   }`}>
                     {saveSettingsMessage.text}
@@ -563,7 +607,7 @@ export const Settings: React.FC = () => {
               </div>
               
               {isMaxSecurityEnabled && (
-                <div className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                <div className="text-xs text-green-600 dark:text-white bg-green-50 dark:bg-green-900/20 p-2 rounded">
                   In maximum security mode, your private key is not stored in the browser. You'll need to provide it for each decryption operation.
                 </div>
               )}
@@ -589,55 +633,6 @@ export const Settings: React.FC = () => {
                 >
                   <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${debugMode ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Notification Settings Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                Notification Settings
-              </h3>
-            </div>
-            
-            <div className="px-4 py-5 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                  <HiBell size={20} />
-                  <span>Notifications</span>
-                </div>
-                <button
-                  onClick={handleToggleNotifications}
-                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${localNotificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  aria-label={localNotificationsEnabled ? "Notifications enabled" : "Notifications disabled"}
-                  title={localNotificationsEnabled ? "Notifications enabled" : "Notifications disabled"}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${localNotificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-              
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {notificationPermission === 'denied' ? (
-                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
-                    <p className="text-red-600 dark:text-red-400">
-                      Notifications are blocked by your browser. To enable them, you need to reset permissions.
-                    </p>
-                    <button
-                      onClick={resetNotificationPermissions}
-                      className="mt-2 flex items-center space-x-2 text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm"
-                    >
-                      <HiRefresh size={16} />
-                      <span>Reset Notification Permissions</span>
-                    </button>
-                  </div>
-                ) : (
-                  <p>
-                    {localNotificationsEnabled 
-                      ? "You'll receive notifications when you get new messages." 
-                      : "Enable notifications to be alerted when you receive new messages, even when the app is in the background."}
-                  </p>
-                )}
               </div>
             </div>
           </div>
