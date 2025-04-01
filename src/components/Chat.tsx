@@ -5,10 +5,16 @@ import { useNotification } from '../context/NotificationContext';
 import { useEncryption } from '../context/EncryptionContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
-import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile } from '../utils/supabase/index';
-import { HiX, HiPaperAirplane } from 'react-icons/hi';
+import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile, updateLastActive } from '../utils/supabase/index';
+import { HiX, HiPaperAirplane, HiClock } from 'react-icons/hi';
 import { Avatar } from './Avatar';
 import type { Database } from '../types/supabase';
+import { 
+  checkAndDeleteExpiredMessages, 
+  getAutoDeleteSettings, 
+  getAutoDeleteMilliseconds,
+  getOtherUserAutoDeleteSettings
+} from '../utils/supabase/autoDelete';
 
 type Message = Database['public']['Tables']['messages']['Row'];
 
@@ -27,6 +33,18 @@ interface ThreadParticipants {
   [key: string]: ParticipantProfile;
 }
 
+// Add interface for auto-delete info
+interface AutoDeleteInfo {
+  userInfo: {
+    enabled: boolean;
+    timeDisplay: string;
+  };
+  otherUserInfo: {
+    enabled: boolean;
+    timeDisplay: string;
+  } | null;
+}
+
 const MessageContent: React.FC<{
   content: string;
   showEncrypted: boolean;
@@ -35,13 +53,24 @@ const MessageContent: React.FC<{
   const [decryptedContent, setDecryptedContent] = useState<string>(content);
   const [isDecrypted, setIsDecrypted] = useState(false);
   const [decryptionFailed, setDecryptionFailed] = useState(false);
+  // Add a ref to track decryption attempts
+  const decryptionAttempts = useRef(0);
+  const maxAttempts = 2; // Maximum number of decryption attempts
+
+  // Reset attempts when content changes
+  useEffect(() => {
+    decryptionAttempts.current = 0;
+  }, [content]);
 
   // When showEncrypted changes, we need to force a re-decryption if needed
   useEffect(() => {
     // If we're switching to "show decrypted" mode and haven't successfully decrypted yet or previously failed
     if (!showEncrypted && (!isDecrypted || decryptionFailed)) {
-      setIsDecrypted(false); // Mark as not decrypted to trigger decryption
-      setDecryptionFailed(false); // Reset failure status
+      // Only reset if we haven't exceeded max attempts
+      if (decryptionAttempts.current < maxAttempts) {
+        setIsDecrypted(false); // Mark as not decrypted to trigger decryption
+        setDecryptionFailed(false); // Reset failure status
+      }
     }
   }, [showEncrypted, isDecrypted, decryptionFailed]);
 
@@ -49,8 +78,27 @@ const MessageContent: React.FC<{
     let mounted = true;
 
     const decrypt = async () => {
+      // Prevent decryption if max attempts reached
+      if (decryptionAttempts.current >= maxAttempts) {
+        return;
+      }
+
       if (!isDecrypted && !showEncrypted) {
+        decryptionAttempts.current += 1;
+        
         try {
+          // Check if the content looks like a valid encrypted message (base64)
+          const isBase64 = /^[A-Za-z0-9+/=]+$/.test(content);
+          if (!isBase64) {
+            // If it's not a valid base64 string, don't attempt to decrypt
+            if (mounted) {
+              setDecryptedContent(content); // Just display the original content
+              setIsDecrypted(true);
+              setDecryptionFailed(false);
+            }
+            return;
+          }
+
           const decrypted = await decryptMessage(content);
           if (mounted) {
             setDecryptedContent(decrypted);
@@ -104,6 +152,7 @@ export const Chat: React.FC = () => {
   const { debugMode } = useDebugMode();
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [autoDeleteInfo, setAutoDeleteInfo] = useState<AutoDeleteInfo | null>(null);
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -234,6 +283,18 @@ export const Chat: React.FC = () => {
       if (!threadId || !user) return;
       
       try {
+        // Check for expired messages before loading
+        if (user.id) {
+          try {
+            const deletedCount = await checkAndDeleteExpiredMessages(user.id);
+            if (deletedCount > 0) {
+              console.log(`Auto-deleted ${deletedCount} expired messages`);
+            }
+          } catch (error) {
+            console.error('Error checking for expired messages:', error);
+          }
+        }
+        
         const messages = await getThreadMessages(threadId);
         setMessages(messages.reverse()); // Reverse to show oldest first
         
@@ -254,10 +315,6 @@ export const Chat: React.FC = () => {
             }
           }));
         }
-        
-        // Temporarily skip updating last_active since the column might not exist yet
-        // This helps avoid unnecessary console errors while using the app
-        console.log('Skipping last_active update until column is confirmed to exist');
       } catch (error) {
         console.error('Failed to load messages:', error);
         setError('Failed to load messages');
@@ -419,6 +476,174 @@ export const Chat: React.FC = () => {
     }
   }, [location, navigate]);
 
+  // Update effect to check both users' auto-delete settings and set the information
+  useEffect(() => {
+    const fetchAutoDeleteSettings = async () => {
+      if (!threadDetails || !user) return;
+      
+      // Get current user's settings
+      const currentUserSettings = getAutoDeleteSettings();
+      const currentUserMs = getAutoDeleteMilliseconds(currentUserSettings);
+      
+      // Find the other participant's ID
+      const otherParticipantId = threadDetails.participant_ids.find(id => id !== user.id);
+      
+      let otherUserSettings = null;
+      let otherUserMs = null;
+      
+      // Get other user's settings if available
+      if (otherParticipantId) {
+        try {
+          otherUserSettings = await getOtherUserAutoDeleteSettings(otherParticipantId);
+          if (otherUserSettings) {
+            otherUserMs = getAutoDeleteMilliseconds(otherUserSettings);
+          }
+        } catch (error) {
+          console.error('Error fetching other user auto-delete settings:', error);
+        }
+      }
+      
+      // Build the auto-delete info object
+      const info: AutoDeleteInfo = {
+        userInfo: {
+          enabled: Boolean(currentUserMs),
+          timeDisplay: ''
+        },
+        otherUserInfo: otherUserSettings ? {
+          enabled: Boolean(otherUserMs),
+          timeDisplay: ''
+        } : null
+      };
+      
+      // Format time displays
+      if (currentUserMs) {
+        info.userInfo.timeDisplay = formatTimeForDisplay(currentUserMs);
+      }
+      
+      if (otherUserMs) {
+        info.otherUserInfo!.timeDisplay = formatTimeForDisplay(otherUserMs);
+      }
+      
+      setAutoDeleteInfo(info);
+    };
+    
+    fetchAutoDeleteSettings();
+    
+    // Subscribe to profile changes to get real-time updates for auto-delete settings
+    let profileSubscription: any = null;
+    
+    if (threadDetails && user) {
+      const otherParticipantId = threadDetails.participant_ids.find(id => id !== user.id);
+      if (otherParticipantId) {
+        // Subscribe to the other user's profile changes
+        profileSubscription = supabase
+          .channel('profile-changes')
+          .on('postgres_changes', 
+            { 
+              event: 'UPDATE', 
+              schema: 'public', 
+              table: 'profiles',
+              filter: `id=eq.${otherParticipantId}`
+            }, 
+            (payload) => {
+              console.log('Detected profile update, refreshing auto-delete settings');
+              fetchAutoDeleteSettings();
+            }
+          )
+          .subscribe();
+      }
+    }
+    
+    // Refresh auto-delete settings every 60 seconds as a fallback
+    const intervalId = setInterval(fetchAutoDeleteSettings, 60000);
+    
+    return () => {
+      clearInterval(intervalId);
+      if (profileSubscription) {
+        profileSubscription.unsubscribe();
+      }
+    };
+  }, [threadDetails, user]);
+
+  // Also subscribe to our own profile changes in case we update settings in another tab/window
+  useEffect(() => {
+    if (!user) return;
+    
+    // Subscribe to the current user's profile changes
+    const currentUserSubscription = supabase
+      .channel('my-profile-changes')
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        }, 
+        (payload) => {
+          console.log('Local profile updated, refreshing settings display');
+          // Get updated settings from localStorage (which should be updated in Settings.tsx)
+          const currentUserSettings = getAutoDeleteSettings();
+          const currentUserMs = getAutoDeleteMilliseconds(currentUserSettings);
+          
+          if (autoDeleteInfo) {
+            setAutoDeleteInfo(prev => {
+              if (!prev) return prev;
+              
+              const updatedInfo = { ...prev };
+              updatedInfo.userInfo.enabled = Boolean(currentUserMs);
+              if (currentUserMs) {
+                updatedInfo.userInfo.timeDisplay = formatTimeForDisplay(currentUserMs);
+              }
+              return updatedInfo;
+            });
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      if (currentUserSubscription) {
+        currentUserSubscription.unsubscribe();
+      }
+    };
+  }, [user, autoDeleteInfo]);
+  
+  // Helper function to format time in milliseconds to human-readable form
+  const formatTimeForDisplay = (milliseconds: number): string => {
+    const seconds = Math.floor(milliseconds / 1000);
+    
+    if (seconds < 60) {
+      return `${seconds} seconds`;
+    } else if (seconds < 3600) {
+      return `${Math.floor(seconds / 60)} minutes`;
+    } else if (seconds < 86400) {
+      return `${Math.floor(seconds / 3600)} hours`;
+    } else if (seconds < 604800) {
+      return `${Math.floor(seconds / 86400)} days`;
+    } else {
+      return `${Math.floor(seconds / 604800)} weeks`;
+    }
+  };
+
+  // Add a useEffect to update the user's last_active status periodically
+  useEffect(() => {
+    if (!user) return;
+
+    // Update last active now when user first enters the chat
+    updateLastActive(user.id);
+    
+    // Then update every 5 minutes while they're in the chat
+    const intervalId = setInterval(() => {
+      updateLastActive(user.id);
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => {
+      clearInterval(intervalId);
+      // Also update when leaving the chat
+      updateLastActive(user.id);
+    };
+  }, [user]);
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!threadId || !user || !newMessage.trim() || sending) return;
@@ -439,6 +664,10 @@ export const Chat: React.FC = () => {
         : newMessage;
 
       await sendMessage(threadId, user.id, finalContent);
+      
+      // Update last active status after sending a message
+      updateLastActive(user.id);
+      
       setNewMessage('');
     } catch (error) {
       setError('Failed to send message');
@@ -601,6 +830,68 @@ export const Chat: React.FC = () => {
         {error && (
           <div className="mb-4 text-sm text-red-600">
             {error}
+          </div>
+        )}
+
+        {autoDeleteInfo && (
+          <div className="mb-3 text-xs rounded-md overflow-hidden border dark:border-gray-700">
+            <div className={`py-2 px-3 flex items-center justify-between ${
+              autoDeleteInfo.userInfo.enabled 
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+            }`}>
+              <div className="flex items-center">
+                <HiClock className={`mr-1 ${autoDeleteInfo.userInfo.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} size={14} />
+                <span className="font-medium">
+                  {autoDeleteInfo.userInfo.enabled 
+                    ? `Your messages will auto-delete after ${autoDeleteInfo.userInfo.timeDisplay}` 
+                    : 'You have not enabled auto-delete for your messages'}
+                </span>
+              </div>
+              <div className="ml-2">
+                <button 
+                  onClick={() => navigate('/app/settings')}
+                  className={`text-xs underline ${autoDeleteInfo.userInfo.enabled ? 'text-green-700 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200' : 'text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200'}`}
+                  title="Change auto-delete settings"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+            
+            {autoDeleteInfo.otherUserInfo !== null ? (
+              <div className={`py-2 px-3 flex items-center border-t dark:border-gray-700 ${
+                autoDeleteInfo.otherUserInfo.enabled 
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' 
+                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+              }`}>
+                <HiClock className={`mr-1 ${autoDeleteInfo.otherUserInfo.enabled ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} size={14} />
+                <span>
+                  {(() => {
+                    // Get the other participant's username
+                    const otherParticipantId = threadDetails.participant_ids.find(id => id !== user?.id) || '';
+                    const username = participants[otherParticipantId]?.username || 'Contact';
+                    
+                    return autoDeleteInfo.otherUserInfo.enabled 
+                      ? `${username}'s messages will auto-delete after ${autoDeleteInfo.otherUserInfo.timeDisplay}` 
+                      : `${username} has not enabled auto-delete for their messages`;
+                  })()}
+                </span>
+              </div>
+            ) : (
+              <div className="py-2 px-3 flex items-center border-t dark:border-gray-700 bg-gray-100 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300">
+                <HiClock className="mr-1 text-gray-500 dark:text-gray-400" size={14} />
+                <span>
+                  {(() => {
+                    // Get the other participant's username
+                    const otherParticipantId = threadDetails.participant_ids.find(id => id !== user?.id) || '';
+                    const username = participants[otherParticipantId]?.username || 'Contact';
+                    
+                    return `${username} has not configured auto-delete settings`;
+                  })()}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

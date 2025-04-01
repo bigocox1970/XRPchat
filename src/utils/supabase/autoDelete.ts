@@ -1,0 +1,218 @@
+import { supabase } from './client';
+
+// Auto-delete option types
+type AutoDeleteTimeUnit = 'minutes' | 'hours' | 'days' | 'weeks';
+type AutoDeleteOption = 'off' | '5min' | '30min' | '1hour' | '1day' | '1week' | 'custom';
+
+interface AutoDeleteSettings {
+  enabled: boolean;
+  option: AutoDeleteOption;
+  customValue: number;
+  customUnit: AutoDeleteTimeUnit;
+}
+
+/**
+ * Converts the auto-delete settings to milliseconds
+ */
+export const getAutoDeleteMilliseconds = (settings: AutoDeleteSettings): number | null => {
+  if (!settings.enabled || settings.option === 'off') {
+    return null;
+  }
+
+  let milliseconds = 0;
+  
+  switch (settings.option) {
+    case '5min':
+      milliseconds = 5 * 60 * 1000;
+      break;
+    case '30min':
+      milliseconds = 30 * 60 * 1000;
+      break;
+    case '1hour':
+      milliseconds = 60 * 60 * 1000;
+      break;
+    case '1day':
+      milliseconds = 24 * 60 * 60 * 1000;
+      break;
+    case '1week':
+      milliseconds = 7 * 24 * 60 * 60 * 1000;
+      break;
+    case 'custom':
+      const value = settings.customValue;
+      
+      switch (settings.customUnit) {
+        case 'minutes':
+          milliseconds = value * 60 * 1000;
+          break;
+        case 'hours':
+          milliseconds = value * 60 * 60 * 1000;
+          break;
+        case 'days':
+          milliseconds = value * 24 * 60 * 60 * 1000;
+          break;
+        case 'weeks':
+          milliseconds = value * 7 * 24 * 60 * 60 * 1000;
+          break;
+      }
+      break;
+  }
+  
+  return milliseconds;
+};
+
+/**
+ * Gets the auto-delete settings from localStorage
+ */
+export const getAutoDeleteSettings = (): AutoDeleteSettings => {
+  const defaultSettings: AutoDeleteSettings = {
+    enabled: false,
+    option: 'off',
+    customValue: 24,
+    customUnit: 'hours'
+  };
+  
+  try {
+    const savedSettings = localStorage.getItem('xrpchat_auto_delete_settings');
+    if (savedSettings) {
+      return JSON.parse(savedSettings) as AutoDeleteSettings;
+    }
+  } catch (e) {
+    console.error('Error parsing auto-delete settings:', e);
+  }
+  
+  return defaultSettings;
+};
+
+/**
+ * Checks for and deletes expired messages based on the auto-delete settings
+ */
+export const checkAndDeleteExpiredMessages = async (userId: string): Promise<number> => {
+  try {
+    const autoDeleteSettings = getAutoDeleteSettings();
+    const autoDeleteMilliseconds = getAutoDeleteMilliseconds(autoDeleteSettings);
+    
+    if (!autoDeleteMilliseconds) {
+      return 0; // Auto-delete is disabled
+    }
+    
+    const now = new Date();
+    const expiryTime = new Date(now.getTime() - autoDeleteMilliseconds);
+    const expiryTimeISO = expiryTime.toISOString();
+    
+    // Query for messages that need to be deleted (older than the expiry time)
+    const { data: messagesToDelete, error: queryError } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('sender_id', userId) // Only delete messages sent by the current user
+      .lt('created_at', expiryTimeISO);
+    
+    if (queryError) {
+      console.error('Error querying expired messages:', queryError);
+      return 0;
+    }
+    
+    if (!messagesToDelete || messagesToDelete.length === 0) {
+      return 0; // No messages to delete
+    }
+    
+    // Get the IDs of messages to delete
+    const messageIds = messagesToDelete.map(message => message.id);
+    
+    // Delete the expired messages
+    const { error: deleteError } = await supabase
+      .from('messages')
+      .delete()
+      .in('id', messageIds);
+    
+    if (deleteError) {
+      console.error('Error deleting expired messages:', deleteError);
+      return 0;
+    }
+    
+    console.log(`Deleted ${messageIds.length} expired messages`);
+    return messageIds.length;
+  } catch (error) {
+    console.error('Error in checkAndDeleteExpiredMessages:', error);
+    return 0;
+  }
+};
+
+/**
+ * Schedules auto-deletion of messages
+ * This function should be called when the app starts to set up the auto-delete interval
+ */
+export const setupAutoDeleteInterval = (userId: string | undefined) => {
+  // Check and delete expired messages on startup
+  if (userId) {
+    checkAndDeleteExpiredMessages(userId).catch(error => {
+      console.error('Error checking for expired messages on startup:', error);
+    });
+  }
+  
+  // Set up interval to check for expired messages every 5 minutes
+  const interval = setInterval(() => {
+    if (userId) {
+      checkAndDeleteExpiredMessages(userId).catch(error => {
+        console.error('Error checking for expired messages:', error);
+      });
+    }
+  }, 5 * 60 * 1000);
+  
+  // Return a cleanup function that clears the interval
+  return () => clearInterval(interval);
+};
+
+/**
+ * Gets another user's auto-delete settings from the database
+ * Returns null if the user has no auto-delete settings
+ */
+export const getOtherUserAutoDeleteSettings = async (userId: string): Promise<AutoDeleteSettings | null> => {
+  try {
+    // Query the database for user's auto-delete settings
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('auto_delete_settings')
+      .eq('id', userId)
+      .single();
+      
+    if (error || !data || !data.auto_delete_settings) {
+      return null;
+    }
+    
+    // Parse the settings
+    try {
+      return JSON.parse(data.auto_delete_settings) as AutoDeleteSettings;
+    } catch (e) {
+      console.error('Error parsing auto-delete settings from database:', e);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching other user auto-delete settings:', error);
+    return null;
+  }
+};
+
+/**
+ * Saves the current user's auto-delete settings to the database so other users can see them
+ */
+export const saveAutoDeleteSettingsToDatabase = async (userId: string, settings: AutoDeleteSettings): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        auto_delete_settings: JSON.stringify(settings),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+      
+    if (error) {
+      console.error('Error saving auto-delete settings to database:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in saveAutoDeleteSettingsToDatabase:', error);
+    return false;
+  }
+}; 

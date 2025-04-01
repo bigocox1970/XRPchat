@@ -14,6 +14,7 @@ A modern, secure chat application with end-to-end encryption using wallet-based 
 - Notification sound alerts
 - Modern, responsive UI
 - Comprehensive security features
+- Auto-delete messages with customizable timeframes
 
 ## Tech Stack
 
@@ -169,6 +170,43 @@ The application uses a default notification sound located at `/public/sounds/not
 3. Restart the application to apply changes
 
 For more information, see the README in the `/public/sounds` directory.
+
+## Auto-Delete Messages
+
+### Auto-Delete Feature
+
+XRPChat includes a robust auto-delete message system:
+
+- Set messages to automatically delete after a specified time period
+- Choose from preset options (5 minutes, 30 minutes, 1 hour, 1 day, 1 week)
+- Create custom time periods using minutes, hours, days, or weeks
+- Real-time status indicators showing both your and the recipient's auto-delete settings
+- Settings are stored both locally and on the server (for recipient visibility)
+- Visual indicators showing whether auto-delete is enabled (green) or disabled (red)
+
+### Setting Up Auto-Delete
+
+1. Navigate to Settings > Auto-Delete Messages
+2. Choose a preset option or set a custom time period
+3. Your settings are automatically saved both locally and to the server
+4. When chatting, the auto-delete status card will show both users' settings
+5. Messages will be automatically deleted after the specified time has elapsed
+
+### Technical Implementation
+
+- Settings are stored in both localStorage and the user's profile record
+- A background process checks for expired messages every 5 minutes
+- Messages are permanently deleted from the database when they expire
+- Real-time updates via Supabase subscriptions ensure settings changes are immediately visible
+- User's "last active" status is updated regularly to show online presence
+
+### Database Requirements
+
+Auto-delete functionality requires:
+- The `auto_delete_settings` JSONB column in the `profiles` table
+- The `last_active` timestamp column in the `profiles` table
+
+Run the SQL script in `sql/auto_delete_settings_migration.sql` to add these columns.
 
 ## Troubleshooting
 

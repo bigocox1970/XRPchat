@@ -21,14 +21,53 @@ import { Profile } from './components/Profile';
 import { ContactList } from './components/ContactList';
 import { ChatList } from './components/ChatList';
 import { Chat } from './components/Chat';
+import { NewChat } from './components/NewChat';
 import { Layout } from './components/Layout';
 import { WebsiteLayout } from './components/WebsiteLayout';
 import { Website } from './components/Website';
 import { Features } from './components/Features';
 import { Security } from './components/Security';
 import { FAQ } from './components/FAQ';
+import { Settings } from './components/Settings';
 import { supabase, subscribeToUserThreads, subscribeToThread } from './utils/supabase/index';
+import { setupAutoDeleteInterval } from './utils/supabase/autoDelete';
 import './index.css';
+
+// Add a component to initialize the auto-delete system
+const AutoDeleteInitializer: React.FC = () => {
+  const { user } = useUser();
+  
+  useEffect(() => {
+    if (user) {
+      // Set up the auto-delete interval when the user is authenticated
+      const cleanup = setupAutoDeleteInterval(user.id);
+      
+      // Also sync the current user's auto-delete settings to the database
+      try {
+        // Check if settings exist in localStorage
+        const savedSettings = localStorage.getItem('xrpchat_auto_delete_settings');
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          
+          // Save to database asynchronously
+          import('./utils/supabase/autoDelete').then(module => {
+            module.saveAutoDeleteSettingsToDatabase(user.id, settings)
+              .catch(error => {
+                console.error('Error syncing auto-delete settings to database on startup:', error);
+              });
+          });
+        }
+      } catch (error) {
+        console.error('Error processing auto-delete settings on startup:', error);
+      }
+      
+      // Clean up the interval when the component unmounts
+      return cleanup;
+    }
+  }, [user]);
+  
+  return null;
+};
 
 // Separate component for route protection logic
 const RouteGuard: React.FC = () => {
@@ -67,6 +106,7 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         <UserProvider>
           <NotificationProvider>
             <EncryptionModeProvider>
+              <AutoDeleteInitializer />
               {children}
             </EncryptionModeProvider>
           </NotificationProvider>
@@ -118,9 +158,11 @@ const createAppRoutes = () => {
       <Route path="/app" element={<ProtectedRoute element={<AuthenticatedLayout />} />}>
         <Route index element={<Navigate to="/app/chats" />} />
         <Route path="chats" element={<ChatList />} />
+        <Route path="chat/new" element={<NewChat />} />
         <Route path="chat/:id" element={<Chat />} />
         <Route path="contacts" element={<ContactList />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       
       {/* Fallback Route */}
