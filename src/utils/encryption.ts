@@ -113,36 +113,43 @@ export const decryptMessage = async (
   _privateKey: string
 ): Promise<string> => {
   try {
-    console.log('Attempting to decrypt message');
-    
     // Validate input
     if (!encryptedMessage) {
-      console.error('Empty message provided for decryption');
       throw new Error('Cannot decrypt empty message');
     }
     
-    // Convert base64 to array buffer
+    // Check for valid base64 format
+    if (!/^[A-Za-z0-9+/=]+$/.test(encryptedMessage)) {
+      throw new Error('Invalid encrypted format: Not a valid base64 string');
+    }
+    
+    // Try to parse the base64 string
+    let data;
     try {
       // Convert base64 to array buffer
-      const data = new Uint8Array(
+      data = new Uint8Array(
         atob(encryptedMessage)
           .split('')
           .map(char => char.charCodeAt(0))
       );
-      
-      // Check minimum length for valid data
-      if (data.length < 45) { // At least IV (12) + Key (32) + 1 byte of encrypted data
-        console.error('Decryption failed: Data too short to be valid encrypted message');
-        throw new Error('Invalid encrypted format');
-      }
+    } catch (parseError) {
+      throw new Error('Failed to parse encrypted message format: Invalid base64 encoding');
+    }
+    
+    // Check minimum length for valid data
+    if (data.length < 45) { // At least IV (12) + Key (32) + 1 byte of encrypted data
+      throw new Error('Invalid encrypted format: Data too short to be valid');
+    }
 
-      // Extract components
-      const iv = data.slice(0, 12);
-      const keyData = data.slice(12, 44); // AES-256 key is 32 bytes
-      const encryptedData = data.slice(44);
+    // Extract components
+    const iv = data.slice(0, 12);
+    const keyData = data.slice(12, 44); // AES-256 key is 32 bytes
+    const encryptedData = data.slice(44);
 
-      // Import the key
-      const key = await crypto.subtle.importKey(
+    // Import the key
+    let key;
+    try {
+      key = await crypto.subtle.importKey(
         'raw',
         keyData,
         {
@@ -152,9 +159,14 @@ export const decryptMessage = async (
         true,
         ['decrypt']
       );
+    } catch (keyError) {
+      throw new Error('Failed to import encryption key: Invalid key format');
+    }
 
-      // Decrypt the data
-      const decryptedData = await crypto.subtle.decrypt(
+    // Decrypt the data
+    let decryptedData;
+    try {
+      decryptedData = await crypto.subtle.decrypt(
         {
           name: 'AES-GCM',
           iv
@@ -162,16 +174,14 @@ export const decryptMessage = async (
         key,
         encryptedData
       );
-
-      // Convert to string
-      const decoder = new TextDecoder();
-      const result = decoder.decode(decryptedData);
-      console.log('Message decrypted successfully');
-      return result;
-    } catch (parseError) {
-      console.error('Base64 parsing error:', parseError);
-      throw new Error('Failed to parse encrypted message format');
+    } catch (decryptError) {
+      throw new Error('Failed to decrypt data: Possibly corrupted or tampered message');
     }
+
+    // Convert to string
+    const decoder = new TextDecoder();
+    const result = decoder.decode(decryptedData);
+    return result;
   } catch (error) {
     console.error('Decryption error:', error);
     throw new Error(error instanceof Error ? error.message : 'Failed to decrypt message');

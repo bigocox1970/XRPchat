@@ -52,6 +52,12 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   ): Promise<string> => {
     if (!wallet) throw new Error('No wallet available');
 
+    // Early validation for non-encrypted messages
+    // If it doesn't look like a base64 string, return it unchanged
+    if (!/^[A-Za-z0-9+/=]+$/.test(encryptedMessage)) {
+      return encryptedMessage;
+    }
+
     try {
       // In max security mode, require temporary private key for decryption
       if (isMaxSecurityEnabled) {
@@ -61,7 +67,8 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         try {
           return await decryptMessage(encryptedMessage, temporaryPrivateKey);
         } catch (decryptError) {
-          console.error('Failed to decrypt with temporary private key:', decryptError);
+          // Don't log the full error stack to prevent console flooding
+          console.warn('Decryption failed with temporary private key');
           throw new Error('Decryption failed. Please check your private key.');
         }
       }
@@ -70,12 +77,14 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       try {
         return await decryptMessage(encryptedMessage, wallet.private_key);
       } catch (decryptError) {
-        console.error('Failed to decrypt with stored private key:', decryptError);
+        // Don't log the full error stack to prevent console flooding
+        console.warn('Decryption failed with stored private key');
         // Return a more user-friendly error message but don't expose the actual error
         throw new Error('Unable to decrypt message. The message may be corrupted or encrypted for someone else.');
       }
     } catch (error) {
-      console.error('Error in decryptIncomingMessage:', error);
+      // Don't log the full error stack to prevent console flooding
+      console.warn('Error in decryptIncomingMessage:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }, [wallet, isMaxSecurityEnabled, temporaryPrivateKey]);

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <!-- Background -->
+  <rect width="16" height="16" rx="2" fill="#10b981"/>
+  
+  <!-- Simpler QR Code pattern for better visibility at very small sizes -->
+  <!-- Top-left corner -->
+  <rect x="2" y="2" width="4" height="4" fill="white"/>
+  <rect x="3" y="3" width="2" height="2" fill="#10b981"/>
+  
+  <!-- Top-right corner -->
+  <rect x="10" y="2" width="4" height="4" fill="white"/>
+  <rect x="11" y="3" width="2" height="2" fill="#10b981"/>
+  
+  <!-- Bottom-left corner -->
+  <rect x="2" y="10" width="4" height="4" fill="white"/>
+  <rect x="3" y="11" width="2" height="2" fill="#10b981"/>
+  
+  <!-- Center dot -->
+  <rect x="7" y="7" width="2" height="2" fill="white"/>
+  
+  <!-- Minimal additional elements -->
+  <rect x="7" y="2" width="2" height="2" fill="white"/>
+  <rect x="2" y="7" width="2" height="2" fill="white"/>
+  <rect x="10" y="10" width="2" height="2" fill="white"/>
+</svg> 

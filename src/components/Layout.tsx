@@ -1,37 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
-import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLockClosed, HiLogout, HiEye, HiEyeOff, HiCog, HiBell, HiVolumeUp } from 'react-icons/hi';
-import { Avatar } from './Avatar';
+import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
+import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLogout, HiCog, HiBell, HiVolumeUp } from 'react-icons/hi';
 import { HiQrCode } from 'react-icons/hi2';
-import { useDarkMode } from '../context/DarkModeContext';
-import { useEncryptionMode } from '../context/EncryptionModeContext';
-import { useDebugMode } from '../context/DebugModeContext';
+import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
+import { Avatar } from './Avatar';
+import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useNotificationSubscriptions } from '../hooks/useNotificationSubscriptions';
-
-import { Outlet } from 'react-router-dom';
 
 export const Layout: React.FC = () => {
   // Initialize notification subscriptions
   useNotificationSubscriptions();
   
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const { user, profile, signOut } = useUser();
-  const { showEncrypted, toggleEncryptionMode, lockEncryption } = useEncryptionMode();
-  const { debugMode, toggleDebugMode } = useDebugMode();
+  const { isMaxSecurityEnabled } = useEncryptionMode();
   const { 
-    notificationsEnabled, 
-    requestNotificationPermission,
     unreadCount,
     soundUnlocked,
     unlockAudio,
     playNotificationSound
   } = useNotification();
-  const { DarkModeToggle } = useDarkMode();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -41,10 +32,9 @@ export const Layout: React.FC = () => {
   // Request notification permission on component mount if not already granted
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
-      // Ask for permission when the user visits the app
-      requestNotificationPermission();
+      // This is now handled in the Settings page
     }
-  }, [requestNotificationPermission]);
+  }, []);
   
   // Handle unlocking audio with user interaction
   const handleUnlockAudio = async () => {
@@ -73,17 +63,18 @@ export const Layout: React.FC = () => {
     if (path === '/app/chats' && location.pathname.startsWith('/app/chat/')) {
       return true;
     }
+    // Special case for new chat
+    if (path === '/app/chat/new' && location.pathname === '/app/chat/new') {
+      return true;
+    }
     // For other routes, exact matching
     return location.pathname === path;
   };
 
-  // Handle toggling notifications
-  const handleToggleNotifications = async () => {
-    if (!notificationsEnabled) {
-      await requestNotificationPermission();
-      // Also try to unlock audio when enabling notifications
-      await unlockAudio();
-    }
+  // Navigate to the QR code sharing page
+  const handleNewChat = () => {
+    navigate('/app/chat/new');
+    setSidebarOpen(false);
   };
 
   return (
@@ -144,9 +135,14 @@ export const Layout: React.FC = () => {
           <div className="bg-brand-primary text-white py-[22px] px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <HiLockClosed size={24} className="text-white" />
+                <HiQrCode size={24} className="text-white" />
                 <div className="text-xl font-bold">
                   XRPchat<span className="italic font-normal">.app</span>
+                  {isMaxSecurityEnabled && (
+                    <span className="ml-2 text-xs bg-yellow-500 text-black px-1 py-0.5 rounded-sm uppercase font-semibold">
+                      Max Security
+                    </span>
+                  )}
                 </div>
               </div>
               
@@ -171,9 +167,9 @@ export const Layout: React.FC = () => {
               <div className="flex-1 flex items-center justify-between">
                 <div className="font-semibold text-gray-900 dark:text-white truncate">{profile?.username}</div>
                 <button 
-                  onClick={() => setShowQRModal(true)} 
+                  onClick={handleNewChat} 
                   className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" 
-                  title="Show QR Code"
+                  title="Share QR Code"
                 >
                   <HiQrCode size={20} className="text-gray-600 dark:text-gray-300" />
                 </button>
@@ -184,14 +180,13 @@ export const Layout: React.FC = () => {
           {/* Navigation Links */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-2 pb-6">
             <button
-              onClick={() => {
-                navigate('/app/chat/new');
-                setSidebarOpen(false);
-              }}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={handleNewChat}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                isActiveRoute('/app/chat/new') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              }`}
             >
               <HiPlus size={24} className="text-green-600" />
-              <span>New Chat</span>
+              <span>Share QR Code</span>
             </button>
 
             <Link
@@ -234,69 +229,17 @@ export const Layout: React.FC = () => {
               <span>Profile</span>
             </Link>
 
-            {/* Settings Button */}
-            <button
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                settingsOpen ? 'bg-gray-100 dark:bg-gray-700' : ''
-              } text-gray-700 dark:text-gray-200`}
+            {/* Settings Link */}
+            <Link
+              to="/app/settings"
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                isActiveRoute('/app/settings') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              }`}
+              onClick={() => setSidebarOpen(false)}
             >
               <HiCog size={24} />
               <span>Settings</span>
-            </button>
-
-            {/* Settings Dropdown */}
-            {settingsOpen && (
-              <div className="px-4 py-2 space-y-4 bg-gray-50 dark:bg-gray-700/50">
-                <div className="flex items-center justify-between text-gray-700 dark:text-gray-200">
-                  <span>Theme</span>
-                  <DarkModeToggle />
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                      <HiBell size={20} />
-                      <span>Notifications</span>
-                    </div>
-                    <button
-                      onClick={handleToggleNotifications}
-                      className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${notificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                      {!showEncrypted ? <HiEyeOff size={20} /> : <HiEye size={20} />}
-                      <span>{!showEncrypted ? "Show Decrypted" : "Show Encrypted"}</span>
-                    </div>
-                    <button
-                      onClick={toggleEncryptionMode}
-                      className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${!showEncrypted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                      aria-label={!showEncrypted ? "Currently showing decrypted messages" : "Currently showing encrypted messages"}
-                      title={!showEncrypted ? "Currently showing decrypted messages" : "Currently showing encrypted messages"}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${!showEncrypted ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                      <HiUser size={20} />
-                      <span>Debug Mode</span>
-                    </div>
-                    <button
-                      onClick={toggleDebugMode}
-                      className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${debugMode ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${debugMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            </Link>
 
             <div className="flex-1"></div>
 

@@ -1,7 +1,7 @@
 {
   "name": "XRPChat",
   "short_name": "XRPChat",
-  "description": "Encrypted messaging app for the XRP Ledger community",
+  "description": "Messaging app for the XRP Ledger community with QR code support",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

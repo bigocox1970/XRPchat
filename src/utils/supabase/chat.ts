@@ -216,3 +216,60 @@ export const markMessageAsRead = async (messageId: string, userId: string) => {
     // Don't throw as this is a non-critical operation
   }
 };
+
+/**
+ * Deletes a thread and all its associated messages
+ */
+export const deleteThread = async (threadId: string, userId: string) => {
+  try {
+    console.log('Deleting thread:', threadId, 'for user:', userId);
+
+    // First, get the thread to verify the user is a participant
+    const { data: thread, error: threadError } = await supabase
+      .from('threads')
+      .select('participant_ids')
+      .eq('id', threadId)
+      .single();
+
+    if (threadError) {
+      console.error('Error getting thread for deletion:', threadError);
+      throw new Error('Failed to verify thread ownership');
+    }
+
+    // Verify user is a participant in the thread
+    if (!thread || !thread.participant_ids.includes(userId)) {
+      console.error('User is not authorized to delete this thread');
+      throw new Error('You are not authorized to delete this thread');
+    }
+
+    // Delete all messages in the thread
+    const { error: messagesError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('thread_id', threadId);
+
+    if (messagesError) {
+      console.error('Error deleting messages:', messagesError);
+      throw new Error('Failed to delete messages');
+    }
+
+    console.log('Successfully deleted all messages in thread:', threadId);
+
+    // Delete the thread itself
+    const { error: deleteError } = await supabase
+      .from('threads')
+      .delete()
+      .eq('id', threadId);
+
+    if (deleteError) {
+      console.error('Error deleting thread:', deleteError);
+      throw new Error('Failed to delete thread');
+    }
+
+    console.log('Successfully deleted thread:', threadId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in deleteThread:', error);
+    throw error;
+  }
+};

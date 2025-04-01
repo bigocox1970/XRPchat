@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { HiMenu, HiX, HiLockClosed, HiLogout, HiHome, HiSparkles, HiShieldCheck, HiQuestionMarkCircle, HiArrowRight } from 'react-icons/hi';
+import { HiMenu, HiX, HiLogout, HiHome, HiSparkles, HiShieldCheck, HiQuestionMarkCircle, HiArrowRight } from 'react-icons/hi';
+import { HiQrCode } from 'react-icons/hi2';
 import { useUser } from '../context/UserContext';
 import { useDarkMode } from '../context/DarkModeContext';
+import { supabase } from '../utils/supabase/client';
 
 import { Outlet } from 'react-router-dom';
 
@@ -49,7 +51,7 @@ export const WebsiteLayout: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-[22px] flex items-center justify-between">
           {/* Left side - Logo and Name */}
           <div className="flex items-center space-x-2">
-            <HiLockClosed size={24} className="text-white" />
+            <HiQrCode size={24} className="text-white" />
             <div className="text-xl font-bold text-white">
               XRPchat<span className="italic font-normal">.app</span>
             </div>
@@ -137,7 +139,7 @@ export const WebsiteLayout: React.FC = () => {
             {/* Sidebar Header */}
             <div className="bg-brand-primary text-white py-[22px] px-4 shadow-md">
               <div className="flex items-center space-x-2">
-                <HiLockClosed size={24} className="text-white" />
+                <HiQrCode size={24} className="text-white" />
                 <div className="text-xl font-bold">
                   XRPchat<span className="italic font-normal">.app</span>
                 </div>

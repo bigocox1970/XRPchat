@@ -3,11 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Cache-busting meta tags -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>XRPchat.app</title>
     <!-- Add CSP meta tag to allow WebSocket connections to Supabase -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://localhost:* ws://localhost:* https://*.supabase.co wss://*.supabase.co:* wss://aoqvffeqscehfnrjgjrs.supabase.co wss://s.altnet.rippletest.net:51233; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://*.supabase.co; manifest-src 'self'; worker-src 'self' blob:;">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#10b981">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" href="/img/favicons/qr-logo-favicon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/favicons/qr-logo-favicon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/favicons/qr-logo-favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/icon-192x192.png">
   </head>
   <body>
     <div id="root"></div>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <!-- Background -->
+  <rect width="32" height="32" rx="0" fill="#10b981"/>
+  
+  <!-- QR Code pattern (matches the image shared by the user) -->
+  <!-- Top row -->
+  <rect x="4" y="4" width="4" height="4" fill="white"/>
+  <rect x="8" y="4" width="4" height="4" fill="white"/>
+  <rect x="12" y="4" width="4" height="4" fill="white"/>
+  <rect x="20" y="4" width="4" height="4" fill="white"/>
+  <rect x="24" y="4" width="4" height="4" fill="white"/>
+  
+  <!-- Second row -->
+  <rect x="4" y="8" width="4" height="4" fill="white"/>
+  <rect x="24" y="8" width="4" height="4" fill="white"/>
+  
+  <!-- Third row -->
+  <rect x="4" y="12" width="4" height="4" fill="white"/>
+  <rect x="12" y="12" width="4" height="4" fill="white"/>
+  <rect x="16" y="12" width="4" height="4" fill="white"/>
+  <rect x="24" y="12" width="4" height="4" fill="white"/>
+  
+  <!-- Fourth row -->
+  <rect x="16" y="16" width="4" height="4" fill="white"/>
+  
+  <!-- Fifth row -->
+  <rect x="4" y="20" width="4" height="4" fill="white"/>
+  <rect x="8" y="20" width="4" height="4" fill="white"/>
+  <rect x="12" y="20" width="4" height="4" fill="white"/>
+  <rect x="20" y="20" width="4" height="4" fill="white"/>
+  
+  <!-- Bottom row -->
+  <rect x="4" y="24" width="4" height="4" fill="white"/>
+  <rect x="24" y="24" width="4" height="4" fill="white"/>
+</svg> 
