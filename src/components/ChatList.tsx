@@ -509,7 +509,7 @@ export const ChatList: React.FC = () => {
                 <div
                   className={`rounded-md my-1 ${
                     thread.id === window.location.pathname.split('/').pop() ? 'bg-green-100 dark:bg-green-900/50' : ''
-                  } ${selectedThreads.includes(thread.id) ? 'bg-green-100 dark:bg-green-900/40' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'}`}
+                  } ${selectedThreads.includes(thread.id) ? 'bg-green-100 dark:bg-green-900/40' : 'hover:bg-green-50 dark:hover:bg-green-900/30'}`}
                 >
                   <div className="grid grid-cols-12 items-center gap-1 py-2">
                     {/* Selection checkbox in selection mode */}

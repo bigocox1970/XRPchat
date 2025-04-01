@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { HiMenu, HiX, HiLogout, HiHome, HiSparkles, HiShieldCheck, HiQuestionMarkCircle, HiArrowRight } from 'react-icons/hi';
+import { HiMenu, HiX, HiLogout, HiHome, HiSparkles, HiShieldCheck, HiQuestionMarkCircle, HiArrowRight, HiHeart } from 'react-icons/hi';
 import { HiQrCode } from 'react-icons/hi2';
 import { useUser } from '../context/UserContext';
 import { useDarkMode } from '../context/DarkModeContext';
@@ -108,6 +108,14 @@ export const WebsiteLayout: React.FC = () => {
               >
                 FAQ
               </Link>
+              <Link
+                to="/website/community"
+                className={`text-white/80 hover:text-white ${
+                  isActiveRoute('/website/community') ? 'text-white' : ''
+                }`}
+              >
+                Community
+              </Link>
               <DarkModeToggle />
             </nav>
 
@@ -185,6 +193,16 @@ export const WebsiteLayout: React.FC = () => {
             >
               <HiQuestionMarkCircle size={24} />
               <span>FAQ</span>
+            </Link>
+            <Link
+              to="/website/community"
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                isActiveRoute('/website/community') ? 'text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              }`}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <HiHeart size={24} />
+              <span>Community</span>
             </Link>
             <div className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">
               <span>Theme</span>

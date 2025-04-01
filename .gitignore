@@ -8,3 +8,11 @@ dist/
 *.local
 .DS_Store
 .qodo
+
+# Sensitive donation information
+DONATION_ADDRESSES.md
+public/img/*-qr.png
+public/img/xrp-qr.png
+public/img/xdc-qr.png
+public/img/ada-qr.png
+public/img/btc-qr.png

@@ -42,7 +42,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ## Installation
 
-1. Clone the repository
+1. Set up the project
 2. Install dependencies:
    ```bash
    npm install
@@ -121,24 +121,15 @@ public/
 
 See [CHAT_SYSTEM_DESIGN.md](docs/CHAT_SYSTEM_DESIGN.md) for detailed database schema.
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
 ## License
 
-MIT License - see LICENSE file for details
+All rights reserved.
 
 ## Support
 
 For support, please check:
 1. Documentation in `/docs`
-2. Issue tracker
-3. Contact development team
+2. Contact the development team at support@xrpchat.app
 
 ## Roadmap
 
@@ -233,7 +224,7 @@ If you encounter issues running commands with `&&` in PowerShell, use the provid
 .\start-dev.ps1
 ```
 
-This script is included in the repository and will properly start the development server.
+This script will properly start the development server.
 
 ### Notification Troubleshooting
 

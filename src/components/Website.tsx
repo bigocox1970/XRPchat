@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { HiLockClosed, HiChat, HiKey, HiClock } from 'react-icons/hi';
+import { HiLockClosed, HiChat, HiKey, HiClock, HiHeart } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
 
 export const Website: React.FC = () => {
@@ -17,12 +17,19 @@ export const Website: React.FC = () => {
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
           Experience truly private conversations with military-grade encryption and blockchain-based identity verification.
         </p>
-        <div className="flex justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-4">
           <Link
             to={user ? '/app' : '/signup'}
             className="px-8 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-dark transition-colors text-lg font-semibold"
           >
             {user ? 'Go to App' : 'Get Started'}
+          </Link>
+          <Link
+            to="/website/community"
+            className="px-8 py-3 bg-transparent border-2 border-brand-primary text-brand-primary rounded-lg hover:bg-brand-primary hover:text-white transition-colors text-lg font-semibold flex items-center gap-2"
+          >
+            <HiHeart className="text-red-500" />
+            Support the Project
           </Link>
         </div>
       </section>

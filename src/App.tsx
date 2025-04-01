@@ -28,6 +28,7 @@ import { Website } from './components/Website';
 import { Features } from './components/Features';
 import { Security } from './components/Security';
 import { FAQ } from './components/FAQ';
+import { Community } from './components/Community';
 import { Settings } from './components/Settings';
 import { supabase, subscribeToUserThreads, subscribeToThread } from './utils/supabase/index';
 import { setupAutoDeleteInterval } from './utils/supabase/autoDelete';
@@ -146,6 +147,7 @@ const createAppRoutes = () => {
         <Route path="website/features" element={<Features />} />
         <Route path="website/security" element={<Security />} />
         <Route path="website/faq" element={<FAQ />} />
+        <Route path="website/community" element={<Community />} />
       </Route>
       
       {/* Auth Routes - placed at root level for easier access */}

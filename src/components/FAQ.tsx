@@ -89,6 +89,22 @@ export const FAQ: React.FC = () => {
     {
       question: "Do you store my messages?",
       answer: "While encrypted messages are stored to enable message history and synchronisation across devices, we can never access the content of your messages because we don't have the decryption keys. Only you and your chat partners can read the messages."
+    },
+    {
+      question: "How can I support the XRPchat project?",
+      answer: (
+        <div className="space-y-2">
+          <p>There are several ways you can support the XRPchat project:</p>
+          <ol className="list-decimal list-inside pl-4 space-y-1">
+            <li>Make a cryptocurrency donation to help fund development and server costs</li>
+            <li>Spread the word about XRPchat on social media</li>
+            <li>Report bugs and provide feedback to help us improve</li>
+          </ol>
+          <p className="mt-2">
+            Visit our <a href="/website/community" className="text-brand-primary hover:underline">Community page</a> to learn more about making donations and supporting our mission.
+          </p>
+        </div>
+      )
     }
   ];
 
