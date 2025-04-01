@@ -759,7 +759,12 @@ export const Chat: React.FC = () => {
         ? await encryptForRecipient(newMessage, otherParticipantId)
         : newMessage;
 
+      // Send the message - make sure we don't trigger sound for our own messages
       await sendMessage(threadId, user.id, finalContent);
+      
+      // Set a flag in localStorage to tell the notification system that the last message 
+      // was sent by us, to ensure we don't play sounds for our own messages
+      localStorage.setItem('xrpchat_last_message_sender', user.id);
       
       // Update last active status after sending a message
       updateLastActive(user.id);

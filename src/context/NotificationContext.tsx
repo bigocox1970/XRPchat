@@ -59,6 +59,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [autoRequestAttempted, setAutoRequestAttempted] = useState(false);
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
+  const mobileAudioRef = useRef<HTMLAudioElement | null>(null);
   // Track if we've had user interaction that would unlock audio
   const hasUserInteractedRef = useRef<boolean>(false);
   // Track audio playback state to prevent overlapping calls
@@ -114,6 +115,25 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const audio = new Audio(`/sounds/notification.mp3?v=${Date.now()}`);
       audio.preload = 'auto';
       audio.volume = 0.5; // Set a reasonable volume level
+      
+      // Add special handling for mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        console.log('Mobile device detected, using special audio initialization');
+        
+        // For iOS compatibility, also try to load a second audio element with different settings
+        try {
+          const mobileAudio = new Audio();
+          mobileAudio.autoplay = false;
+          mobileAudio.src = `/sounds/notification.mp3?mobile=${Date.now()}`;
+          mobileAudio.load();
+          
+          // Keep reference to both audio elements
+          mobileAudioRef.current = mobileAudio;
+        } catch (mobileError) {
+          console.error('Error creating mobile-specific audio element:', mobileError);
+        }
+      }
       
       // Use the load() method to start preloading the sound
       audio.load();
@@ -381,7 +401,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     // Check if this is our own message - never play sounds for our own messages
     if (senderId && user?.id === senderId) {
-      console.log('Not playing sound for our own message');
+      console.log('Not playing sound for our own message - sender ID matches current user');
+      return;
+    }
+    
+    // Also check the last message sender flag from localStorage
+    const lastMessageSender = localStorage.getItem('xrpchat_last_message_sender');
+    if (lastMessageSender && senderId && lastMessageSender === senderId) {
+      console.log('Not playing sound for message - matches last message sender ID');
       return;
     }
     
@@ -437,6 +464,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
     
+    // Detect mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     try {
       // Mark as playing to prevent overlapping calls
       isPlayingRef.current = true;
@@ -458,7 +488,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           await new Promise(r => setTimeout(r, 10)); // Small delay
           
           console.log('Attempting to play notification sound...');
-          notificationSoundRef.current!.volume = 0.5; // Set appropriate volume
+          notificationSoundRef.current!.volume = isMobile ? 1.0 : 0.5; // Higher volume on mobile
+          
+          // Special handling for iOS
+          if (isMobile && mobileAudioRef.current) {
+            try {
+              // Try the mobile-specific audio element first
+              mobileAudioRef.current.volume = 1.0;
+              mobileAudioRef.current.currentTime = 0;
+              await mobileAudioRef.current.play();
+              console.log('Mobile notification sound played successfully');
+              lastPlayedTimeRef.current = Date.now();
+              setSoundUnlocked(true);
+              return;
+            } catch (mobilePlayError) {
+              console.warn('Mobile-specific audio failed, falling back to standard approach:', mobilePlayError);
+            }
+          }
           
           // Play the sound and handle result
           await notificationSoundRef.current!.play();
