@@ -17,6 +17,10 @@ import { DebugModeProvider } from './context/DebugModeContext';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import { SignUp } from './components/SignUp';
 import { SignIn } from './components/SignIn';
+import { ForgotPassword } from './components/ForgotPassword';
+import { ResetPassword } from './components/ResetPassword';
+import { ConfirmEmail } from './components/ConfirmEmail';
+import { TestConfirmEmail } from './components/TestConfirmEmail';
 import { Profile } from './components/Profile';
 import { ContactList } from './components/ContactList';
 import { ChatList } from './components/ChatList';
@@ -74,7 +78,7 @@ const AutoDeleteInitializer: React.FC = () => {
 const RouteGuard: React.FC = () => {
   const { user, loading } = useUser();
   const location = useLocation();
-  const isPublicRoute = ['/', '/signin', '/signup', '/website', '/website/signin', '/website/signup'].includes(location.pathname);
+  const isPublicRoute = ['/', '/signin', '/signup', '/forgot-password', '/reset-password', '/confirm-email', '/website', '/website/signin', '/website/signup'].includes(location.pathname);
   const isWebsiteRoute = location.pathname === '/' || location.pathname.startsWith('/website');
   const isAppRoute = location.pathname.startsWith('/app');
 
@@ -153,6 +157,10 @@ const createAppRoutes = () => {
       {/* Auth Routes - placed at root level for easier access */}
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/confirm-email" element={<ConfirmEmail />} />
+      <Route path="/test-confirm-email" element={<TestConfirmEmail />} />
       <Route path="/website/signin" element={<Navigate to="/signin" replace />} />
       <Route path="/website/signup" element={<Navigate to="/signup" replace />} />
       
@@ -174,12 +182,49 @@ const createAppRoutes = () => {
 };
 
 const App: React.FC = () => {
+  // Add a key based on current location to force remounting of components
+  const location = window.location.pathname;
+
+  // IMPORTANT: Clear notification permissions on application start 
+  // to prevent auto-request popups
+  useEffect(() => {
+    // Initialize notification settings to prevent notification popups
+    const initializePermissions = async () => {
+      console.log('App initializing - resetting notification permissions state');
+      
+      // NEVER request notification permission automatically
+      // Always reset to default state
+      localStorage.setItem('xrpchat_notification_requested', 'false');
+      localStorage.setItem('xrpchat_notification_user_choice', 'false');
+      
+      // Check if notification permission was previously granted
+      const currentPermission = Notification.permission;
+      if (currentPermission === 'granted') {
+        // If already granted, update our permission tracking
+        localStorage.setItem('xrpchat_notification_permission', 'granted');
+      } else {
+        // Otherwise, ensure it's marked as disabled
+        localStorage.setItem('xrpchat_notification_permission', 'disabled');
+      }
+      
+      // Make sure to handle wallet related state consistently
+      // If we don't have wallet state yet, don't change it
+      console.log('App initialized - notification permissions state has been reset');
+    };
+    
+    initializePermissions();
+  }, []);
+
   return (
     <AppProviders>
       <EncryptionProvider>
-        <RouterProvider router={createBrowserRouter(createRoutesFromElements(
-          createAppRoutes()
-        ))} />
+        <RouterProvider 
+          router={createBrowserRouter(createRoutesFromElements(
+            createAppRoutes()
+          ))}
+          // Add key to force router to re-render when location changes
+          key={location}
+        />
       </EncryptionProvider>
     </AppProviders>
   );

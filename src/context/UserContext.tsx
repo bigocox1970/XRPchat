@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase, supabaseAdmin } from '../utils/supabase/client';
 import { createProfile, createWallet } from '../utils/supabase/auth';
 import { generateKeyPair } from '../utils/encryption';
+import { getRedirectURL } from '../utils/site-url';
 import type { Database } from '../types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -19,6 +20,8 @@ interface UserContextType {
   signOut: () => Promise<void>;
   updateUserProfile: (updates: { username?: string; avatar_url?: string }) => Promise<void>;
   regenerateWallet: (privateKey: string, address: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -175,7 +178,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const keyPair = await generateKeyPair();
       console.log('Wallet generated successfully');
 
-      // Create auth user with email confirmation disabled
+      // Create auth user with email confirmation
       console.log('Creating auth user...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -184,12 +187,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             username,
             wallet_address: keyPair.address
-          }
+          },
+          emailRedirectTo: getRedirectURL('confirm-email')
         }
       });
 
       if (authError) {
-        console.error('Auth error:', authError);
+        console.error('Auth error details:', authError);
+        if (authError.message.includes('rate limit')) {
+          console.error('Email rate limit exceeded - Supabase limits the number of emails sent in a short time period');
+        }
         throw authError;
       }
 
@@ -402,6 +409,151 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await fetchProfile(user.id);
       } catch (error) {
         console.error('Error regenerating wallet:', error);
+        throw error;
+      }
+    },
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      try {
+        // First verify the current password by signing in
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user?.email || '',
+          password: currentPassword,
+        });
+
+        if (signInError) throw new Error('Current password is incorrect');
+
+        // Change password using Supabase
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error changing password:', error);
+        throw error;
+      }
+    },
+    deleteAccount: async (password: string) => {
+      try {
+        if (!user?.id) throw new Error('No user ID');
+
+        // Verify password first
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user.email || '',
+          password: password,
+        });
+
+        if (signInError) throw new Error('Password is incorrect');
+
+        // Delete contacts where user is either the user_id or contact_id
+        console.log('Deleting contacts for user:', user.id);
+        const { error: contactsError1 } = await supabaseAdmin
+          .from('contacts')
+          .delete()
+          .eq('user_id', user.id);
+          
+        if (contactsError1) {
+          console.error('Error deleting contacts (as user):', contactsError1);
+          throw contactsError1;
+        }
+        
+        const { error: contactsError2 } = await supabaseAdmin
+          .from('contacts')
+          .delete()
+          .eq('contact_id', user.id);
+          
+        if (contactsError2) {
+          console.error('Error deleting contacts (as contact):', contactsError2);
+          throw contactsError2;
+        }
+
+        // Find all threads involving this user
+        const { data: threadsData } = await supabaseAdmin
+          .from('threads')
+          .select('id')
+          .filter('participant_ids', 'cs', `{${user.id}}`)
+          .or(`created_by.eq.${user.id}`);
+          
+        if (threadsData && threadsData.length > 0) {
+          console.log('Found threads to delete:', threadsData.length);
+          
+          // Get array of thread IDs
+          const threadIds = threadsData.map(thread => thread.id);
+          
+          // Delete all messages from these threads first
+          const { error: messagesError } = await supabaseAdmin
+            .from('messages')
+            .delete()
+            .in('thread_id', threadIds);
+            
+          if (messagesError) {
+            console.error('Error deleting messages in threads:', messagesError);
+            throw messagesError;
+          }
+          
+          // Now delete the threads
+          const { error: threadsError } = await supabaseAdmin
+            .from('threads')
+            .delete()
+            .in('id', threadIds);
+            
+          if (threadsError) {
+            console.error('Error deleting threads:', threadsError);
+            throw threadsError;
+          }
+        }
+
+        // Delete any remaining messages sent by the user
+        const { error: senderMessagesError } = await supabaseAdmin
+          .from('messages')
+          .delete()
+          .eq('sender_id', user.id);
+          
+        if (senderMessagesError) {
+          console.error('Error deleting user messages:', senderMessagesError);
+          throw senderMessagesError;
+        }
+
+        // Delete wallet
+        console.log('Deleting wallet for user:', user.id);
+        const { error: walletError } = await supabaseAdmin
+          .from('wallets')
+          .delete()
+          .eq('profile_id', user.id);
+
+        if (walletError) {
+          console.error('Error deleting wallet:', walletError);
+          throw walletError;
+        }
+
+        // Delete profile
+        console.log('Deleting profile for user:', user.id);
+        const { error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .delete()
+          .eq('id', user.id);
+
+        if (profileError) {
+          console.error('Error deleting profile:', profileError);
+          throw profileError;
+        }
+
+        // Delete user authentication
+        console.log('Deleting auth user:', user.id);
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(
+          user.id
+        );
+
+        if (authError) {
+          console.error('Error deleting auth user:', authError);
+          throw authError;
+        }
+
+        // Sign out
+        await supabase.auth.signOut();
+        console.log('Account deleted successfully');
+      } catch (error) {
+        console.error('Error deleting account:', error);
         throw error;
       }
     },
