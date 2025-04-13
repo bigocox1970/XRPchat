@@ -121,6 +121,16 @@ create policy "Users can update read status of their messages"
     )
   );
 
+create policy "Users can delete messages in their threads"
+  on public.messages for delete
+  using (
+    exists (
+      select 1 from public.threads
+      where id = messages.thread_id
+      and auth.uid() = any(participant_ids)
+    )
+  );
+
 -- Create send_message function
 create or replace function public.send_message(
   p_thread_id uuid,
