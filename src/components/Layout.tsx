@@ -181,16 +181,19 @@ export const Layout: React.FC = () => {
 
           {/* Navigation Links */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-2 pb-6">
-            <button
-              onClick={handleNewChat}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/app/chat/new') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+            {/* Connect (moved to top) */}
+            <Link
+              to="/app/connect"
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                isActiveRoute('/app/connect') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
               }`}
+              onClick={() => setSidebarOpen(false)}
             >
-              <HiPlus size={24} className="text-green-600" />
-              <span>Share QR Code</span>
-            </button>
+              <HiQrCode size={24} className="text-green-600" />
+              <span>Connect</span>
+            </Link>
 
+            {/* Chats */}
             <Link
               to="/app/chats"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
@@ -198,17 +201,16 @@ export const Layout: React.FC = () => {
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <div className="relative">
-                <HiChat size={24} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </div>
-              <span>Chat History</span>
+              <HiChat size={24} />
+              <span>Chats</span>
+              {unreadCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
             </Link>
 
+            {/* Rest of the navigation */}
             <Link
               to="/app/contacts"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
@@ -231,7 +233,6 @@ export const Layout: React.FC = () => {
               <span>Profile</span>
             </Link>
 
-            {/* Settings Link */}
             <Link
               to="/app/settings"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${

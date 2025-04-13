@@ -25,6 +25,7 @@ import { ContactList } from './components/ContactList';
 import { ChatList } from './components/ChatList';
 import { Chat } from './components/Chat';
 import { NewChat } from './components/NewChat';
+import { Connect } from './components/Connect';
 import { Layout } from './components/Layout';
 import { WebsiteLayout } from './components/WebsiteLayout';
 import { Website } from './components/Website';
@@ -172,6 +173,7 @@ const createAppRoutes = () => {
         <Route path="contacts" element={<ContactList />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="connect" element={<Connect />} />
       </Route>
       
       {/* Special route for mobile auth callback */}
