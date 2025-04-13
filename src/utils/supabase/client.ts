@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
 
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
+// Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing required Supabase environment variables');
+  console.error('Supabase URL or anon key is missing');
 }
 
 // Client for authenticated and anonymous operations
@@ -14,40 +18,42 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    // Use localStorage on desktop and mobile to improve compatibility
+    storage: isBrowser ? window.localStorage : undefined,
   },
   db: {
     schema: 'public'
   },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
+  global: {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
     }
   }
 });
 
-// Check service key availability
-if (!supabaseServiceKey) {
-  console.error('WARNING: Supabase service role key is missing. Account creation will fail!');
-}
-
-// Admin client for service role operations (like creating profiles during signup)
-export const supabaseAdmin = createClient<Database>(
-  supabaseUrl,
-  supabaseServiceKey || '', // No fallback - if service key is missing, it should fail explicitly
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    },
-    db: {
-      schema: 'public'
+// Admin client for operations that require service role
+export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey || supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  },
+  global: {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
     }
   }
-);
+});
 
 // Run the last_active migration
 export const runLastActiveMigration = async () => {
+  if (!supabaseServiceKey) {
+    console.warn('Service key not available, skipping migration');
+    return { success: false, error: 'No service key' };
+  }
+
   try {
     console.log('Attempting to run last_active column migration...');
     
@@ -135,3 +141,22 @@ export const runLastActiveMigration = async () => {
     console.error('Error validating Supabase service role:', err);
   }
 })();
+
+// Export a utility to check authentication status that's mobile friendly
+export const checkAuthStatus = async () => {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('Error checking auth status:', error.message);
+      return { isAuthenticated: false, error: error.message };
+    }
+    return { 
+      isAuthenticated: !!data.session, 
+      user: data.session?.user,
+      expiresAt: data.session?.expires_at
+    };
+  } catch (err) {
+    console.error('Unexpected error checking auth:', err);
+    return { isAuthenticated: false, error: 'Unexpected error checking authentication' };
+  }
+};
