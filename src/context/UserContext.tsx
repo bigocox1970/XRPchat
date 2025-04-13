@@ -4,6 +4,7 @@ import { supabase, supabaseAdmin } from '../utils/supabase/client';
 import { createProfile, createWallet } from '../utils/supabase/auth';
 import { generateKeyPair } from '../utils/encryption';
 import { getRedirectURL } from '../utils/site-url';
+import { loadAutoDeleteSettingsFromDatabase } from '../utils/supabase/autoDelete';
 import type { Database } from '../types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -98,6 +99,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profile) {
         console.log('Profile fetched successfully:', profile);
         setProfile(profile);
+        
+        // Load auto-delete settings from the database
+        await loadAutoDeleteSettingsFromDatabase(userId)
+          .then(success => {
+            if (success) {
+              console.log('Auto-delete settings loaded from database');
+            } else {
+              console.log('No auto-delete settings found in database, using defaults');
+            }
+          })
+          .catch(error => {
+            console.error('Error loading auto-delete settings:', error);
+          });
         
         // Use maybeSingle for wallet too
         const { data: wallet, error: walletError } = await supabase

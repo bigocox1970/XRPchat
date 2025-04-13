@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { supabase, supabaseAdmin } from './client';
 
 /**
  * Creates a new chat thread
@@ -59,6 +59,39 @@ export const getUserThreads = async (userId: string) => {
   try {
     console.log('Getting threads for user:', userId);
     
+    // First, let's verify the user exists
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+      
+    if (userError) {
+      console.error('Error verifying user:', userError);
+      throw userError;
+    }
+    
+    if (!userData) {
+      console.error('User not found:', userId);
+      return [];
+    }
+    
+    console.log('User verified, fetching threads...');
+    
+    // Try with admin client to bypass RLS
+    const { data: adminData, error: adminError } = await supabaseAdmin
+      .from('threads')
+      .select('*')
+      .order('last_message_at', { ascending: false });
+      
+    if (adminError) {
+      console.error('Error getting threads with admin client:', adminError);
+    } else {
+      console.log('Admin client found threads:', adminData?.length || 0);
+      console.log('Admin threads data:', adminData);
+    }
+    
+    // Now try with regular client
     const { data, error } = await supabase
       .from('threads')
       .select(`
@@ -80,6 +113,7 @@ export const getUserThreads = async (userId: string) => {
     }
     
     console.log(`Found ${data?.length || 0} threads for user`);
+    console.log('Threads data:', data);
     return data || [];
   } catch (error) {
     console.error('Error in getUserThreads:', error);

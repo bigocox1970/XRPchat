@@ -108,11 +108,16 @@ export const getProfile = async (userId: string) => {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching profile:', error);
       throw error;
+    }
+    
+    if (!data) {
+      console.warn('No profile found for user:', userId);
+      return null;
     }
     
     console.log('Profile fetched successfully:', data);

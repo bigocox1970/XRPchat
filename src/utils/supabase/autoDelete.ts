@@ -215,4 +215,40 @@ export const saveAutoDeleteSettingsToDatabase = async (userId: string, settings:
     console.error('Error in saveAutoDeleteSettingsToDatabase:', error);
     return false;
   }
+};
+
+/**
+ * Loads auto-delete settings from the database for the current user
+ * Call this function when a user logs in to restore their saved settings
+ */
+export const loadAutoDeleteSettingsFromDatabase = async (userId: string): Promise<boolean> => {
+  try {
+    // Fetch the user's settings from the database
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('auto_delete_settings')
+      .eq('id', userId)
+      .single();
+      
+    if (error || !data || !data.auto_delete_settings) {
+      console.log('No auto-delete settings found in database for user:', userId);
+      return false;
+    }
+    
+    // Parse the settings
+    try {
+      const settings = JSON.parse(data.auto_delete_settings) as AutoDeleteSettings;
+      
+      // Save to localStorage
+      localStorage.setItem('xrpchat_auto_delete_settings', JSON.stringify(settings));
+      console.log('Loaded auto-delete settings from database:', settings);
+      return true;
+    } catch (e) {
+      console.error('Error parsing auto-delete settings from database:', e);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error loading auto-delete settings from database:', error);
+    return false;
+  }
 }; 

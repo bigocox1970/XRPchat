@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
 import { getUserThreads, subscribeToUserThreads, getProfile, subscribeToThread, deleteThread } from '../utils/supabase/index';
@@ -266,14 +266,28 @@ export const ChatList: React.FC = () => {
           const otherParticipantId = thread.participant_ids.find((id: string) => id !== user.id);
           
           if (otherParticipantId) {
-            const profile = await getProfile(otherParticipantId);
-            return {
-              ...thread,
-              otherParticipant: profile ? {
-                username: profile.username,
-                avatar_url: profile.avatar_url
-              } : undefined
-            };
+            try {
+              const profile = await getProfile(otherParticipantId);
+              return {
+                ...thread,
+                otherParticipant: profile ? {
+                  username: profile.username || 'Unknown User',
+                  avatar_url: profile.avatar_url || null
+                } : {
+                  username: 'Unknown User',
+                  avatar_url: null
+                }
+              };
+            } catch (error) {
+              console.error(`Error loading profile for ${otherParticipantId}:`, error);
+              return {
+                ...thread,
+                otherParticipant: {
+                  username: 'Unknown User',
+                  avatar_url: null
+                }
+              };
+            }
           }
           return thread;
         })
@@ -425,19 +439,8 @@ export const ChatList: React.FC = () => {
         await deleteThread(threadId, user.id);
       }
       
-      // Remove the deleted threads from the local state
-      setThreads(prevThreads => prevThreads.filter(thread => 
-        !threadsToDelete.includes(thread.id)
-      ));
-      
-      // Also remove from unread threads
-      setUnreadThreads(prev => {
-        const newState = { ...prev };
-        threadsToDelete.forEach(threadId => {
-          delete newState[threadId];
-        });
-        return newState;
-      });
+      // Reload threads to ensure UI is up to date
+      await loadThreadsWithParticipants();
       
       // Clear selections
       setSelectedThreads([]);

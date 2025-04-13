@@ -33,63 +33,29 @@ self.addEventListener('message', (event) => {
   }
   
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const { title, options } = event.data;
-    self.registration.showNotification(title, options);
+    // DISABLED: Don't show any notifications
+    console.log('Notification request blocked by service worker:', event.data);
+    // const { title, options } = event.data;
+    // self.registration.showNotification(title, options);
   }
 });
 
 // Handle push notification events
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
+  console.log('Push notification received, but notifications are disabled:', event);
 
   if (!event.data) {
-    console.log('Push event had no data');
     return;
   }
 
   try {
     const data = event.data.json();
-    console.log('Push data:', data);
+    console.log('Push data received (notifications disabled):', data);
 
-    // Notify all clients to play the notification sound
-    self.clients.matchAll().then(clients => {
-      clients.forEach(client => {
-        client.postMessage({
-          type: 'PLAY_NOTIFICATION_SOUND_FROM_WORKER'
-        });
-      });
-    });
-
-    // Set default sounds and vibration patterns for better notification visibility
-    const options = {
-      body: data.body || 'New message received',
-      icon: '/img/icon-192x192.png',
-      badge: '/img/icon-72x72.png',
-      data: {
-        url: data.url || '/app',
-        threadId: data.threadId
-      },
-      vibrate: [200, 100, 200], // Vibration pattern: vibrate, pause, vibrate
-      sound: '/sounds/notification.mp3', // Sound file (needs to be in public folder)
-      actions: [
-        {
-          action: 'view',
-          title: 'View message'
-        },
-        {
-          action: 'reply',
-          title: 'Reply'
-        }
-      ],
-      tag: data.tag || 'message',
-      renotify: true, // Always notify even if there's already a notification with the same tag
-      requireInteraction: true, // Notification remains visible until user interacts with it
-      silent: false // Ensure system sound plays if possible
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(data.title || 'XRPChat', options)
-    );
+    // DISABLED: Don't show any notifications
+    // Just log that we received the push event
+    event.waitUntil(Promise.resolve());
+    
   } catch (error) {
     console.error('Error handling push notification:', error);
   }
