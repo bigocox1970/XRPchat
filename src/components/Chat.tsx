@@ -6,7 +6,7 @@ import { useEncryption } from '../context/EncryptionContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
 import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile, updateLastActive } from '../utils/supabase/index';
-import { HiX, HiPaperAirplane, HiClock, HiRefresh } from 'react-icons/hi';
+import { HiX, HiPaperAirplane, HiClock, HiRefresh, HiArrowLeft, HiDotsHorizontal } from 'react-icons/hi';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { 
@@ -27,6 +27,7 @@ interface ParticipantProfile {
   username: string;
   avatar_url: string | null;
   last_active: string | null;
+  avatar_seed?: string | null;
 }
 
 interface ThreadParticipants {
@@ -282,6 +283,65 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     console.log(`Chat component mounted/updated for thread: ${threadId} at path: ${location.pathname}`);
   }, [threadId, location.pathname]);
+
+  // Subscribe to profile changes to update avatars in real-time
+  useEffect(() => {
+    if (!user || !threadDetails) return;
+    
+    // Create subscriptions for all participants to update their avatars in real-time
+    const subscriptions = threadDetails.participant_ids.map(participantId => {
+      return supabase
+        .channel(`profile-avatar-${participantId}`)
+        .on('postgres_changes', 
+          { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'profiles',
+            filter: `id=eq.${participantId}`
+          }, 
+          async (payload) => {
+            console.log(`Profile updated for participant ${participantId}, refreshing avatar`);
+            
+            try {
+              // Fetch the updated profile
+              const updatedProfile = await getProfile(participantId);
+              
+              // Check if the avatar_url or avatar_seed has actually changed before updating state
+              // to prevent infinite loops
+              const currentParticipant = participants[participantId];
+              if (currentParticipant && 
+                  (currentParticipant.avatar_url !== updatedProfile.avatar_url || 
+                   currentParticipant.avatar_seed !== updatedProfile.avatar_seed)) {
+                
+                console.log(`Avatar changed for ${participantId}, updating state`);
+                
+                // Update the participants state with the new avatar and seed
+                setParticipants(prev => ({
+                  ...prev,
+                  [participantId]: {
+                    ...prev[participantId],
+                    avatar_url: updatedProfile.avatar_url,
+                    avatar_seed: updatedProfile.avatar_seed
+                  }
+                }));
+              } else {
+                console.log(`No avatar change detected for ${participantId}, skipping update`);
+              }
+            } catch (error) {
+              console.error('Error updating participant avatar:', error);
+            }
+          }
+        )
+        .subscribe();
+    });
+    
+    // Clean up subscriptions
+    return () => {
+      subscriptions.forEach(subscription => {
+        subscription.unsubscribe();
+      });
+    };
+  }, [user, threadDetails, participants]);
 
   // Load messages and handle subscriptions
   useEffect(() => {
@@ -847,23 +907,22 @@ export const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#efeae2] dark:bg-gray-900 relative">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
       {/* Chat Header */}
-      <div className="sticky top-0 bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-20">
-        <div className="flex items-center space-x-3">
-          <DiceBearAvatar 
-            url={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url} 
-            size={40}
-            className="bg-white/30"
-            userId={threadDetails.participant_ids.find(id => id !== user?.id) || ''}
-          />
-          <div>
-            <div className="font-semibold">
-              {participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.username ? 
-                `Chat with ${participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.username}` : 
-                'Chat'}
-            </div>
-            <div className="text-xs text-white/80">
+      <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
+        <div className="flex items-center space-x-3 overflow-hidden">
+          <div className="w-10 h-10 rounded-full">
+            <DiceBearAvatar 
+              url={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url} 
+              size={40} 
+              userId={threadDetails.participant_ids.find(id => id !== user?.id) || ''} 
+              seed={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || undefined}
+              key={`chat-header-avatar-${participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url}-${participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || ''}`}
+            />
+          </div>
+          <div className="overflow-hidden">
+            <div className="font-semibold truncate">{participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.username || 'Unknown User'}</div>
+            <div className="text-xs text-white/80 truncate">
               {(() => {
                 const participantId = threadDetails.participant_ids.find(id => id !== user?.id) || '';
                 const lastActive = participants[participantId]?.last_active;
@@ -887,11 +946,11 @@ export const Chat: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <button
             onClick={handleRefreshMessages}
             disabled={isRefreshing || loading}
-            className="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Refresh messages"
             title="Refresh messages"
           >
@@ -939,6 +998,8 @@ export const Chat: React.FC = () => {
                       size={32}
                       className="flex-shrink-0 mr-2"
                       userId={message.sender_id}
+                      seed={participants[message.sender_id]?.avatar_seed || undefined}
+                      key={`chat-message-other-avatar-${message.id}-${participants[message.sender_id]?.avatar_url}-${participants[message.sender_id]?.avatar_seed || ''}`}
                     />
                       <div>
                         <div
@@ -986,6 +1047,8 @@ export const Chat: React.FC = () => {
                         size={32}
                         className="flex-shrink-0 ml-2"
                         userId={user?.id || ''}
+                        seed={participants[user?.id || '']?.avatar_seed || undefined}
+                        key={`chat-message-avatar-${message.id}-${participants[user?.id || '']?.avatar_url}-${participants[user?.id || '']?.avatar_seed || ''}`}
                       />
                     </>
                   )}
@@ -998,7 +1061,7 @@ export const Chat: React.FC = () => {
       </div>
 
       {/* Message Input */}
-      <div className="bg-[#f0f2f5] dark:bg-gray-800 p-4">
+      <div className="p-3 border-t border-gray-200 dark:border-gray-700 natural-light:border-natural-border natural-dark:border-natural-dark-border bg-white dark:bg-gray-800 natural-light:bg-natural-paper natural-dark:bg-natural-dark-paper">
         {error && (
           <div className="mb-4 text-sm text-red-600">
             {error}
@@ -1074,20 +1137,18 @@ export const Chat: React.FC = () => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 py-2 px-4 bg-white dark:bg-gray-700 dark:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-brand-primary border-none placeholder-gray-400 dark:placeholder-gray-500"
+            className="flex-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-full px-4 py-2 focus:ring-brand-primary focus:border-brand-primary dark:focus:ring-blue-500 dark:focus:border-blue-500 natural-light:focus:ring-natural-primary natural-light:focus:border-natural-primary natural-dark:focus:ring-natural-dark-primary natural-dark:focus:border-natural-dark-primary"
             disabled={sending}
           />
           <button
             type="submit"
             disabled={sending || !newMessage.trim()}
-            className={`p-2 rounded-full bg-brand-primary text-white hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary ${
-              (sending || !newMessage.trim()) && 'opacity-50 cursor-not-allowed'
-            }`}
+            className="p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white hover:bg-brand-secondary natural-light:hover:bg-natural-secondary natural-dark:hover:bg-natural-dark-secondary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending ? (
-              <span className="px-2">...</span>
+              <HiDotsHorizontal size={20} className="animate-pulse" />
             ) : (
-              <HiPaperAirplane className="w-5 h-5 transform rotate-90" />
+              <HiPaperAirplane size={20} className="transform rotate-90" />
             )}
           </button>
         </form>
