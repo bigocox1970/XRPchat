@@ -2,17 +2,44 @@
 // This service worker enables push notifications
 
 // Cache name for the app
-const CACHE_NAME = 'xrpchat-v1';
+const CACHE_NAME = 'xrpchat-cache-v1';
+
+// Files to cache
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/favicon.ico',
+  '/manifest.json'
+];
 
 // Listen for the install event
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing');
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
+  );
   self.skipWaiting(); // Force activation
 });
 
 // Listen for the activate event
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activated');
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
   return self.clients.claim();
 });
 
@@ -99,5 +126,74 @@ self.addEventListener('notificationclick', (event) => {
         return self.clients.openWindow(navigationUrl);
       }
     })
+  );
+});
+
+// Cache and return requests
+self.addEventListener('fetch', event => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
+  
+  // Skip cross-origin requests or API calls
+  const url = new URL(event.request.url);
+  if (
+    url.origin !== self.location.origin || 
+    url.pathname.startsWith('/supabase/')
+  ) {
+    return;
+  }
+
+  // For HTML documents, always try network first
+  if (event.request.headers.get('Accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Make a copy of the response for the cache
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          return response;
+        })
+        .catch(() => {
+          // If network fails, try to serve from cache
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // For assets, try cache first, then network
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // Cache hit - return response
+        if (response) {
+          return response;
+        }
+
+        // Clone the request
+        const fetchRequest = event.request.clone();
+
+        return fetch(fetchRequest).then(
+          response => {
+            // Check if we received a valid response
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // Clone the response
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+
+            return response;
+          }
+        );
+      })
   );
 }); 

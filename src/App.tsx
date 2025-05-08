@@ -301,8 +301,8 @@ const App: React.FC = () => {
           router={createBrowserRouter(createRoutesFromElements(
             createAppRoutes()
           ))}
-          // Add key to force router to re-render when location changes
-          key={location}
+          // Remove the key that forces router to re-render when location changes
+          // This could be causing pages to not load properly until refresh
         />
       </EncryptionProvider>
     </AppProviders>
