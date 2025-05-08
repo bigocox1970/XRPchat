@@ -192,6 +192,59 @@ export const Chat: React.FC = () => {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Wrap handleRefreshMessages in useCallback to avoid dependency issues
+  const handleRefreshMessages = React.useCallback(async () => {
+    if (!threadId || !user) return;
+    
+    setIsRefreshing(true);
+    setLoading(true);
+    
+    try {
+      console.log(`Manually refreshing messages for thread ${threadId}`);
+      // Clear current messages first
+      setMessages([]);
+      
+      // Check for expired messages
+      try {
+        const deletedCount = await checkAndDeleteExpiredMessages(user.id);
+        if (deletedCount > 0) {
+          console.log(`Auto-deleted ${deletedCount} expired messages during manual refresh`);
+        }
+      } catch (error) {
+        console.error('Error checking for expired messages during refresh:', error);
+      }
+      
+      // Fetch fresh messages
+      const messages = await getThreadMessages(threadId);
+      setMessages(messages.reverse()); // Reverse to show oldest first
+      
+      // Clear any unread counter for this thread
+      clearUnread();
+      
+      // Mark unread messages as read
+      const unreadMessages = messages.filter(msg => !msg.read && msg.sender_id !== user.id);
+      console.log(`Marking ${unreadMessages.length} messages as read during manual refresh`);
+      
+      if (unreadMessages.length > 0) {
+        await Promise.all(unreadMessages.map(async (message) => {
+          try {
+            await markMessageAsRead(message.id, user.id);
+          } catch (error) {
+            console.error(`Error marking message ${message.id} as read:`, error);
+          }
+        }));
+      }
+      
+      console.log('Messages refreshed successfully');
+    } catch (error) {
+      console.error('Failed to refresh messages:', error);
+      setError('Failed to refresh messages. Please try again.');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [threadId, user, clearUnread]);
+
   // Validate thread ID and handle navigation
   useEffect(() => {
     if (!threadId || threadId === 'new') {
@@ -372,7 +425,22 @@ export const Chat: React.FC = () => {
                   }
                 }));
               } else {
-                console.log(`No avatar change detected for ${participantId}, skipping update`);
+                console.log(`No avatar change detected for ${participantId}, checking if this is a message-triggered update`);
+                
+                // If the updatedProfile has a more recent updated_at timestamp but no avatar changes,
+                // this might be our send-message triggered profile update - refresh messages
+                if (participantId !== user.id && payload.new?.updated_at) {
+                  const newTimestamp = new Date(payload.new.updated_at).getTime();
+                  const oldTimestamp = payload.old?.updated_at 
+                    ? new Date(payload.old.updated_at).getTime() 
+                    : 0;
+                  
+                  if (newTimestamp > oldTimestamp) {
+                    console.log('Profile update with new timestamp detected, refreshing messages');
+                    // Use the refresh messages function to get the latest messages
+                    handleRefreshMessages();
+                  }
+                }
               }
             } catch (error) {
               console.error('Error updating participant avatar:', error);
@@ -388,7 +456,7 @@ export const Chat: React.FC = () => {
         subscription.unsubscribe();
       });
     };
-  }, [user, threadDetails, participants]);
+  }, [user, threadDetails, participants, handleRefreshMessages]);
 
   // Load messages and handle subscriptions
   useEffect(() => {
@@ -793,59 +861,6 @@ export const Chat: React.FC = () => {
     };
   }, [user]);
 
-  // Wrap handleRefreshMessages in useCallback to avoid dependency issues
-  const handleRefreshMessages = React.useCallback(async () => {
-    if (!threadId || !user) return;
-    
-    setIsRefreshing(true);
-    setLoading(true);
-    
-    try {
-      console.log(`Manually refreshing messages for thread ${threadId}`);
-      // Clear current messages first
-      setMessages([]);
-      
-      // Check for expired messages
-      try {
-        const deletedCount = await checkAndDeleteExpiredMessages(user.id);
-        if (deletedCount > 0) {
-          console.log(`Auto-deleted ${deletedCount} expired messages during manual refresh`);
-        }
-      } catch (error) {
-        console.error('Error checking for expired messages during refresh:', error);
-      }
-      
-      // Fetch fresh messages
-      const messages = await getThreadMessages(threadId);
-      setMessages(messages.reverse()); // Reverse to show oldest first
-      
-      // Clear any unread counter for this thread
-      clearUnread();
-      
-      // Mark unread messages as read
-      const unreadMessages = messages.filter(msg => !msg.read && msg.sender_id !== user.id);
-      console.log(`Marking ${unreadMessages.length} messages as read during manual refresh`);
-      
-      if (unreadMessages.length > 0) {
-        await Promise.all(unreadMessages.map(async (message) => {
-          try {
-            await markMessageAsRead(message.id, user.id);
-          } catch (error) {
-            console.error(`Error marking message ${message.id} as read:`, error);
-          }
-        }));
-      }
-      
-      console.log('Messages refreshed successfully');
-    } catch (error) {
-      console.error('Failed to refresh messages:', error);
-      setError('Failed to refresh messages. Please try again.');
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [threadId, user, clearUnread]);
-
   // Handle sending a message
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -874,7 +889,27 @@ export const Chat: React.FC = () => {
       localStorage.setItem('xrpchat_last_message_sender', user.id);
       
       // Update last active status after sending a message
-      updateLastActive(user.id);
+      await updateLastActive(user.id);
+      
+      // Additionally, update the user's profile to trigger a real-time update for the other user
+      // This is similar to how avatar regeneration works and will cause the chat to refresh
+      // for the other user immediately, showing the new message
+      if (user.id) {
+        try {
+          // Update the profile with the current timestamp to trigger a real-time update
+          await supabase
+            .from('profiles')
+            .update({ 
+              updated_at: new Date().toISOString() 
+            })
+            .eq('id', user.id);
+            
+          console.log('Profile updated to trigger real-time refresh for other users');
+        } catch (profileUpdateError) {
+          console.error('Non-critical error updating profile for real-time refresh:', profileUpdateError);
+          // Don't throw here as the message was sent successfully
+        }
+      }
       
       setNewMessage('');
     } catch (error) {
@@ -1102,7 +1137,7 @@ export const Chat: React.FC = () => {
                 </div>
               );
             })}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-6 mb-4" />
           </div>
         </div>
       </div>
