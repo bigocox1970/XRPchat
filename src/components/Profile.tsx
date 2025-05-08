@@ -66,13 +66,18 @@ export const Profile: React.FC = () => {
     setUpdateLoading(true);
 
     try {
-      const updates: { username?: string; avatar_url?: string } = {};
+      const updates: { username?: string; avatar_url?: string | null } = {};
       
       if (username !== profile?.username) {
         updates.username = username;
       }
       
-      if (avatar && user) {
+      // If avatar is null and previewUrl is null, but we're in edit mode,
+      // it means the user wants to use the generated avatar
+      if (avatar === null && previewUrl === null && profile.avatar_url) {
+        // Set avatar_url to null to use the generated avatar
+        updates.avatar_url = null;
+      } else if (avatar && user) {
         console.log('Uploading new avatar...');
         try {
           // Upload avatar and get URL
@@ -225,38 +230,72 @@ export const Profile: React.FC = () => {
                     Avatar
                   </label>
                   <div className="mt-1 flex items-center space-x-5">
-                    <span className="inline-block h-12 w-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
-                      {profile.avatar_url ? (
-                    <div className="mt-1 h-20 w-20">
-                      <DiceBearAvatar userId={user?.id || ''} size={80} />
-                    </div>
+                    <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt="Avatar preview"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : profile.avatar_url ? (
+                        <img
+                          src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`}?t=${new Date().getTime()}`}
+                          alt="Profile avatar"
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
-                        <svg className="h-full w-full text-gray-300 dark:text-gray-500" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
+                        <DiceBearAvatar userId={user?.id || ''} size={80} />
                       )}
-                    </span>
+                    </div>
                     
-                    <div>
-                      <input
-                        type="file"
-                        id="file-upload"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="file-upload"
-                        className="cursor-pointer bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                      >
-                        Change
-                      </label>
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex space-x-2">
+                        <input
+                          type="file"
+                          id="file-upload"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="file-upload"
+                          className="cursor-pointer bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                        >
+                          Upload Image
+                        </label>
+                        
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setAvatar(null);
+                            if (previewUrl) {
+                              URL.revokeObjectURL(previewUrl);
+                              setPreviewUrl(null);
+                            }
+                            
+                            // Directly update the profile to use the generated avatar
+                            setUpdateLoading(true);
+                            try {
+                              await updateUserProfile({ avatar_url: null });
+                              console.log('Profile updated to use generated avatar');
+                            } catch (error) {
+                              console.error('Error updating profile to use generated avatar:', error);
+                              setUpdateError(error instanceof Error ? error.message : 'Failed to update avatar');
+                            } finally {
+                              setUpdateLoading(false);
+                            }
+                          }}
+                          className="bg-brand-primary text-white py-2 px-3 border border-transparent rounded-md shadow-sm text-sm leading-4 font-medium hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                        >
+                          Use Generated Avatar
+                        </button>
+                      </div>
                       
                       {uploadError && (
                         <p className="mt-2 text-sm text-red-600">{uploadError}</p>
                       )}
                       {previewUrl && !uploadError && (
-                        <p className="mt-2 text-sm text-green-600">Image ready to upload</p>
+                        <p className="text-sm text-green-600">Image ready to upload</p>
                       )}
                     </div>
                   </div>
