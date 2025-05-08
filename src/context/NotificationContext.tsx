@@ -338,17 +338,48 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return 'denied';
     }
 
-    // COMPLETELY DISABLE NOTIFICATION PERMISSION REQUESTS
-    console.log('Notification permission request blocked - disabled in this version');
-    
-    // Always set to disabled in localStorage no matter what
-    localStorage.setItem('xrpchat_notification_requested', 'false');
-    localStorage.setItem('xrpchat_notification_user_choice', 'false');
-    localStorage.setItem('xrpchat_notification_permission', 'disabled');
-    
-    // Keep current permission without requesting new permissions
-    setNotificationsEnabled(false);
-    return Notification.permission;
+    try {
+      // Check if we already have permission
+      if (Notification.permission === 'granted') {
+        localStorage.setItem('xrpchat_notification_requested', 'true');
+        localStorage.setItem('xrpchat_notification_user_choice', 'true');
+        localStorage.setItem('xrpchat_notification_permission', 'granted');
+        setNotificationsEnabled(true);
+        return 'granted';
+      }
+      
+      // Check if permission was previously denied
+      if (Notification.permission === 'denied') {
+        localStorage.setItem('xrpchat_notification_requested', 'true');
+        localStorage.setItem('xrpchat_notification_user_choice', 'true');
+        localStorage.setItem('xrpchat_notification_permission', 'denied');
+        setNotificationsEnabled(false);
+        return 'denied';
+      }
+
+      // Request permission
+      console.log('Requesting notification permission after user interaction');
+      const permission = await Notification.requestPermission();
+      
+      // Store the result
+      localStorage.setItem('xrpchat_notification_requested', 'true');
+      localStorage.setItem('xrpchat_notification_user_choice', 'true');
+      localStorage.setItem('xrpchat_notification_permission', permission);
+      
+      // Update enabled state
+      setNotificationsEnabled(permission === 'granted');
+      setNotificationPermission(permission);
+      
+      // Emit event to notify other components of the change
+      window.dispatchEvent(new CustomEvent('notificationStateChange', {
+        detail: { permission }
+      }));
+      
+      return permission;
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+      return 'denied';
+    }
   };
 
   // Subscribe to push notifications

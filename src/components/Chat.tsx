@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
@@ -15,6 +15,13 @@ import {
   getAutoDeleteMilliseconds,
   getOtherUserAutoDeleteSettings
 } from '../utils/supabase/autoDelete';
+import { useNotification as useNotificationContext } from '../context/NotificationContext';
+import EncryptionIndicator from '../components/EncryptionIndicator';
+import { IoMdSend, IoMdRefresh } from 'react-icons/io';
+import { BsTrash } from 'react-icons/bs';
+import { IoLockClosed, IoLockOpen, IoShieldCheckmark } from 'react-icons/io5';
+import { DateTime } from 'luxon';
+import MessageBubble from './MessageBubble';
 
 type Message = Database['public']['Tables']['messages']['Row'];
 
@@ -141,18 +148,28 @@ const MessageContent: React.FC<{
 };
 
 export const Chat: React.FC = () => {
+  const { id: threadId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
+  const { user } = useUser();
+  const { 
+    notificationsEnabled, 
+    requestNotificationPermission, 
+    unlockAudio 
+  } = useNotification();
+  const { encryptForRecipient, decryptMessage, encryption } = useEncryption();
+  const { debugMode, setDebugLogs } = useDebugMode();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [threadDetails, setThreadDetails] = useState<ThreadDetails | null>(null);
   const [participants, setParticipants] = useState<ThreadParticipants>({});
-  const { id: threadId } = useParams<{ id: string }>();
-  const { user } = useUser();
-  const { notificationsEnabled, showNotification, incrementUnread, clearUnread } = useNotification();
-  const { encryptForRecipient, decryptMessage } = useEncryption();
+  const { notificationsEnabled: notificationsEnabledContext, showNotification, incrementUnread, clearUnread } = useNotificationContext();
   const { showEncrypted } = useEncryptionMode();
-  const { debugMode } = useDebugMode();
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [messageIdToDelete, setMessageIdToDelete] = useState<string | null>(null);
   const [autoDeleteInfo, setAutoDeleteInfo] = useState<AutoDeleteInfo | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -185,12 +202,7 @@ export const Chat: React.FC = () => {
     };
   }, [debugMode]);
   
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Wrap handleRefreshMessages in useCallback to avoid dependency issues
   const handleRefreshMessages = React.useCallback(async () => {
@@ -918,6 +930,28 @@ export const Chat: React.FC = () => {
     try {
       setSending(true);
       setError(null);
+
+      // Try to request notification permission during user interaction
+      if (Notification.permission !== 'granted') {
+        console.log('Attempting to request notification permission during send');
+        try {
+          // Request directly with the Notification API
+          const permission = await Notification.requestPermission();
+          console.log('Notification permission result:', permission);
+          
+          // Store the result in localStorage
+          localStorage.setItem('xrpchat_notification_requested', 'true');
+          localStorage.setItem('xrpchat_notification_user_choice', 'true');
+          localStorage.setItem('xrpchat_notification_permission', permission);
+          
+          // Emit event for other components
+          window.dispatchEvent(new CustomEvent('notificationStateChange', {
+            detail: { permission }
+          }));
+        } catch (notifError) {
+          console.error('Error requesting notification permission during send:', notifError);
+        }
+      }
 
       // Get the other participant's ID
       const otherParticipantId = threadDetails?.participant_ids.find(id => id !== user.id);
