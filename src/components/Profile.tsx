@@ -258,45 +258,76 @@ export const Profile: React.FC = () => {
                     </div>
                     
                     <div className="flex flex-col space-y-2">
-                      <div className="flex space-x-2">
-                        <input
-                          type="file"
-                          id="file-upload"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
-                        <label
-                          htmlFor="file-upload"
-                          className="cursor-pointer bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                        >
-                          Upload Image
-                        </label>
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex space-x-2">
+                          <input
+                            type="file"
+                            id="file-upload"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="file-upload"
+                            className="cursor-pointer bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                          >
+                            Upload Image
+                          </label>
+                          
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setAvatar(null);
+                              if (previewUrl) {
+                                URL.revokeObjectURL(previewUrl);
+                                setPreviewUrl(null);
+                              }
+                              
+                              // Directly update the profile to use the generated avatar
+                              setUpdateLoading(true);
+                              try {
+                                await updateUserProfile({ avatar_url: null });
+                                console.log('Profile updated to use generated avatar');
+                              } catch (error) {
+                                console.error('Error updating profile to use generated avatar:', error);
+                                setUpdateError(error instanceof Error ? error.message : 'Failed to update avatar');
+                              } finally {
+                                setUpdateLoading(false);
+                              }
+                            }}
+                            className="bg-brand-primary text-white py-2 px-3 border border-transparent rounded-md shadow-sm text-sm leading-4 font-medium hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                          >
+                            Use Generated Avatar
+                          </button>
+                        </div>
                         
                         <button
                           type="button"
-                          onClick={async () => {
-                            setAvatar(null);
-                            if (previewUrl) {
-                              URL.revokeObjectURL(previewUrl);
-                              setPreviewUrl(null);
-                            }
+                          onClick={() => {
+                            // Generate a random seed
+                            const newSeed = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                            setAvatarSeed(newSeed);
                             
-                            // Directly update the profile to use the generated avatar
+                            // Update profile with the new seed
                             setUpdateLoading(true);
-                            try {
-                              await updateUserProfile({ avatar_url: null });
-                              console.log('Profile updated to use generated avatar');
-                            } catch (error) {
-                              console.error('Error updating profile to use generated avatar:', error);
-                              setUpdateError(error instanceof Error ? error.message : 'Failed to update avatar');
-                            } finally {
-                              setUpdateLoading(false);
-                            }
+                            updateUserProfile({ 
+                              avatar_url: null,
+                              avatar_seed: newSeed // Store the seed in the profile
+                            })
+                              .then(() => {
+                                console.log('Avatar regenerated with new seed:', newSeed);
+                              })
+                              .catch(error => {
+                                console.error('Error updating profile with new avatar seed:', error);
+                                setUpdateError(error instanceof Error ? error.message : 'Failed to regenerate avatar');
+                              })
+                              .finally(() => {
+                                setUpdateLoading(false);
+                              });
                           }}
-                          className="bg-brand-primary text-white py-2 px-3 border border-transparent rounded-md shadow-sm text-sm leading-4 font-medium hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
                         >
-                          Use Generated Avatar
+                          <HiRefresh className="mr-1" /> Regenerate Avatar
                         </button>
                       </div>
                       
@@ -348,34 +379,6 @@ export const Profile: React.FC = () => {
                     <div className="h-20 w-20">
                       <DiceBearAvatar userId={user?.id || ''} size={80} seed={avatarSeed || undefined} />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Generate a random seed
-                        const newSeed = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-                        setAvatarSeed(newSeed);
-                        
-                        // Update profile with the new seed
-                        setUpdateLoading(true);
-                        updateUserProfile({ 
-                          avatar_url: null,
-                          avatar_seed: newSeed // Store the seed in the profile
-                        })
-                          .then(() => {
-                            console.log('Avatar regenerated with new seed:', newSeed);
-                          })
-                          .catch(error => {
-                            console.error('Error updating profile with new avatar seed:', error);
-                            setUpdateError(error instanceof Error ? error.message : 'Failed to regenerate avatar');
-                          })
-                          .finally(() => {
-                            setUpdateLoading(false);
-                          });
-                      }}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                    >
-                      Regenerate Avatar
-                    </button>
                   </div>
                 </div>
 

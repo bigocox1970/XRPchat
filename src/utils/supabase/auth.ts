@@ -156,6 +156,7 @@ export const updateProfile = async (
     username?: string;
     avatar_url?: string;
     last_active?: string;
+    avatar_seed?: string;
   }
 ) => {
   try {
@@ -685,6 +686,7 @@ export const searchUsers = async (query: string): Promise<Database['public']['Ta
       username: profile.username,
       wallet_address: profile.wallet_address,
       avatar_url: profile.avatar_url,
+      avatar_seed: profile.avatar_seed,
       updated_at: profile.updated_at,
       last_active: profile.last_active
     }));
