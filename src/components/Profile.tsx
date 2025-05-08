@@ -197,15 +197,15 @@ export const Profile: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
       {/* Header */}
-      <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
+      <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
             <HiUser size={24} />
           </div>
           <div>
-          <div className="font-semibold">Profile</div>
+            <div className="font-semibold">Profile</div>
           </div>
         </div>
       </div>
@@ -435,10 +435,10 @@ export const Profile: React.FC = () => {
                       <p className="text-sm text-gray-900 dark:text-white">{profile.username}</p>
                     </div>
                   </div>
+                  
                   <button
-                    type="button"
                     onClick={() => setIsEditing(true)}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
                   >
                     Edit Profile
                   </button>

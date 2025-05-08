@@ -12,10 +12,10 @@ import {
   HiRefresh
 } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
-import { useDarkMode } from '../context/DarkModeContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
 import { useNotification } from '../context/NotificationContext';
+import { useTheme } from '../context/DarkModeContext';
 import { supabase } from '../utils/supabase/client';
 import { saveAutoDeleteSettingsToDatabase } from '../utils/supabase/autoDelete';
 
@@ -32,7 +32,7 @@ interface AutoDeleteSettings {
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const { DarkModeToggle } = useDarkMode();
+  const { ThemeToggle, isNaturalTheme } = useTheme();
   const { user, signOut } = useUser();
   const { 
     showEncrypted, 
@@ -341,9 +341,9 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
       {/* Header */}
-      <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
+      <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
             <HiUser size={24} />
@@ -361,15 +361,27 @@ export const Settings: React.FC = () => {
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">App Settings</h3>
             
             <div className="space-y-6">
-              {/* Dark Mode Toggle */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Dark Mode</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Toggle between light and dark themes
-                  </p>
+              {/* Appearance Section */}
+              <div className="mb-8">
+                <h2 className="text-lg font-medium mb-4 text-gray-900 dark:text-white natural-light:text-natural-text natural-dark:text-natural-dark-text">
+                  Appearance
+                </h2>
+                
+                <div className="px-4 py-4 bg-white dark:bg-gray-800 natural-light:bg-natural-paper natural-dark:bg-natural-dark-paper rounded-md shadow-sm mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100 natural-light:text-natural-text natural-dark:text-natural-dark-text">
+                        Theme
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 natural-light:text-natural-muted natural-dark:text-natural-dark-muted">
+                        {isNaturalTheme 
+                          ? "Using natural theme with warm, earthy colors." 
+                          : "Using default theme with standard colors."}
+                      </div>
+                    </div>
+                    <ThemeToggle />
+                  </div>
                 </div>
-                <DarkModeToggle />
               </div>
 
               {/* Show Encrypted Data */}
@@ -391,7 +403,7 @@ export const Settings: React.FC = () => {
                   <label
                     htmlFor="toggle-encryption"
                     className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                      showEncrypted ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                      showEncrypted ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   >
                     <span
@@ -422,7 +434,7 @@ export const Settings: React.FC = () => {
                   <label
                     htmlFor="toggle-debug"
                     className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                      debugMode ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                      debugMode ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   >
                     <span
@@ -453,7 +465,7 @@ export const Settings: React.FC = () => {
                   <label
                     htmlFor="toggle-max-security"
                     className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                      isMaxSecurityEnabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                      isMaxSecurityEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   >
                     <span
@@ -485,7 +497,7 @@ export const Settings: React.FC = () => {
                     <label
                       htmlFor="toggle-notifications"
                       className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                        localNotificationsEnabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                        localNotificationsEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                       }`}
                     >
                       <span
@@ -503,7 +515,7 @@ export const Settings: React.FC = () => {
                     {/* Status indicator */}
                     <div className="flex items-center">
                       <div className={`h-2 w-2 rounded-full mr-2 ${
-                        notificationPermission === 'granted' ? 'bg-green-500' : 
+                        notificationPermission === 'granted' ? 'natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500' : 
                         notificationPermission === 'denied' ? 'bg-red-500' : 'bg-yellow-500'
                       }`}></div>
                       <span className="text-gray-600 dark:text-gray-400">
@@ -584,7 +596,7 @@ export const Settings: React.FC = () => {
                   <label
                     htmlFor="toggle-auto-delete"
                     className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                      autoDeleteSettings.enabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                      autoDeleteSettings.enabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                     }`}
                   >
                     <span
@@ -604,7 +616,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('5min')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '5min'
-                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -614,7 +626,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('30min')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '30min'
-                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -624,7 +636,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('1hour')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '1hour'
-                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -634,7 +646,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('1day')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '1day'
-                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -644,7 +656,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('1week')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '1week'
-                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -654,7 +666,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('custom')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === 'custom'
-                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -769,7 +781,7 @@ export const Settings: React.FC = () => {
         {saveSettingsMessage && (
           <div className={`fixed bottom-4 right-4 rounded-lg shadow-lg px-4 py-3 text-sm ${
             saveSettingsMessage.type === 'success' 
-              ? 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
+              ? 'natural-light:bg-natural-button-active-bg natural-dark:bg-natural-button-active-bg-dark natural-light:text-natural-button-active-text natural-dark:text-natural-button-active-text-dark natural-light:border-natural-border natural-dark:border-natural-dark-border bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
               : 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
           }`}>
             {saveSettingsMessage.text}
