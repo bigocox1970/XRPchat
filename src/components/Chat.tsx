@@ -16,12 +16,9 @@ import {
   getOtherUserAutoDeleteSettings
 } from '../utils/supabase/autoDelete';
 import { useNotification as useNotificationContext } from '../context/NotificationContext';
-import EncryptionIndicator from '../components/EncryptionIndicator';
 import { IoMdSend, IoMdRefresh } from 'react-icons/io';
 import { BsTrash } from 'react-icons/bs';
 import { IoLockClosed, IoLockOpen, IoShieldCheckmark } from 'react-icons/io5';
-import { DateTime } from 'luxon';
-import MessageBubble from './MessageBubble';
 
 type Message = Database['public']['Tables']['messages']['Row'];
 
@@ -150,14 +147,15 @@ const MessageContent: React.FC<{
 export const Chat: React.FC = () => {
   const { id: threadId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useUser();
   const { 
     notificationsEnabled, 
     requestNotificationPermission, 
     unlockAudio 
   } = useNotification();
-  const { encryptForRecipient, decryptMessage, encryption } = useEncryption();
-  const { debugMode, setDebugLogs } = useDebugMode();
+  const { encryptForRecipient, decryptMessage } = useEncryption();
+  const { debugMode } = useDebugMode();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [threadDetails, setThreadDetails] = useState<ThreadDetails | null>(null);
   const [participants, setParticipants] = useState<ThreadParticipants>({});
@@ -172,6 +170,7 @@ export const Chat: React.FC = () => {
   const [messageIdToDelete, setMessageIdToDelete] = useState<string | null>(null);
   const [autoDeleteInfo, setAutoDeleteInfo] = useState<AutoDeleteInfo | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -184,7 +183,7 @@ export const Chat: React.FC = () => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
-      setDebugLogs(prev => [...prev, `[LOG] ${message}`]);
+      setDebugLogs((prev: string[]) => [...prev, `[LOG] ${message}`]);
       originalConsoleLog.apply(console, args);
     };
 
@@ -192,7 +191,7 @@ export const Chat: React.FC = () => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
-      setDebugLogs(prev => [...prev, `[ERROR] ${message}`]);
+      setDebugLogs((prev: string[]) => [...prev, `[ERROR] ${message}`]);
       originalConsoleError.apply(console, args);
     };
 
