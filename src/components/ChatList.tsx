@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
 import { getUserThreads, subscribeToUserThreads, getProfile, subscribeToThread, deleteThread } from '../utils/supabase/index';
-import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil } from 'react-icons/hi';
+import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil, HiChat } from 'react-icons/hi';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { supabase } from '../utils/supabase/index';
@@ -14,6 +14,7 @@ type Thread = Database['public']['Tables']['threads']['Row'] & {
   otherParticipant?: {
     username: string;
     avatar_url: string | null;
+    avatar_seed?: string | null;
   };
 };
 
@@ -200,6 +201,56 @@ export const ChatList: React.FC = () => {
     }
   }, [user]);
   
+  // Subscribe to profile changes to update avatars in real-time
+  useEffect(() => {
+    if (!user) return;
+    
+    // Create a subscription to listen for profile updates
+    const subscription = supabase
+      .channel('chatlist-profile-updates')
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles'
+        }, 
+          async (payload) => {
+            console.log(`Profile updated, refreshing threads to update avatars`);
+            
+            try {
+              // Get the updated profile ID from the payload
+              const profileId = payload.new?.id;
+              if (!profileId) {
+                console.error('No profile ID in payload:', payload);
+                return;
+              }
+              
+              // Fetch the updated profile
+              const updatedProfile = await getProfile(profileId);
+              if (!updatedProfile) {
+                console.error('Could not fetch updated profile for ID:', profileId);
+                return;
+              }
+              
+              console.log(`Fetched updated profile for ${profileId}:`, {
+                avatar_url: updatedProfile.avatar_url,
+                avatar_seed: updatedProfile.avatar_seed
+              });
+              
+              // Force a full reload of threads to get updated avatar information
+              await loadThreadsWithParticipants();
+            } catch (error) {
+              console.error('Error handling profile update:', error);
+            }
+          }
+      )
+      .subscribe();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
+  
   // Function to refresh unread counts without loading all thread data
   const refreshUnreadCounts = async () => {
     if (!user) return;
@@ -272,10 +323,12 @@ export const ChatList: React.FC = () => {
                 ...thread,
                 otherParticipant: profile ? {
                   username: profile.username || 'Unknown User',
-                  avatar_url: profile.avatar_url || null
+                  avatar_url: profile.avatar_url || null,
+                  avatar_seed: profile.avatar_seed || null
                 } : {
                   username: 'Unknown User',
-                  avatar_url: null
+                  avatar_url: null,
+                  avatar_seed: null
                 }
               };
             } catch (error) {
@@ -284,7 +337,8 @@ export const ChatList: React.FC = () => {
                 ...thread,
                 otherParticipant: {
                   username: 'Unknown User',
-                  avatar_url: null
+                  avatar_url: null,
+                  avatar_seed: null
                 }
               };
             }
@@ -468,6 +522,10 @@ export const ChatList: React.FC = () => {
     setDeleteError(null);
   };
 
+  const handleNewChat = () => {
+    navigate('/app/chat/new');
+  };
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
@@ -477,17 +535,24 @@ export const ChatList: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
       {/* Header */}
-      <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
+      <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
-            <HiUser size={24} />
+            <HiChat size={24} />
           </div>
           <div>
             <div className="font-semibold">Chats</div>
           </div>
         </div>
+        <button
+          onClick={handleNewChat}
+          className="p-2 rounded-full hover:bg-white/10 transition-colors"
+          aria-label="New Chat"
+        >
+          <HiPlus size={24} />
+        </button>
       </div>
 
       {/* Chat List */}
@@ -607,6 +672,8 @@ export const ChatList: React.FC = () => {
                         size={36}
                         className="flex-shrink-0"
                         userId={thread.participant_ids.find(id => id !== user?.id)}
+                        seed={thread.otherParticipant?.avatar_seed || undefined}
+                        key={`chat-list-avatar-${thread.id}-${thread.otherParticipant?.avatar_url}-${thread.otherParticipant?.avatar_seed || ''}`}
                       />
                     </div>
                     

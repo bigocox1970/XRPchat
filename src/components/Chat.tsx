@@ -262,7 +262,8 @@ export const Chat: React.FC = () => {
             acc[id] = {
               username: profile.username,
               avatar_url: profile.avatar_url,
-              last_active: profile.last_active || new Date().toISOString()
+              last_active: profile.last_active || new Date().toISOString(),
+              avatar_seed: profile.avatar_seed
             };
             return acc;
           }, {} as ThreadParticipants);
@@ -282,7 +283,53 @@ export const Chat: React.FC = () => {
   // Add a console log when the component mounts to track loading
   useEffect(() => {
     console.log(`Chat component mounted/updated for thread: ${threadId} at path: ${location.pathname}`);
-  }, [threadId, location.pathname]);
+    
+    // Refresh participant profiles when the component mounts or the thread changes
+    if (threadId && user) {
+      const refreshParticipantProfiles = async () => {
+        if (!threadDetails) return;
+        
+        try {
+          console.log('Refreshing participant profiles on component mount/update');
+          
+          const profiles = await Promise.all(
+            threadDetails.participant_ids.map(async (id: string) => {
+              try {
+                const profile = await getProfile(id);
+                return { id, profile };
+              } catch (error) {
+                console.error(`Error loading profile for ${id}:`, error);
+                return { 
+                  id, 
+                  profile: {
+                    username: 'Unknown User',
+                    avatar_url: null,
+                    last_active: new Date().toISOString()
+                  }
+                };
+              }
+            })
+          );
+
+          const participantMap = profiles.reduce((acc, { id, profile }) => {
+            acc[id] = {
+              username: profile.username,
+              avatar_url: profile.avatar_url,
+              last_active: profile.last_active || new Date().toISOString(),
+              avatar_seed: profile.avatar_seed
+            };
+            return acc;
+          }, {} as ThreadParticipants);
+
+          setParticipants(participantMap);
+        } catch (error) {
+          console.error('Error refreshing participant profiles:', error);
+        }
+      };
+      
+      refreshParticipantProfiles();
+    }
+  }, [threadId, user, threadDetails, location.pathname]);
 
   // Subscribe to profile changes to update avatars in real-time
   useEffect(() => {
