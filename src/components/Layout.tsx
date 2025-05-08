@@ -134,7 +134,7 @@ export const Layout: React.FC = () => {
         <div className="w-full h-full bg-white dark:bg-gray-800 shadow-lg flex flex-col overflow-hidden">
           {/* User Profile Section */}
           {/* App Header */}
-          <div className="bg-brand-primary text-white py-[22px] px-4">
+          <div className="bg-brand-primary natural-dark:bg-natural-dark-primary text-white py-[22px] px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <HiQrCode size={24} className="text-white" />
@@ -163,14 +163,14 @@ export const Layout: React.FC = () => {
           </div>
 
       {/* User Profile */}
-      <div className="px-4 py-3 mt-2.5 bg-white dark:bg-gray-800">
+      <div className="px-4 py-3 mt-2.5 bg-white dark:bg-gray-800 natural-dark:bg-natural-dark-paper">
         <div className="flex items-center space-x-3">
           <DiceBearAvatar url={profile?.avatar_url} size={40} userId={user?.id} />
           <div className="flex-1 flex items-center justify-between">
             <div className="font-semibold text-gray-900 dark:text-white truncate">{profile?.username}</div>
             <Link 
               to="/app/connect" 
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" 
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border rounded-lg" 
               title="Connect with QR Code"
             >
               <HiQrCode size={20} className="text-gray-600 dark:text-gray-300" />

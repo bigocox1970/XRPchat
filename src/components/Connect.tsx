@@ -356,7 +356,7 @@ export const Connect: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
+      <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
             <HiQrcode size={24} />
