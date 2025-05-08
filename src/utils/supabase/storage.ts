@@ -16,7 +16,7 @@ export const uploadAvatar = async (file: File, userId: string) => {
 
     // Use the main client for storage operations
     const { error: uploadError, data } = await supabase.storage
-      .from('avatars')
+      .from('avatar-storage')
       .upload(filePath, file, {
         upsert: true, // Replace if exists
         cacheControl: 'no-cache' // Prevent caching
@@ -29,7 +29,7 @@ export const uploadAvatar = async (file: File, userId: string) => {
 
     // Get the public URL for the uploaded file
     const { data: urlData } = supabase.storage
-      .from('avatars')
+      .from('avatar-storage')
       .getPublicUrl(filePath);
 
     if (!urlData?.publicUrl) {
