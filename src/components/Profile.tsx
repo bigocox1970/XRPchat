@@ -5,6 +5,7 @@ import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh } fr
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { uploadAvatar } from '../utils/supabase/storage';
 import { CopyButton } from './CopyButton';
+import { DiceBearAvatar } from './DiceBearAvatar';
 import { QRCodeSVG } from 'qrcode.react';
 
 export const Profile: React.FC = () => {
@@ -226,13 +227,9 @@ export const Profile: React.FC = () => {
                   <div className="mt-1 flex items-center space-x-5">
                     <span className="inline-block h-12 w-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
                       {profile.avatar_url ? (
-                        <div className="mt-1 h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
-                          <img
-                            src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`}?t=${new Date().getTime()}`}
-                            alt="Profile avatar"
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
+                    <div className="mt-1 h-20 w-20">
+                      <DiceBearAvatar userId={user?.id || ''} size={80} />
+                    </div>
                       ) : (
                         <svg className="h-full w-full text-gray-300 dark:text-gray-500" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -297,18 +294,12 @@ export const Profile: React.FC = () => {
                   <p className="mt-1 text-sm text-gray-900 dark:text-white">{profile.username}</p>
                 </div>
 
-                {profile.avatar_url && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
-                    <div className="mt-1 h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
-                      <img
-                        src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`}?t=${new Date().getTime()}`}
-                        alt="Profile avatar"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
+                  <div className="mt-1 h-20 w-20">
+                    <DiceBearAvatar userId={user?.id || ''} size={80} />
                   </div>
-                )}
+                </div>
 
                 <div className="flex justify-end">
                   <button
