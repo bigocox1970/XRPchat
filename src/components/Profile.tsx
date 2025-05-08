@@ -225,16 +225,10 @@ export const Profile: React.FC = () => {
                   </label>
                   <div className="mt-1 flex items-center space-x-5">
                     <span className="inline-block h-12 w-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
-                      {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt="Avatar preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : profile.avatar_url ? (
+                      {profile.avatar_url ? (
                         <div className="mt-1 h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
                           <img
-                            src={`${profile.avatar_url}?t=${new Date().getTime()}`}
+                            src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`}?t=${new Date().getTime()}`}
                             alt="Profile avatar"
                             className="h-full w-full object-cover"
                           />
@@ -308,7 +302,7 @@ export const Profile: React.FC = () => {
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
                     <div className="mt-1 h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
                       <img
-                        src={`${profile.avatar_url}?t=${new Date().getTime()}`}
+                        src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`}?t=${new Date().getTime()}`}
                         alt="Profile avatar"
                         className="h-full w-full object-cover"
                       />
