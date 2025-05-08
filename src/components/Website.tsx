@@ -10,11 +10,11 @@ export const Website: React.FC = () => {
     <div className="space-y-20">
       {/* Hero Section */}
       <section className="text-center space-y-8">
-        <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white natural-dark:text-natural-dark-text">
           Secure, End-to-End Encrypted Messaging
-          <span className="block text-brand-primary">with XRPL Identity</span>
+          <span className="block text-brand-primary natural-dark:text-natural-dark-primary">with XRPL Identity</span>
         </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+        <p className="text-xl text-gray-600 dark:text-gray-300 natural-dark:text-natural-dark-text max-w-3xl mx-auto">
           Experience truly private conversations with military-grade encryption and blockchain-based identity verification.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
@@ -36,36 +36,36 @@ export const Website: React.FC = () => {
 
       {/* Features Section */}
       <section className="space-y-12">
-        <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white">
+        <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white natural-dark:text-natural-dark-text">
           Why Choose the XRP chat <i>app</i>?
         </h2>
         <div className="grid md:grid-cols-3 gap-8">
-          <div className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md">
+          <div className="space-y-4 p-6 bg-white dark:bg-gray-800 natural-dark:bg-[#F5EEE0] rounded-xl shadow-md">
             <div className="w-12 h-12 bg-green-100 dark:bg-green-100 rounded-lg flex items-center justify-center">
               <HiLockClosed className="w-6 h-6 text-brand-primary" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">End-to-End Encryption</h3>
-            <p className="text-gray-600 dark:text-gray-300">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white natural-dark:text-natural-dark-text">End-to-End Encryption</h3>
+            <p className="text-gray-600 dark:text-gray-300 natural-dark:text-natural-dark-text">
               Your messages are encrypted before leaving your device and can only be decrypted by the intended recipient.
             </p>
           </div>
 
-          <div className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md">
+          <div className="space-y-4 p-6 bg-white dark:bg-gray-800 natural-dark:bg-[#F5EEE0] rounded-xl shadow-md">
             <div className="w-12 h-12 bg-green-100 dark:bg-green-100 rounded-lg flex items-center justify-center">
               <HiKey className="w-6 h-6 text-brand-primary" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">XRPL Identity</h3>
-            <p className="text-gray-600 dark:text-gray-300">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white natural-dark:text-natural-dark-text">XRPL Identity</h3>
+            <p className="text-gray-600 dark:text-gray-300 natural-dark:text-natural-dark-text">
               Your identity is secured by XRPL blockchain technology, ensuring authentic and verifiable communications.
             </p>
           </div>
 
-          <div className="space-y-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md">
+          <div className="space-y-4 p-6 bg-white dark:bg-gray-800 natural-dark:bg-[#F5EEE0] rounded-xl shadow-md">
             <div className="w-12 h-12 bg-green-100 dark:bg-green-100 rounded-lg flex items-center justify-center">
               <HiChat className="w-6 h-6 text-brand-primary" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Real-Time Messaging</h3>
-            <p className="text-gray-600 dark:text-gray-300">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white natural-dark:text-natural-dark-text">Real-Time Messaging</h3>
+            <p className="text-gray-600 dark:text-gray-300 natural-dark:text-natural-dark-text">
               Instant message delivery with real-time updates and secure message synchronisation.
             </p>
           </div>

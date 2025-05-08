@@ -1050,7 +1050,7 @@ export const Chat: React.FC = () => {
                     />
                       <div>
                         <div
-                          className="max-w-lg px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none"
+                          className="max-w-lg px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none"
                         >
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             {participants[message.sender_id]?.username}
@@ -1072,7 +1072,7 @@ export const Chat: React.FC = () => {
                     <>
                       <div>
                         <div
-                          className="max-w-lg px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary text-gray-800 dark:text-white rounded-br-none"
+                          className="max-w-lg px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none"
                         >
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             You

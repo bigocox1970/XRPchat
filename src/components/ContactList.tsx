@@ -453,12 +453,13 @@ export const ContactList: React.FC = () => {
         </div>
       )}
       <div className="flex-shrink-0">
-        <DiceBearAvatar 
-          url={contact.avatar_url}
-          size={40}
-          className={isBlocked ? 'opacity-50 grayscale' : ''}
-          userId={contact.id}
-        />
+          <DiceBearAvatar 
+            url={contact.avatar_url}
+            size={40}
+            className={isBlocked ? 'opacity-50 grayscale' : ''}
+            userId={contact.id}
+            seed={contact.avatar_seed || undefined}
+          />
       </div>
       <div className="flex-1 min-w-0">
         <div className="focus:outline-none">

@@ -80,20 +80,20 @@ export const Layout: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-gray-100 dark:bg-gray-900 flex overflow-hidden relative">
+    <div className="h-screen bg-gray-100 dark:bg-gray-900 natural-dark:bg-[#D2BC9B] flex overflow-hidden relative">
       {/* Background glow effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Sidebar glow */}
         <div className="absolute top-0 left-0 w-96 h-screen">
-          <div className="absolute top-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-brand-primary opacity-[0.0025] dark:opacity-5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-green-400 opacity-[0.0025] dark:opacity-5 rounded-full blur-3xl"></div>
+          <div className="absolute top-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-brand-primary opacity-[0.0025] dark:opacity-5 natural-dark:bg-natural-dark-primary natural-dark:opacity-5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-green-400 opacity-[0.0025] dark:opacity-5 natural-dark:bg-natural-dark-accent natural-dark:opacity-5 rounded-full blur-3xl"></div>
         </div>
         {/* Main content glow */}
         <div className="absolute left-96 inset-y-0 right-0">
           <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2">
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-primary opacity-[0.004] dark:opacity-10 rounded-full blur-3xl"></div>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-green-400 opacity-[0.004] dark:opacity-10 rounded-full blur-3xl"></div>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-blue-400 opacity-[0.004] dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-primary opacity-[0.004] dark:opacity-10 natural-dark:bg-natural-dark-primary natural-dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-green-400 opacity-[0.004] dark:opacity-10 natural-dark:bg-natural-dark-accent natural-dark:opacity-10 rounded-full blur-3xl"></div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-blue-400 opacity-[0.004] dark:opacity-10 natural-dark:bg-[#D2BC9B] natural-dark:opacity-10 rounded-full blur-3xl"></div>
           </div>
         </div>
       </div>
@@ -131,7 +131,7 @@ export const Layout: React.FC = () => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } fixed lg:static lg:translate-x-0 z-40 w-full lg:w-96 transition-transform duration-300 ease-in-out flex-shrink-0 h-screen`}
       >
-        <div className="w-full h-full bg-white dark:bg-gray-800 shadow-lg flex flex-col overflow-hidden">
+        <div className="w-full h-full bg-white dark:bg-gray-800 natural-dark:bg-[#F5EEE0] shadow-lg flex flex-col overflow-hidden">
           {/* User Profile Section */}
           {/* App Header */}
           <div className="bg-brand-primary natural-dark:bg-natural-dark-primary text-white py-[22px] px-4">
@@ -165,7 +165,7 @@ export const Layout: React.FC = () => {
       {/* User Profile */}
       <div className="px-4 py-3 mt-2.5 bg-white dark:bg-gray-800 natural-dark:bg-natural-dark-paper">
         <div className="flex items-center space-x-3">
-          <DiceBearAvatar url={profile?.avatar_url} size={40} userId={user?.id} />
+          <DiceBearAvatar url={profile?.avatar_url} size={40} userId={user?.id} seed={profile?.avatar_seed || undefined} />
           <div className="flex-1 flex items-center justify-between">
             <div className="font-semibold text-gray-900 dark:text-white truncate">{profile?.username}</div>
             <Link 
@@ -184,8 +184,8 @@ export const Layout: React.FC = () => {
             {/* Connect (moved to top) */}
             <Link
               to="/app/connect"
-              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/app/connect') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border ${
+                isActiveRoute('/app/connect') ? 'bg-green-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border text-brand-primary dark:text-white natural-dark:text-natural-dark-primary' : 'text-gray-700 dark:text-gray-200 natural-dark:text-natural-dark-text'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -196,8 +196,8 @@ export const Layout: React.FC = () => {
             {/* Chats */}
             <Link
               to="/app/chats"
-              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/app/chats') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border ${
+                isActiveRoute('/app/chats') ? 'bg-green-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border text-brand-primary dark:text-white natural-dark:text-natural-dark-primary' : 'text-gray-700 dark:text-gray-200 natural-dark:text-natural-dark-text'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -213,8 +213,8 @@ export const Layout: React.FC = () => {
             {/* Rest of the navigation */}
             <Link
               to="/app/contacts"
-              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/app/contacts') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border ${
+                isActiveRoute('/app/contacts') ? 'bg-green-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border text-brand-primary dark:text-white natural-dark:text-natural-dark-primary' : 'text-gray-700 dark:text-gray-200 natural-dark:text-natural-dark-text'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -224,8 +224,8 @@ export const Layout: React.FC = () => {
 
             <Link
               to="/app/profile"
-              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/app/profile') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border ${
+                isActiveRoute('/app/profile') ? 'bg-green-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border text-brand-primary dark:text-white natural-dark:text-natural-dark-primary' : 'text-gray-700 dark:text-gray-200 natural-dark:text-natural-dark-text'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -235,8 +235,8 @@ export const Layout: React.FC = () => {
 
             <Link
               to="/app/settings"
-              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                isActiveRoute('/app/settings') ? 'bg-green-50 dark:bg-gray-700 text-brand-primary dark:text-white' : 'text-gray-700 dark:text-gray-200'
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border ${
+                isActiveRoute('/app/settings') ? 'bg-green-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border text-brand-primary dark:text-white natural-dark:text-natural-dark-primary' : 'text-gray-700 dark:text-gray-200 natural-dark:text-natural-dark-text'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -247,10 +247,10 @@ export const Layout: React.FC = () => {
             <div className="flex-1"></div>
 
             {/* Bottom Links */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-2 space-y-2">
+            <div className="border-t border-gray-200 dark:border-gray-700 natural-dark:border-natural-dark-border pt-2 space-y-2">
               <Link
                 to="/website"
-                className="block px-4 py-3 text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary transition-colors"
+                className="block px-4 py-3 text-gray-600 dark:text-gray-400 natural-dark:text-natural-dark-text hover:text-brand-primary dark:hover:text-brand-primary natural-dark:hover:text-natural-dark-primary transition-colors"
                 onClick={() => setSidebarOpen(false)}
               >
                 Visit Website
@@ -258,7 +258,7 @@ export const Layout: React.FC = () => {
 
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary transition-colors text-left"
+                className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 natural-dark:text-natural-dark-text hover:text-brand-primary dark:hover:text-brand-primary natural-dark:hover:text-natural-dark-primary transition-colors text-left"
               >
                 <HiUserAdd size={24} />
                 <span>Invite User</span>
@@ -266,7 +266,7 @@ export const Layout: React.FC = () => {
 
               <button
                 onClick={signOut}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border rounded-lg"
               >
                 <HiLogout size={24} />
                 <span>Logout</span>
@@ -292,12 +292,12 @@ export const Layout: React.FC = () => {
       {/* QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+          <div className="bg-white dark:bg-gray-800 natural-dark:bg-natural-dark-paper rounded-lg p-6 max-w-sm w-full">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your QR Code</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white natural-dark:text-natural-dark-text">Your QR Code</h3>
               <button
                 onClick={() => setShowQRModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 natural-dark:text-natural-dark-text natural-dark:hover:text-natural-dark-primary"
               >
                 <HiX size={24} />
               </button>
@@ -312,9 +312,9 @@ export const Layout: React.FC = () => {
                   className="bg-white"
                 />
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+              <div className="text-sm text-gray-500 dark:text-gray-400 natural-dark:text-natural-dark-text text-center">
                 <div className="font-medium mb-1">Wallet Address</div>
-                <div className="font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded break-all">
+                <div className="font-mono bg-gray-100 dark:bg-gray-700 natural-dark:bg-natural-dark-border p-2 rounded break-all">
                   {profile?.wallet_address || 'No wallet address available'}
                 </div>
               </div>
@@ -326,15 +326,15 @@ export const Layout: React.FC = () => {
       {/* Invite User Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowInviteModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 natural-dark:bg-natural-dark-paper rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center space-x-2">
-                <HiUserAdd className="text-brand-primary" size={24} />
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Invite User</h3>
+                <HiUserAdd className="text-brand-primary natural-dark:text-natural-dark-primary" size={24} />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white natural-dark:text-natural-dark-text">Invite User</h3>
               </div>
               <button
                 onClick={() => setShowInviteModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 natural-dark:text-natural-dark-text natural-dark:hover:text-natural-dark-primary"
               >
                 <HiX size={24} />
               </button>

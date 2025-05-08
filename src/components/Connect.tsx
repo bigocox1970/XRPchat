@@ -354,7 +354,7 @@ export const Connect: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900 natural-dark:bg-natural-dark-background">
       {/* Header */}
       <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
@@ -369,13 +369,13 @@ export const Connect: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto p-4">
         {/* Connection Options */}
-        <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+        <div className="max-w-full bg-white dark:bg-gray-800 natural-dark:bg-natural-dark-paper shadow rounded-lg mb-6">
           <div className="px-4 py-5 sm:p-6">
             {/* QR Code Panel */}
             <div className="mb-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Share Your Profile</h3>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white natural-dark:text-natural-dark-text mb-4">Share Your Profile</h3>
               
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <div className="bg-gray-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border rounded-lg p-4">
                 <div className="flex flex-col sm:flex-row items-center">
                   {/* QR Code */}
                   <div className="bg-white p-3 rounded-lg mb-4 sm:mb-0 sm:mr-6" id="qr-code">
@@ -392,11 +392,11 @@ export const Connect: React.FC = () => {
                   {/* Wallet Address & Actions */}
                   <div className="flex-1 w-full">
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 natural-dark:text-natural-dark-text mb-1">
                         Your XRP Address
                       </label>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-600 p-2 rounded">
-                        <div className="flex-1 text-sm text-gray-800 dark:text-gray-200 font-mono truncate">
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-600 natural-dark:bg-white/70 p-2 rounded">
+                        <div className="flex-1 text-sm text-gray-800 dark:text-gray-200 natural-dark:text-natural-dark-text font-mono truncate">
                           {profile?.wallet_address}
                         </div>
                         <CopyButton 
@@ -439,37 +439,37 @@ export const Connect: React.FC = () => {
             
             {/* Scan QR Code Section */}
             <div className="mt-10">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Scan or Enter Address</h3>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white natural-dark:text-natural-dark-text mb-4">Scan or Enter Address</h3>
               
               {!showScanner && !showManualEntry && (
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border rounded-lg p-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <button
                       onClick={handleScanClick}
-                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 natural-dark:border-natural-dark-border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 natural-dark:hover:bg-natural-dark-border/80 transition-colors"
                     >
-                      <HiCamera className="h-8 w-8 text-brand-primary mb-2" />
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                      <HiCamera className="h-8 w-8 text-brand-primary natural-dark:text-natural-dark-primary mb-2" />
+                      <span className="text-gray-700 dark:text-gray-300 natural-dark:text-natural-dark-text font-medium">
                         Scan QR Code
                       </span>
                     </button>
 
                     <button
                       onClick={handleScanImage}
-                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 natural-dark:border-natural-dark-border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 natural-dark:hover:bg-natural-dark-border/80 transition-colors"
                     >
-                      <HiPhotograph className="h-8 w-8 text-brand-primary mb-2" />
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                      <HiPhotograph className="h-8 w-8 text-brand-primary natural-dark:text-natural-dark-primary mb-2" />
+                      <span className="text-gray-700 dark:text-gray-300 natural-dark:text-natural-dark-text font-medium">
                         Upload QR Image
                       </span>
                     </button>
 
                     <button
                       onClick={handleManualEntry}
-                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 natural-dark:border-natural-dark-border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 natural-dark:hover:bg-natural-dark-border/80 transition-colors"
                     >
-                      <HiClipboard className="h-8 w-8 text-brand-primary mb-2" />
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                      <HiClipboard className="h-8 w-8 text-brand-primary natural-dark:text-natural-dark-primary mb-2" />
+                      <span className="text-gray-700 dark:text-gray-300 natural-dark:text-natural-dark-text font-medium">
                         Enter Address
                       </span>
                     </button>
@@ -479,7 +479,7 @@ export const Connect: React.FC = () => {
 
               {/* QR Scanner */}
               {showScanner && (
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border rounded-lg p-4">
                   <div className="flex flex-col items-center">
                     <div id="qr-reader" className="w-full max-w-lg mx-auto"></div>
                     
@@ -502,10 +502,10 @@ export const Connect: React.FC = () => {
               
               {/* Manual Address Entry */}
               {showManualEntry && (
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-gray-700 natural-dark:bg-natural-dark-border rounded-lg p-4">
                   <form onSubmit={handleManualSubmit} className="space-y-4">
                     <div>
-                      <label htmlFor="wallet-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="wallet-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 natural-dark:text-natural-dark-text mb-1">
                         XRP Wallet Address
                       </label>
                       <input
@@ -514,7 +514,7 @@ export const Connect: React.FC = () => {
                         value={manualAddress}
                         onChange={(e) => setManualAddress(e.target.value)}
                         placeholder="Enter wallet address"
-                        className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 natural-dark:bg-white/70 dark:text-white natural-dark:text-natural-dark-text rounded-md"
                       />
                     </div>
                     
@@ -522,7 +522,7 @@ export const Connect: React.FC = () => {
                       <button
                         type="submit"
                         disabled={loading || !manualAddress.trim()}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary natural-dark:bg-natural-dark-primary hover:bg-brand-secondary natural-dark:hover:bg-natural-dark-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
                       >
                         {loading ? 'Adding...' : 'Add Contact'}
                       </button>
@@ -530,7 +530,7 @@ export const Connect: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowManualEntry(false)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 natural-dark:border-natural-dark-border shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 natural-dark:text-natural-dark-text bg-white dark:bg-gray-800 natural-dark:bg-natural-dark-paper hover:bg-gray-50 dark:hover:bg-gray-700 natural-dark:hover:bg-natural-dark-border/50"
                       >
                         Cancel
                       </button>
@@ -541,13 +541,13 @@ export const Connect: React.FC = () => {
               
               {/* Error or Success Messages */}
               {error && (
-                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md">
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/30 natural-dark:bg-red-100/20 text-red-700 dark:text-red-400 natural-dark:text-red-700 rounded-md">
                   {error}
                 </div>
               )}
               
               {successMessage && (
-                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md">
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 natural-dark:bg-green-100/20 text-green-700 dark:text-green-400 natural-dark:text-green-700 rounded-md">
                   {successMessage}
                 </div>
               )}
