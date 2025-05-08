@@ -11,6 +11,7 @@ interface ThemeContextType {
   toggleDarkMode: () => void;
   toggleThemeStyle: () => void;
   ThemeToggle: React.FC;
+  DarkModeToggle: React.FC;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -95,7 +96,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isNaturalTheme,
       toggleDarkMode, 
       toggleThemeStyle, 
-      ThemeToggle 
+      ThemeToggle,
+      DarkModeToggle: ThemeToggle
     }}>
       {children}
     </ThemeContext.Provider>
