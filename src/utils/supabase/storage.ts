@@ -39,18 +39,18 @@ export const uploadAvatar = async (file: File, userId: string) => {
     const publicUrl = urlData.publicUrl;
     console.log('File uploaded successfully with URL:', publicUrl);
 
-    // Update the user's profile with the new avatar URL
+    // Update the user's profile with the new avatar file path (not full URL)
     try {
       await updateProfile(userId, { 
-        avatar_url: publicUrl 
+        avatar_url: filePath 
       });
-      console.log('Profile updated with new avatar URL');
+      console.log('Profile updated with new avatar file path');
     } catch (updateError) {
       console.error('Error updating profile with new avatar:', updateError);
       // Continue anyway as the upload was successful
     }
 
-    return publicUrl;
+    return filePath;
   } catch (error) {
     console.error('Error uploading avatar:', error);
     throw error;

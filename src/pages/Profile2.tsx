@@ -21,7 +21,12 @@ const Profile2: React.FC = () => {
       setUsername(profile.username || '');
       // Construct the full avatar URL
       if (profile.avatar_url) {
-        setAvatarUrl(`https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`);
+        // If avatar_url is already a full URL, use it directly; otherwise, construct the full URL
+        if (profile.avatar_url.startsWith('http')) {
+          setAvatarUrl(profile.avatar_url);
+        } else {
+          setAvatarUrl(`https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`);
+        }
       }
     }
   }, [user, loading, profile, navigate]);
