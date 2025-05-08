@@ -120,7 +120,7 @@ export const Layout: React.FC = () => {
       {/* Sidebar Toggle Button - Mobile */}
       <button
         onClick={toggleSidebar}
-        className="lg:hidden fixed top-4 right-16 z-50 p-2 rounded-full bg-brand-primary text-white shadow-lg"
+        className="lg:hidden fixed top-4 right-16 z-50 p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white shadow-lg"
       >
         {sidebarOpen ? <HiX size={24} /> : <HiMenu size={24} />}
       </button>
@@ -134,7 +134,7 @@ export const Layout: React.FC = () => {
         <div className="w-full h-full bg-white dark:bg-gray-800 natural-dark:bg-[#F5EEE0] shadow-lg flex flex-col overflow-hidden">
           {/* User Profile Section */}
           {/* App Header */}
-          <div className="bg-brand-primary natural-dark:bg-natural-dark-primary text-white py-[22px] px-4">
+          <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white py-[22px] px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <HiQrCode size={24} className="text-white" />
@@ -189,7 +189,7 @@ export const Layout: React.FC = () => {
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <HiQrCode size={24} className="text-green-600" />
+              <HiQrCode size={24} className="text-green-600 natural-dark:text-natural-dark-primary" />
               <span>Connect</span>
             </Link>
 
@@ -201,7 +201,7 @@ export const Layout: React.FC = () => {
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <HiChat size={24} />
+              <HiChat size={24} className="natural-dark:text-natural-dark-primary" />
               <span>Chats</span>
               {unreadCount > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
@@ -218,7 +218,7 @@ export const Layout: React.FC = () => {
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <HiUserGroup size={24} />
+              <HiUserGroup size={24} className="natural-dark:text-natural-dark-primary" />
               <span>Contacts</span>
             </Link>
 
@@ -229,7 +229,7 @@ export const Layout: React.FC = () => {
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <HiUser size={24} />
+              <HiUser size={24} className="natural-dark:text-natural-dark-primary" />
               <span>Profile</span>
             </Link>
 
@@ -240,7 +240,7 @@ export const Layout: React.FC = () => {
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <HiCog size={24} />
+              <HiCog size={24} className="natural-dark:text-natural-dark-primary" />
               <span>Settings</span>
             </Link>
 
