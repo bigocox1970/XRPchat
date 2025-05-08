@@ -355,11 +355,8 @@ export const Settings: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {/* App Settings */}
         <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">App Settings</h3>
-            
             <div className="space-y-6">
               {/* Appearance Section */}
               <div className="mb-8">
