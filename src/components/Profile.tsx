@@ -24,6 +24,15 @@ export const Profile: React.FC = () => {
   const [regenerating, setRegenerating] = useState(false);
   const [newWalletInfo, setNewWalletInfo] = useState<{ privateKey: string; address: string } | null>(null);
   const [hasConfirmedSave, setHasConfirmedSave] = useState(false);
+  // Add state for avatar seed
+  const [avatarSeed, setAvatarSeed] = useState<string | null>(null);
+  
+  // Initialize avatar seed from profile
+  useEffect(() => {
+    if (profile && profile.avatar_seed) {
+      setAvatarSeed(profile.avatar_seed);
+    }
+  }, [profile]);
   
   // For change password
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -335,8 +344,38 @@ export const Profile: React.FC = () => {
 
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
-                  <div className="mt-1 h-20 w-20">
-                    <DiceBearAvatar userId={user?.id || ''} size={80} />
+                  <div className="mt-1 flex items-center space-x-4">
+                    <div className="h-20 w-20">
+                      <DiceBearAvatar userId={user?.id || ''} size={80} seed={avatarSeed || undefined} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Generate a random seed
+                        const newSeed = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                        setAvatarSeed(newSeed);
+                        
+                        // Update profile with the new seed
+                        setUpdateLoading(true);
+                        updateUserProfile({ 
+                          avatar_url: null,
+                          avatar_seed: newSeed // Store the seed in the profile
+                        })
+                          .then(() => {
+                            console.log('Avatar regenerated with new seed:', newSeed);
+                          })
+                          .catch(error => {
+                            console.error('Error updating profile with new avatar seed:', error);
+                            setUpdateError(error instanceof Error ? error.message : 'Failed to regenerate avatar');
+                          })
+                          .finally(() => {
+                            setUpdateLoading(false);
+                          });
+                      }}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                    >
+                      Regenerate Avatar
+                    </button>
                   </div>
                 </div>
 

@@ -6,13 +6,15 @@ interface DiceBearAvatarProps {
   url?: string | null;
   size?: number;
   className?: string;
+  seed?: string; // Custom seed for avatar generation
 }
 
 export const DiceBearAvatar: React.FC<DiceBearAvatarProps> = ({ 
   userId, 
   url, 
   size = 40, 
-  className = '' 
+  className = '',
+  seed
 }) => {
   // If a URL is provided, use it instead of generating a DiceBear avatar
   if (url) {
@@ -37,9 +39,10 @@ export const DiceBearAvatar: React.FC<DiceBearAvatarProps> = ({
 
   // If userId is provided, generate a DiceBear avatar
   if (userId) {
-    // Use DiceBear API to generate an avatar based on userId
+    // Use DiceBear API to generate an avatar based on userId or custom seed
     // We're using the 'avataaars' collection, but you can change to any supported collection
-    const diceBearUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userId)}`;
+    const seedValue = seed || userId; // Use custom seed if provided, otherwise use userId
+    const diceBearUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seedValue)}`;
     
     return (
       <div 

@@ -14,6 +14,7 @@ export interface Database {
           id: string;
           username: string;
           avatar_url: string | null;
+          avatar_seed: string | null;
           wallet_address: string;
           updated_at: string;
           last_active: string | null;
@@ -22,6 +23,7 @@ export interface Database {
           id: string;
           username: string;
           avatar_url?: string | null;
+          avatar_seed?: string | null;
           wallet_address: string;
           updated_at?: string;
           last_active?: string | null;
@@ -30,6 +32,7 @@ export interface Database {
           id?: string;
           username?: string;
           avatar_url?: string | null;
+          avatar_seed?: string | null;
           wallet_address?: string;
           updated_at?: string;
           last_active?: string | null;

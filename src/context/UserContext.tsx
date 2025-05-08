@@ -19,7 +19,7 @@ interface UserContextType {
   signUp: (email: string, password: string, username: string) => Promise<{ privateKey: string; address: string }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateUserProfile: (updates: { username?: string; avatar_url?: string | null }) => Promise<void>;
+  updateUserProfile: (updates: { username?: string; avatar_url?: string | null; avatar_seed?: string | null }) => Promise<void>;
   regenerateWallet: (privateKey: string, address: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
@@ -337,7 +337,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUserProfile = async (updates: { username?: string; avatar_url?: string | null }) => {
+  const updateUserProfile = async (updates: { username?: string; avatar_url?: string | null; avatar_seed?: string | null }) => {
     try {
       if (!user?.id) throw new Error('No user ID');
 

@@ -6,14 +6,16 @@ interface AvatarProps {
   size?: number;
   className?: string;
   userId?: string;
+  seed?: string; // Custom seed for avatar generation
 }
 
-export const Avatar: React.FC<AvatarProps> = ({ url, size = 40, className = '', userId }) => {
+export const Avatar: React.FC<AvatarProps> = ({ url, size = 40, className = '', userId, seed }) => {
   // If userId is provided and no URL is provided, generate a DiceBear avatar
   if (userId && !url) {
-    // Use DiceBear API to generate an avatar based on userId
+    // Use DiceBear API to generate an avatar based on userId or custom seed
     // We're using the 'avataaars' collection, but you can change to any supported collection
-    const diceBearUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userId)}`;
+    const seedValue = seed || userId; // Use custom seed if provided, otherwise use userId
+    const diceBearUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seedValue)}`;
     
     return (
       <div 
