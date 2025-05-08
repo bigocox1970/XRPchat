@@ -341,388 +341,441 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900 overflow-auto">
+    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
       {/* Header */}
       <div className="bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-full hover:bg-white/10"
-            aria-label="Go back"
-          >
-            <HiArrowLeft size={20} />
-          </button>
-          <div className="font-semibold">Settings</div>
+          <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
+            <HiUser size={24} />
+          </div>
+          <div>
+            <div className="font-semibold">Settings</div>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-md mx-auto space-y-6">
-          {/* Settings Sections */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                Appearance
-              </h3>
-            </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* App Settings */}
+        <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">App Settings</h3>
             
-            <div className="px-4 py-5 space-y-6">
+            <div className="space-y-6">
+              {/* Dark Mode Toggle */}
               <div className="flex items-center justify-between">
-                <span className="text-gray-700 dark:text-gray-200">Theme</span>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Dark Mode</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Toggle between light and dark themes
+                  </p>
+                </div>
                 <DarkModeToggle />
               </div>
-            </div>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                Notifications
-              </h3>
-            </div>
-            
-            <div className="px-4 py-5 space-y-6">
+              {/* Show Encrypted Data */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                  <HiBell size={20} />
-                  <span>Push Notifications</span>
-                </div>
-                <button
-                  onClick={handleToggleNotifications}
-                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${localNotificationsEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${localNotificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-              
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {notificationPermission === 'denied' ? (
-                  <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
-                    <p className="text-red-600 dark:text-red-400">
-                      Notifications are blocked by your browser. To enable them, you need to reset permissions.
-                    </p>
-                    <button
-                      onClick={resetNotificationPermissions}
-                      className="mt-2 flex items-center space-x-2 text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm"
-                    >
-                      <HiRefresh size={16} />
-                      <span>Reset Notification Permissions</span>
-                    </button>
-                  </div>
-                ) : (
-                  <p>
-                    {localNotificationsEnabled 
-                      ? "You'll receive notifications when you get new messages, even when the app is in the background or another tab." 
-                      : "Enable notifications to be alerted when you receive new messages, even when the app is in the background."}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Show Encrypted Data</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Show encrypted format of messages in debug view
                   </p>
-                )}
-              </div>
-              
-              {/* Add sound test button */}
-              {localNotificationsEnabled && (
-                <div className="mt-3">
-                  <button
-                    onClick={testNotificationSound}
-                    className="px-3 py-1.5 bg-brand-primary hover:bg-brand-secondary text-white text-sm rounded-md transition-colors"
+                </div>
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="toggle-encryption"
+                    checked={showEncrypted}
+                    onChange={toggleEncryptionMode}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="toggle-encryption"
+                    className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                      showEncrypted ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
                   >
-                    Test Notification Sound
-                  </button>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Make sure your volume is turned up to hear the notification sound.
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                        showEncrypted ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    ></span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Debug Mode */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Debug Mode</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Show additional debug information
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Auto-Delete Messages Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                Auto-Delete Messages
-              </h3>
-            </div>
-            
-            <div className="px-4 py-5 space-y-6">
-              <div className="space-y-2">
-                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                  <HiClock size={20} />
-                  <span>Delete messages after: <span className="font-medium">{getAutoDeleteText()}</span></span>
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="toggle-debug"
+                    checked={debugMode}
+                    onChange={toggleDebugMode}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="toggle-debug"
+                    className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                      debugMode ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                        debugMode ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    ></span>
+                  </label>
                 </div>
-                
-                {saveSettingsMessage && (
-                  <div className={`text-sm px-3 py-2 rounded-md ${
-                    saveSettingsMessage.type === 'success' 
-                      ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-white' 
-                      : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                  }`}>
-                    {saveSettingsMessage.text}
+              </div>
+
+              {/* Maximum Security Mode */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Maximum Security Mode</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Extra encryption for all messages (may impact performance)
+                  </p>
+                </div>
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="toggle-max-security"
+                    checked={isMaxSecurityEnabled}
+                    onChange={handleToggleMaxSecurity}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="toggle-max-security"
+                    className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                      isMaxSecurityEnabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                        isMaxSecurityEnabled ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    ></span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Notifications */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Notifications</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Receive alerts for new messages
+                    </p>
                   </div>
-                )}
-                
-                <div className="mt-3 space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => handleAutoDeleteOptionChange('off')}
-                      className={`py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                        autoDeleteSettings.option === 'off' 
-                          ? 'bg-brand-primary text-white' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                    <input
+                      type="checkbox"
+                      id="toggle-notifications"
+                      checked={localNotificationsEnabled}
+                      onChange={handleToggleNotifications}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="toggle-notifications"
+                      className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                        localNotificationsEnabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                       }`}
                     >
-                      Off
+                      <span
+                        className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                          localNotificationsEnabled ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      ></span>
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Notification permission status and buttons */}
+                <div className="mt-3 pl-3 border-l-2 border-gray-200 dark:border-gray-700">
+                  <div className="text-sm mb-2">
+                    {/* Status indicator */}
+                    <div className="flex items-center">
+                      <div className={`h-2 w-2 rounded-full mr-2 ${
+                        notificationPermission === 'granted' ? 'bg-green-500' : 
+                        notificationPermission === 'denied' ? 'bg-red-500' : 'bg-yellow-500'
+                      }`}></div>
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {notificationPermission === 'granted' ? 'Permission granted' : 
+                        notificationPermission === 'denied' ? 'Permission denied' : 'Permission not set'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {notificationPermission !== 'granted' && (
+                      <button
+                        onClick={requestNotificationPermission}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                      >
+                        <HiBell className="h-4 w-4 mr-1.5" />
+                        Request Permission
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={testNotificationSound}
+                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                    >
+                      <HiBell className="h-4 w-4 mr-1.5" />
+                      Test Sound
                     </button>
+                    
+                    <button
+                      onClick={resetNotificationPermissions}
+                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                    >
+                      <HiRefresh className="h-4 w-4 mr-1.5" />
+                      Reset Settings
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Auto-delete Settings */}
+        <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">Message Auto-Delete</h3>
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Auto-Delete Messages</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Automatically delete messages after a set time
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Current setting: <span className="font-medium">{getAutoDeleteText()}</span>
+                  </p>
+                </div>
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="toggle-auto-delete"
+                    checked={autoDeleteSettings.enabled}
+                    onChange={() => {
+                      const newSettings = {
+                        ...autoDeleteSettings,
+                        enabled: !autoDeleteSettings.enabled,
+                        option: !autoDeleteSettings.enabled 
+                          ? (autoDeleteSettings.option === 'off' ? '1day' as AutoDeleteOption : autoDeleteSettings.option) 
+                          : 'off' as AutoDeleteOption
+                      };
+                      setAutoDeleteSettings(newSettings);
+                      saveAutoDeleteSettings(newSettings);
+                    }}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="toggle-auto-delete"
+                    className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                      autoDeleteSettings.enabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                        autoDeleteSettings.enabled ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    ></span>
+                  </label>
+                </div>
+              </div>
+              
+              {/* Auto-delete options */}
+              {autoDeleteSettings.enabled && (
+                <div className="pl-3 border-l-2 border-gray-200 dark:border-gray-700 space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => handleAutoDeleteOptionChange('5min')}
-                      className={`py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                        autoDeleteSettings.option === '5min' 
-                          ? 'bg-brand-primary text-white' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
+                        autoDeleteSettings.option === '5min'
+                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       5 minutes
                     </button>
                     <button
                       onClick={() => handleAutoDeleteOptionChange('30min')}
-                      className={`py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                        autoDeleteSettings.option === '30min' 
-                          ? 'bg-brand-primary text-white' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
+                        autoDeleteSettings.option === '30min'
+                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       30 minutes
                     </button>
                     <button
                       onClick={() => handleAutoDeleteOptionChange('1hour')}
-                      className={`py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                        autoDeleteSettings.option === '1hour' 
-                          ? 'bg-brand-primary text-white' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
+                        autoDeleteSettings.option === '1hour'
+                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       1 hour
                     </button>
                     <button
                       onClick={() => handleAutoDeleteOptionChange('1day')}
-                      className={`py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                        autoDeleteSettings.option === '1day' 
-                          ? 'bg-brand-primary text-white' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
+                        autoDeleteSettings.option === '1day'
+                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       1 day
                     </button>
                     <button
                       onClick={() => handleAutoDeleteOptionChange('1week')}
-                      className={`py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                        autoDeleteSettings.option === '1week' 
-                          ? 'bg-brand-primary text-white' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
+                        autoDeleteSettings.option === '1week'
+                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       1 week
                     </button>
-                  </div>
-                  
-                  <div className="flex items-center mt-3">
                     <button
                       onClick={() => handleAutoDeleteOptionChange('custom')}
-                      className={`py-2 px-3 text-xs font-medium rounded-md mr-3 transition-colors ${
-                        autoDeleteSettings.option === 'custom' 
-                          ? 'bg-brand-primary text-white' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
+                        autoDeleteSettings.option === 'custom'
+                          ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       Custom
                     </button>
-                    
-                    <div className={`flex-1 flex items-center space-x-2 ${autoDeleteSettings.option !== 'custom' ? 'opacity-50' : ''}`}>
+                  </div>
+                  
+                  {/* Custom auto-delete settings */}
+                  {autoDeleteSettings.option === 'custom' && (
+                    <div className="flex items-center mt-3">
                       <input
                         type="number"
+                        min="1"
                         value={autoDeleteSettings.customValue}
                         onChange={handleCustomValueChange}
-                        disabled={autoDeleteSettings.option !== 'custom'}
-                        min="1"
-                        className="w-16 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        className="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md mr-2"
                       />
                       <select
                         value={autoDeleteSettings.customUnit}
                         onChange={handleCustomUnitChange}
-                        disabled={autoDeleteSettings.option !== 'custom'}
-                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-2 py-1"
                       >
-                        <option value="minutes">minutes</option>
-                        <option value="hours">hours</option>
-                        <option value="days">days</option>
-                        <option value="weeks">weeks</option>
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
                       </select>
                     </div>
+                  )}
+                  
+                  {/* Info about how auto-delete works */}
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    <p>Messages older than the specified time will be permanently deleted from all devices.</p>
                   </div>
-                </div>
-                
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                  Messages will be automatically deleted after the specified time. This setting applies to all your chats.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                Privacy & Security
-              </h3>
-            </div>
-            
-            <div className="px-4 py-5 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                  {!showEncrypted ? <HiEyeOff size={20} /> : <HiEye size={20} />}
-                  <span>{!showEncrypted ? "Show Decrypted" : "Show Encrypted"}</span>
-                </div>
-                <button
-                  onClick={toggleEncryptionMode}
-                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${!showEncrypted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  aria-label={!showEncrypted ? "Currently showing decrypted messages" : "Currently showing encrypted messages"}
-                  title={!showEncrypted ? "Currently showing decrypted messages" : "Currently showing encrypted messages"}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${!showEncrypted ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                  <HiShieldCheck size={20} />
-                  <span>Max Security Mode</span>
-                </div>
-                <button
-                  onClick={handleToggleMaxSecurity}
-                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${isMaxSecurityEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  aria-label={isMaxSecurityEnabled ? "Maximum security mode enabled" : "Maximum security mode disabled"}
-                  title={isMaxSecurityEnabled ? "Maximum security mode enabled" : "Maximum security mode disabled"}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${isMaxSecurityEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-              
-              {isMaxSecurityEnabled && (
-                <div className="text-xs text-green-600 dark:text-white bg-green-50 dark:bg-green-900/20 p-2 rounded">
-                  In maximum security mode, your private key is not stored in the browser. You'll need to provide it for each decryption operation.
                 </div>
               )}
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                Developer
-              </h3>
-            </div>
-            
-            <div className="px-4 py-5 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 text-gray-700 dark:text-gray-200">
-                  <HiUser size={20} />
-                  <span>Debug Mode</span>
-                </div>
-                <button
-                  onClick={toggleDebugMode}
-                  className={`w-11 h-6 flex items-center rounded-full transition-colors duration-300 ${debugMode ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-300 ${debugMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Danger Zone */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
-              <h3 className="text-lg font-medium text-red-600 dark:text-red-400">
-                Danger Zone
-              </h3>
-            </div>
-            
-            <div className="px-4 py-5 space-y-6">
-              <div className="space-y-3">
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  <p className="mb-2">
-                    <strong>Warning:</strong> Burning your wallet will permanently delete all your chat history, contacts, and wallet information. 
-                    This action cannot be undone.
-                  </p>
-                  <p className="mb-2">
-                    <strong>Note:</strong> A new wallet address will be generated for you when you log in again. You will need to share this new address with your contacts to reconnect.
-                  </p>
-                </div>
-                
-                <button
-                  onClick={handleBurnConfirm}
-                  className="flex items-center justify-center w-full space-x-2 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                >
-                  <HiTrash size={20} />
-                  <span>Burn Wallet Address</span>
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
 
-      {/* Burn Wallet Confirmation Modal */}
-      {showBurnConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
-            <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-4">
-              Burn Wallet Address
-            </h3>
+        {/* Danger Zone */}
+        <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg leading-6 font-medium text-red-600 dark:text-red-400 mb-6">Danger Zone</h3>
             
-            <p className="text-gray-700 dark:text-gray-300 mb-6">
-              Are you absolutely sure? This will permanently delete:
-              <ul className="list-disc ml-6 mt-2">
-                <li>All your chat messages</li>
-                <li>All your contacts</li>
-                <li>Your wallet information</li>
-              </ul>
-              <span className="block mt-2 font-semibold">This action cannot be undone.</span>
-            </p>
-            
-            <p className="text-gray-700 dark:text-gray-300 mb-4">
-              When you log in again, a new wallet address will be generated. You will need to share this new address with your contacts to continue chatting with them.
-            </p>
-            
-            {burnError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md text-sm">
-                {burnError}
-              </div>
-            )}
-            
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setShowBurnConfirm(false)}
-                className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white py-2 px-4 rounded-lg transition-colors"
-                disabled={burnLoading}
-              >
-                Cancel
-              </button>
-              
-              <button
-                onClick={handleBurnWallet}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
-                disabled={burnLoading}
-              >
-                {burnLoading ? (
-                  <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
-                ) : (
-                  <HiTrash size={20} className="mr-2" />
+            <div className="space-y-6">
+              {/* Reset Wallet */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Reset Encryption Keys</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Generate new encryption keys. All existing messages will become unreadable.
+                    </p>
+                  </div>
+                  {!showBurnConfirm ? (
+                    <button
+                      onClick={handleBurnConfirm}
+                      className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-700 text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      <HiTrash className="h-4 w-4 mr-1.5" />
+                      Reset Keys
+                    </button>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setShowBurnConfirm(false)}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleBurnWallet}
+                        disabled={burnLoading}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                      >
+                        {burnLoading ? 'Processing...' : 'Confirm Reset'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {burnError && (
+                  <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                    {burnError}
+                  </div>
                 )}
-                {burnLoading ? 'Burning...' : 'Burn My Wallet'}
-              </button>
+              </div>
+              
+              {/* Sign Out */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Sign Out</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Sign out of your account on this device
+                    </p>
+                  </div>
+                  <button
+                    onClick={signOut}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                  >
+                    <HiArrowLeft className="h-4 w-4 mr-1.5" />
+                    Sign Out
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
+        
+        {/* Toast notification for settings updates */}
+        {saveSettingsMessage && (
+          <div className={`fixed bottom-4 right-4 rounded-lg shadow-lg px-4 py-3 text-sm ${
+            saveSettingsMessage.type === 'success' 
+              ? 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
+              : 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+          }`}>
+            {saveSettingsMessage.text}
+          </div>
+        )}
+      </div>
     </div>
   );
 }; 

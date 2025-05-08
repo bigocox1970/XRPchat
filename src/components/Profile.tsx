@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { isValidAddress, generateKeyPair } from '../utils/encryption';
-import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh } from 'react-icons/hi';
+import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh, HiChevronDown } from 'react-icons/hi';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { uploadAvatar } from '../utils/supabase/storage';
 import { CopyButton } from './CopyButton';
@@ -16,7 +16,7 @@ export const Profile: React.FC = () => {
   const [username, setUsername] = useState(profile?.username || '');
   const [avatar, setAvatar] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isUrlMode, setIsUrlMode] = useState(true);
+  const [isUrlMode, setIsUrlMode] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -238,101 +238,177 @@ export const Profile: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Avatar
                   </label>
-                  <div className="mt-1 flex items-center space-x-5">
-                    <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
-                      {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt="Avatar preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : profile.avatar_url ? (
-                        <img
-                          src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`}?t=${new Date().getTime()}`}
-                          alt="Profile avatar"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <DiceBearAvatar userId={user?.id || ''} size={80} />
-                      )}
+                  <div className="mt-1 flex flex-wrap items-start">
+                    {/* Avatar and regenerate button */}
+                    <div className="relative mr-4">
+                      <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-600">
+                        {previewUrl ? (
+                          <img
+                            src={previewUrl}
+                            alt="Avatar preview"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : profile.avatar_url ? (
+                          <img
+                            src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `https://aoqvffeqscehfnrjgjrs.supabase.co/storage/v1/object/public/avatar-storage/${profile.avatar_url}`}?t=${new Date().getTime()}`}
+                            alt="Profile avatar"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <DiceBearAvatar 
+                            userId={user?.id || ''} 
+                            size={80} 
+                            seed={avatarSeed || undefined}
+                            key={avatarSeed || user?.id} // Add key to force re-render when seed changes
+                          />
+                        )}
+                      </div>
+                      {/* Regenerate button positioned at the bottom right of the avatar */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          console.log("Regenerating avatar with new seed");
+                          // Generate a random seed
+                          const newSeed = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                          console.log("New seed generated:", newSeed);
+                          
+                          // Update local state immediately for visual feedback
+                          setAvatarSeed(newSeed);
+                          
+                          // Update profile with the new seed
+                          updateUserProfile({ 
+                            avatar_url: null,
+                            avatar_seed: newSeed // Store the seed in the profile
+                          })
+                            .then(() => {
+                              console.log('Avatar regenerated with new seed:', newSeed);
+                            })
+                            .catch(error => {
+                              console.error('Error updating profile with new avatar seed:', error);
+                              setUpdateError(error instanceof Error ? error.message : 'Failed to regenerate avatar');
+                            });
+                        }}
+                        className="absolute bottom-0 right-0 bg-white dark:bg-gray-700 rounded-full p-1 shadow-sm text-gray-700 dark:text-gray-300 hover:text-brand-primary dark:hover:text-brand-primary focus:outline-none"
+                        aria-label="Regenerate Avatar"
+                      >
+                        <HiRefresh size={16} />
+                      </button>
                     </div>
                     
-                    <div className="flex flex-col space-y-2">
+                    {/* Avatar source controls and action buttons */}
+                    <div className="flex-1 flex flex-col space-y-2">
+                      <input
+                        type="file"
+                        id="file-upload"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      
                       <div className="flex flex-col space-y-2">
-                        <div className="flex space-x-2">
-                          <input
-                            type="file"
-                            id="file-upload"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            className="hidden"
-                          />
-                          <label
-                            htmlFor="file-upload"
-                            className="cursor-pointer bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                          >
-                            Upload Image
-                          </label>
+                        {/* Avatar Source Row */}
+                        <div className="flex justify-between items-center gap-2">
+                          {/* Avatar Type Dropdown */}
+                          <div className="relative inline-block">
+                            <select
+                              className="inline-flex items-center bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 pl-3 pr-8 text-sm leading-4 font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-brand-primary focus:border-brand-primary appearance-none w-auto"
+                              value={isUrlMode ? 'url' : avatar ? 'upload' : 'generated'}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === 'generated') {
+                                  // Use generated avatar
+                                  setIsUrlMode(false);
+                                  setAvatar(null);
+                                  if (previewUrl) {
+                                    URL.revokeObjectURL(previewUrl);
+                                    setPreviewUrl(null);
+                                  }
+                                  
+                                  // Update profile to use generated avatar
+                                  updateUserProfile({ avatar_url: null })
+                                    .then(() => {
+                                      console.log('Profile updated to use generated avatar');
+                                    })
+                                    .catch(error => {
+                                      console.error('Error updating profile to use generated avatar:', error);
+                                      setUpdateError(error instanceof Error ? error.message : 'Failed to update avatar');
+                                    });
+                                } else if (value === 'upload') {
+                                  // Trigger file upload dialog
+                                  setIsUrlMode(false);
+                                  document.getElementById('file-upload')?.click();
+                                } else if (value === 'url') {
+                                  // Show URL input field
+                                  setIsUrlMode(true);
+                                }
+                              }}
+                            >
+                              <option value="generated">Generated Avatar</option>
+                              <option value="upload">Upload Image</option>
+                              <option value="url">Image URL</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                              <HiChevronDown className="h-5 w-5" aria-hidden="true" />
+                            </div>
+                          </div>
                           
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setAvatar(null);
-                              if (previewUrl) {
-                                URL.revokeObjectURL(previewUrl);
-                                setPreviewUrl(null);
-                              }
-                              
-                              // Directly update the profile to use the generated avatar
-                              setUpdateLoading(true);
-                              try {
-                                await updateUserProfile({ avatar_url: null });
-                                console.log('Profile updated to use generated avatar');
-                              } catch (error) {
-                                console.error('Error updating profile to use generated avatar:', error);
-                                setUpdateError(error instanceof Error ? error.message : 'Failed to update avatar');
-                              } finally {
-                                setUpdateLoading(false);
-                              }
-                            }}
-                            className="bg-brand-primary text-white py-2 px-3 border border-transparent rounded-md shadow-sm text-sm leading-4 font-medium hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                          >
-                            Use Generated Avatar
-                          </button>
+                          {/* Action buttons side by side */}
+                          <div className="col-span-4 flex justify-end space-x-2">
+                            <button
+                              type="button"
+                              onClick={handleCancel}
+                              className="bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={updateLoading}
+                              className={`inline-flex justify-center py-2 px-3 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 ${
+                                updateLoading ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            >
+                              {updateLoading ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
                         </div>
                         
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // Generate a random seed
-                            const newSeed = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-                            setAvatarSeed(newSeed);
-                            
-                            // Update profile with the new seed
-                            setUpdateLoading(true);
-                            updateUserProfile({ 
-                              avatar_url: null,
-                              avatar_seed: newSeed // Store the seed in the profile
-                            })
-                              .then(() => {
-                                console.log('Avatar regenerated with new seed:', newSeed);
-                              })
-                              .catch(error => {
-                                console.error('Error updating profile with new avatar seed:', error);
-                                setUpdateError(error instanceof Error ? error.message : 'Failed to regenerate avatar');
-                              })
-                              .finally(() => {
-                                setUpdateLoading(false);
-                              });
-                          }}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                        >
-                          <HiRefresh className="mr-1" /> Regenerate Avatar
-                        </button>
+                        {/* URL input field (shown only when URL option is selected) */}
+                        {isUrlMode && (
+                          <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-8">
+                              <input
+                                type="text"
+                                placeholder="Enter image URL"
+                                className="block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-brand-primary focus:border-brand-primary"
+                                onChange={(e) => {
+                                  const url = e.target.value;
+                                  if (url) {
+                                    setAvatar(null);
+                                    if (previewUrl) {
+                                      URL.revokeObjectURL(previewUrl);
+                                    }
+                                    setPreviewUrl(url);
+                                    
+                                    // Update profile with URL
+                                    updateUserProfile({ avatar_url: url })
+                                      .then(() => {
+                                        console.log('Profile updated with avatar URL');
+                                      })
+                                      .catch(error => {
+                                        console.error('Error updating profile with avatar URL:', error);
+                                        setUpdateError(error instanceof Error ? error.message : 'Failed to update avatar');
+                                      });
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
                       {uploadError && (
-                        <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+                        <p className="text-sm text-red-600">{uploadError}</p>
                       )}
                       {previewUrl && !uploadError && (
                         <p className="text-sm text-green-600">Image ready to upload</p>
@@ -342,51 +418,27 @@ export const Profile: React.FC = () => {
                 </div>
 
                 {(updateError || uploadError) && (
-                  <div className="text-red-600 text-sm">
+                  <div className="text-red-600 text-sm mt-2">
                     {updateError || uploadError}
                   </div>
                 )}
-
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={updateLoading}
-                    className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 ${
-                      updateLoading ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    {updateLoading ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
               </form>
             ) : (
-              <div className="mt-5 space-y-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Username</h4>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-white">{profile.username}</p>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avatar</h4>
-                  <div className="mt-1 flex items-center space-x-4">
-                    <div className="h-20 w-20">
-                      <DiceBearAvatar userId={user?.id || ''} size={80} seed={avatarSeed || undefined} />
+              <div className="mt-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="h-14 w-14">
+                      <DiceBearAvatar userId={user?.id || ''} size={56} seed={avatarSeed || undefined} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Username</h4>
+                      <p className="text-sm text-gray-900 dark:text-white">{profile.username}</p>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
                   >
                     Edit Profile
                   </button>

@@ -367,245 +367,203 @@ export const Connect: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto p-6 space-y-8">
-          {/* Share QR Code Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Share Your QR Code
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Let others scan this QR code to add you as a contact and start chatting!
-            </p>
-            
-            <div className="flex flex-col items-center space-y-6">
-              {/* QR Code */}
-              <div id="qr-code" className="bg-white p-4 rounded-lg">
-                <QRCodeSVG value={profile?.wallet_address || ''} size={200} />
-              </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* Connection Options */}
+        <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
+          <div className="px-4 py-5 sm:p-6">
+            {/* QR Code Panel */}
+            <div className="mb-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Share Your Profile</h3>
               
-              {/* Wallet Address */}
-              <div className="w-full">
-                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  Your Wallet Address:
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg text-gray-900 dark:text-gray-100 font-mono text-sm break-all">
-                    {profile?.wallet_address || 'No wallet address available'}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <div className="flex flex-col sm:flex-row items-center">
+                  {/* QR Code */}
+                  <div className="bg-white p-3 rounded-lg mb-4 sm:mb-0 sm:mr-6" id="qr-code">
+                    <QRCodeSVG
+                      value={profile?.wallet_address || ''}
+                      size={180}
+                      bgColor={"#ffffff"}
+                      fgColor={"#000000"}
+                      level={"L"}
+                      includeMargin={false}
+                    />
                   </div>
-                  <button
-                    onClick={handleCopyAddress}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300"
-                    title="Copy Address"
-                  >
-                    <HiClipboard size={20} />
-                  </button>
-                </div>
-                {copied && (
-                  <div className="text-sm text-green-600 dark:text-green-400 mt-2">
-                    Address copied to clipboard!
+                  
+                  {/* Wallet Address & Actions */}
+                  <div className="flex-1 w-full">
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Your XRP Address
+                      </label>
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-600 p-2 rounded">
+                        <div className="flex-1 text-sm text-gray-800 dark:text-gray-200 font-mono truncate">
+                          {profile?.wallet_address}
+                        </div>
+                        <CopyButton 
+                          text={profile?.wallet_address || ''} 
+                          className="ml-2 p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        />
+                      </div>
+                      {profile?.wallet_address && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+                            Valid XRP Address
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleDownloadQR}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                      >
+                        <HiDownload className="-ml-0.5 mr-2 h-4 w-4" />
+                        Download QR
+                      </button>
+                      
+                      {canShare && (
+                        <button
+                          onClick={shareQRCode}
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                        >
+                          <HiShare className="-ml-0.5 mr-2 h-4 w-4" />
+                          Share
+                        </button>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex space-x-4">
-                {canShare && (
-                  <button
-                    onClick={shareQRCode}
-                    className="flex items-center space-x-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-secondary transition-colors"
-                    disabled={!profile?.wallet_address}
-                  >
-                    <HiShare size={20} />
-                    <span>Share</span>
-                  </button>
-                )}
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Add Contact Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Add Contact
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Choose how you want to add a new contact
-            </p>
             
-            {!showManualEntry && !showScanner ? (
-              <div className="grid grid-cols-3 gap-4">
-                {/* Scan with Camera */}
-                <button
-                  onClick={handleScanClick}
-                  className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
-                >
-                  <div className="w-12 h-12 rounded-full bg-brand-primary flex items-center justify-center mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Scan with Camera</span>
-                </button>
+            {/* Scan QR Code Section */}
+            <div className="mt-10">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Scan or Enter Address</h3>
+              
+              {!showScanner && !showManualEntry && (
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <button
+                      onClick={handleScanClick}
+                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      <HiCamera className="h-8 w-8 text-brand-primary mb-2" />
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                        Scan QR Code
+                      </span>
+                    </button>
 
-                {/* Scan Image */}
-                <button
-                  onClick={() => {
-                    // Hide QR reader if it's visible
-                    if (showQrReader) {
-                      setShowQrReader(false);
-                      if (html5QrCode && html5QrCode.isScanning) {
-                        html5QrCode.stop().catch(console.error);
-                      }
-                    }
-                    setShowManualEntry(false);
+                    <button
+                      onClick={handleScanImage}
+                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      <HiPhotograph className="h-8 w-8 text-brand-primary mb-2" />
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                        Upload QR Image
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={handleManualEntry}
+                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      <HiClipboard className="h-8 w-8 text-brand-primary mb-2" />
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                        Enter Address
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Scanner */}
+              {showScanner && (
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <div className="flex flex-col items-center">
+                    <div id="qr-reader" className="w-full max-w-lg mx-auto"></div>
                     
-                    // Handle image selection
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.onchange = (e) => {
-                      const target = e.target as HTMLInputElement;
-                      if (target && target.files && target.files[0]) {
-                        console.log('Image selected:', target.files[0]);
-                        // Actually scan the image for QR code
-                        scanImageForQRCode(target.files[0]);
-                      }
-                    };
-                    input.click();
-                  }}
-                  className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
-                >
-                  <div className="w-12 h-12 rounded-full bg-brand-primary flex items-center justify-center mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Scan Image</span>
-                </button>
-
-                {/* Enter Wallet Address */}
-                <button
-                  onClick={() => {
-                    // Hide QR reader if it's visible
-                    if (showQrReader) {
-                      setShowQrReader(false);
-                      if (html5QrCode && html5QrCode.isScanning) {
-                        html5QrCode.stop().catch(console.error);
-                      }
-                    }
-                    // Show input field
-                    setShowManualEntry(true);
-                  }}
-                  className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
-                >
-                  <div className="w-12 h-12 rounded-full bg-brand-primary flex items-center justify-center mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Enter Wallet Address</span>
-                </button>
-              </div>
-            ) : showScanner ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-lg font-medium text-gray-900 dark:text-white">
-                    Scan QR Code
-                  </h4>
-                  <button
-                    onClick={() => {
-                      setShowScanner(false);
-                      if (html5QrCode && html5QrCode.isScanning) {
-                        html5QrCode.stop().catch(err => console.error('Error stopping camera:', err));
-                      }
-                    }}
-                    className="text-gray-500 hover:text-gray-700 dark:text-white dark:hover:text-gray-200"
-                  >
-                    Back
-                  </button>
-                </div>
-                
-                <div id="qr-reader" className="w-full aspect-square max-w-md mx-auto bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden"></div>
-                
-                {loading && (
-                  <div className="flex justify-center items-center py-4">
-                    <svg className="animate-spin h-10 w-10 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Scanning...</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Enter wallet address..."
-                    className="focus:ring-brand-primary focus:border-brand-primary block w-full pl-4 pr-12 py-3 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm"
-                  />
-                  {searchQuery && (
-                    <CopyButton 
-                      text={searchQuery} 
-                      size={5} 
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                    />
-                  )}
-                </div>
-                <div className="flex space-x-4">
-                  <button
-                    onClick={handleManualEntry}
-                    disabled={loading || !searchQuery.trim()}
-                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-brand-primary hover:bg-brand-secondary rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    ) : (
-                      <HiPlus className="h-5 w-5" />
+                    {loading && (
+                      <div className="mt-4 flex flex-col items-center">
+                        <div className="animate-pulse rounded-full bg-gray-300 h-8 w-8 mb-2"></div>
+                        <p className="text-gray-600 dark:text-gray-400">Processing...</p>
+                      </div>
                     )}
-                    <span>{loading ? 'Adding...' : 'Add Contact'}</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowManualEntry(false);
-                      setSearchQuery('');
-                      setError(null);
-                    }}
-                    className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
+                    
+                    <button
+                      onClick={() => setShowScanner(false)}
+                      className="mt-4 inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <HiX className="-ml-0.5 mr-2 h-4 w-4" /> Cancel
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Show only one error/success message section at the bottom */}
-            {(error || successMessage) && (
-              <div className="mt-4">
-                {error && (
-                  <div className="text-sm text-red-600 dark:text-red-400">
-                    {error}
-                  </div>
-                )}
-                {successMessage && (
-                  <div className="text-sm text-green-600 dark:text-green-400">
-                    {successMessage}
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+              
+              {/* Manual Address Entry */}
+              {showManualEntry && (
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <form onSubmit={handleManualSubmit} className="space-y-4">
+                    <div>
+                      <label htmlFor="wallet-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        XRP Wallet Address
+                      </label>
+                      <input
+                        type="text"
+                        id="wallet-address"
+                        value={manualAddress}
+                        onChange={(e) => setManualAddress(e.target.value)}
+                        placeholder="Enter wallet address"
+                        className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                      />
+                    </div>
+                    
+                    <div className="flex space-x-3">
+                      <button
+                        type="submit"
+                        disabled={loading || !manualAddress.trim()}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+                      >
+                        {loading ? 'Adding...' : 'Add Contact'}
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setShowManualEntry(false)}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+              
+              {/* Error or Success Messages */}
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md">
+                  {error}
+                </div>
+              )}
+              
+              {successMessage && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md">
+                  {successMessage}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+      
+      {/* File Input for Image Scanning */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
     </div>
   );
 }; 
