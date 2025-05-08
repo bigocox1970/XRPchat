@@ -436,9 +436,58 @@ export const Chat: React.FC = () => {
                     : 0;
                   
                   if (newTimestamp > oldTimestamp) {
-                    console.log('Profile update with new timestamp detected, refreshing messages');
-                    // Use the refresh messages function to get the latest messages
-                    handleRefreshMessages();
+                    console.log('Profile update with new timestamp detected, checking for new messages');
+                    
+                    // Instead of a full refresh, fetch only the most recent message
+                    try {
+                      const { data: latestMessages, error } = await supabase
+                        .from('messages')
+                        .select('*')
+                        .eq('thread_id', threadId)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                      
+                      if (error) {
+                        console.error('Error fetching latest message:', error);
+                        return;
+                      }
+                      
+                      if (latestMessages && latestMessages.length > 0) {
+                        const latestMessage = latestMessages[0];
+                        
+                        // Check if this message is already in our state
+                        setMessages(prev => {
+                          // If message already exists, no need to add it
+                          if (prev.some(m => m.id === latestMessage.id)) {
+                            return prev;
+                          }
+                          
+                          console.log('Adding new message to chat');
+                          // Add the new message and sort
+                          const updatedMessages = [...prev, latestMessage].sort(
+                            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                          );
+                          
+                          // Scroll to bottom after adding the message
+                          setTimeout(() => {
+                            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                          
+                          return updatedMessages;
+                        });
+                        
+                        // Mark message as read if it's not from the current user
+                        if (latestMessage.sender_id !== user.id && document.hasFocus()) {
+                          try {
+                            await markMessageAsRead(latestMessage.id, user.id);
+                          } catch (error) {
+                            console.error(`Error marking new message ${latestMessage.id} as read:`, error);
+                          }
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error handling message refresh:', error);
+                    }
                   }
                 }
               }
@@ -456,7 +505,7 @@ export const Chat: React.FC = () => {
         subscription.unsubscribe();
       });
     };
-  }, [user, threadDetails, participants, handleRefreshMessages]);
+  }, [user, threadDetails, participants, threadId, messagesEndRef]);
 
   // Load messages and handle subscriptions
   useEffect(() => {
