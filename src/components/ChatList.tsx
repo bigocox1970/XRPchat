@@ -4,7 +4,7 @@ import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
 import { getUserThreads, subscribeToUserThreads, getProfile, subscribeToThread, deleteThread } from '../utils/supabase/index';
 import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil } from 'react-icons/hi';
-import { Avatar } from './Avatar';
+import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { supabase } from '../utils/supabase/index';
 import { checkAndDeleteExpiredMessages } from '../utils/supabase/autoDelete';
@@ -602,7 +602,7 @@ export const ChatList: React.FC = () => {
                     
                     {/* Avatar */}
                     <div className={`${selectionMode ? 'col-span-2' : 'col-span-2'} flex justify-center`}>
-                      <Avatar 
+                      <DiceBearAvatar 
                         url={thread.otherParticipant?.avatar_url}
                         size={36}
                         className="flex-shrink-0"

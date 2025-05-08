@@ -7,7 +7,7 @@ import { createThread } from '../utils/supabase/chat';
 import { supabase } from '../utils/supabase/client';
 import { HiUser, HiPlus, HiLockClosed, HiLockOpen } from 'react-icons/hi';
 import { CopyButton } from './CopyButton';
-import { Avatar } from './Avatar';
+import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 
@@ -453,7 +453,7 @@ export const ContactList: React.FC = () => {
         </div>
       )}
       <div className="flex-shrink-0">
-        <Avatar 
+        <DiceBearAvatar 
           url={contact.avatar_url}
           size={40}
           className={isBlocked ? 'opacity-50 grayscale' : ''}

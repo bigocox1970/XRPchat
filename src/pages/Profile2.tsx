@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { uploadAvatar } from '../utils/supabase/storage';
 import { updateProfile } from '../utils/supabase/auth';
-import { Avatar } from '../components/Avatar';
+import { DiceBearAvatar } from '../components/DiceBearAvatar';
 
 const Profile2: React.FC = () => {
   const { user, profile, loading } = useUser();
@@ -88,7 +88,7 @@ const Profile2: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
           <div className="flex flex-col items-center mb-6">
             <div className="mb-4">
-              <Avatar url={avatarUrl} size={120} />
+              <DiceBearAvatar url={avatarUrl} size={120} userId={user?.id} />
             </div>
             <input
               type="file"
@@ -139,4 +139,4 @@ const Profile2: React.FC = () => {
   );
 };
 
-export default Profile2; 
+export default Profile2;

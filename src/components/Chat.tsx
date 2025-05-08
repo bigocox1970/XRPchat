@@ -7,7 +7,7 @@ import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
 import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile, updateLastActive } from '../utils/supabase/index';
 import { HiX, HiPaperAirplane, HiClock, HiRefresh } from 'react-icons/hi';
-import { Avatar } from './Avatar';
+import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { 
   checkAndDeleteExpiredMessages, 
@@ -851,10 +851,11 @@ export const Chat: React.FC = () => {
       {/* Chat Header */}
       <div className="sticky top-0 bg-brand-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-20">
         <div className="flex items-center space-x-3">
-          <Avatar 
+          <DiceBearAvatar 
             url={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url} 
             size={40}
             className="bg-white/30"
+            userId={threadDetails.participant_ids.find(id => id !== user?.id) || ''}
           />
           <div>
             <div className="font-semibold">
@@ -933,7 +934,7 @@ export const Chat: React.FC = () => {
                 >
                   {!isUserMessage ? (
                     <>
-                    <Avatar 
+                    <DiceBearAvatar 
                       url={participants[message.sender_id]?.avatar_url}
                       size={32}
                       className="flex-shrink-0 mr-2"
@@ -980,10 +981,11 @@ export const Chat: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <Avatar 
+                      <DiceBearAvatar 
                         url={participants[user?.id || '']?.avatar_url}
                         size={32}
                         className="flex-shrink-0 ml-2"
+                        userId={user?.id || ''}
                       />
                     </>
                   )}

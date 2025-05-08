@@ -5,7 +5,7 @@ import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLogout, HiCog, HiBe
 import { HiQrCode } from 'react-icons/hi2';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
-import { Avatar } from './Avatar';
+import { DiceBearAvatar } from './DiceBearAvatar';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useNotificationSubscriptions } from '../hooks/useNotificationSubscriptions';
 import { supabaseAdmin } from '../utils/supabase/client';
@@ -165,7 +165,7 @@ export const Layout: React.FC = () => {
       {/* User Profile */}
       <div className="px-4 py-3 mt-2.5 bg-white dark:bg-gray-800">
         <div className="flex items-center space-x-3">
-          <Avatar url={profile?.avatar_url} size={40} userId={user?.id} />
+          <DiceBearAvatar url={profile?.avatar_url} size={40} userId={user?.id} />
           <div className="flex-1 flex items-center justify-between">
             <div className="font-semibold text-gray-900 dark:text-white truncate">{profile?.username}</div>
             <Link 
