@@ -933,11 +933,12 @@ export const Chat: React.FC = () => {
                 >
                   {!isUserMessage ? (
                     <>
-                      <Avatar 
-                        url={participants[message.sender_id]?.avatar_url}
-                        size={32}
-                        className="flex-shrink-0 mr-2"
-                      />
+                    <Avatar 
+                      url={participants[message.sender_id]?.avatar_url}
+                      size={32}
+                      className="flex-shrink-0 mr-2"
+                      userId={message.sender_id}
+                    />
                       <div>
                         <div
                           className="max-w-lg px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none"

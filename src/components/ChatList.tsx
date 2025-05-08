@@ -606,6 +606,7 @@ export const ChatList: React.FC = () => {
                         url={thread.otherParticipant?.avatar_url}
                         size={36}
                         className="flex-shrink-0"
+                        userId={thread.participant_ids.find(id => id !== user?.id)}
                       />
                     </div>
                     

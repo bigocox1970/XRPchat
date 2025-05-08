@@ -162,22 +162,22 @@ export const Layout: React.FC = () => {
             </div>
           </div>
 
-          {/* User Profile */}
-          <div className="px-4 py-3 mt-2.5 bg-white dark:bg-gray-800">
-            <div className="flex items-center space-x-3">
-              <Avatar url={profile?.avatar_url} size={40} />
-              <div className="flex-1 flex items-center justify-between">
-                <div className="font-semibold text-gray-900 dark:text-white truncate">{profile?.username}</div>
-                <button 
-                  onClick={handleNewChat} 
-                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" 
-                  title="Share QR Code"
-                >
-                  <HiQrCode size={20} className="text-gray-600 dark:text-gray-300" />
-                </button>
-              </div>
-            </div>
+      {/* User Profile */}
+      <div className="px-4 py-3 mt-2.5 bg-white dark:bg-gray-800">
+        <div className="flex items-center space-x-3">
+          <Avatar url={profile?.avatar_url} size={40} userId={user?.id} />
+          <div className="flex-1 flex items-center justify-between">
+            <div className="font-semibold text-gray-900 dark:text-white truncate">{profile?.username}</div>
+            <Link 
+              to="/app/connect" 
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" 
+              title="Connect with QR Code"
+            >
+              <HiQrCode size={20} className="text-gray-600 dark:text-gray-300" />
+            </Link>
           </div>
+        </div>
+      </div>
 
           {/* Navigation Links */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-2 pb-6">

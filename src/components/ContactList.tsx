@@ -7,6 +7,7 @@ import { createThread } from '../utils/supabase/chat';
 import { supabase } from '../utils/supabase/client';
 import { HiUser, HiPlus, HiLockClosed, HiLockOpen } from 'react-icons/hi';
 import { CopyButton } from './CopyButton';
+import { Avatar } from './Avatar';
 import type { Database } from '../types/supabase';
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 
@@ -452,19 +453,12 @@ export const ContactList: React.FC = () => {
         </div>
       )}
       <div className="flex-shrink-0">
-        {contact.avatar_url ? (
-          <img
-            className={`h-10 w-10 rounded-full ${isBlocked ? 'opacity-50 grayscale' : ''}`}
-            src={contact.avatar_url}
-            alt={contact.username}
-          />
-        ) : (
-          <div className={`h-10 w-10 rounded-full ${isBlocked ? 'bg-gray-300 dark:bg-gray-800' : 'bg-gray-200 dark:bg-gray-700'} flex items-center justify-center`}>
-            <span className={`${isBlocked ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-white'} font-medium`}>
-              {contact.username.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
+        <Avatar 
+          url={contact.avatar_url}
+          size={40}
+          className={isBlocked ? 'opacity-50 grayscale' : ''}
+          userId={contact.id}
+        />
       </div>
       <div className="flex-1 min-w-0">
         <div className="focus:outline-none">
