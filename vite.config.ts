@@ -38,7 +38,7 @@ export default defineConfig({
         script-src 'self' 'unsafe-inline' 'unsafe-eval';
         style-src 'self' 'unsafe-inline';
         font-src 'self' data:;
-        img-src 'self' data: blob: https://*.supabase.co;
+        img-src 'self' data: blob: https://*.supabase.co https://api.dicebear.com;
         manifest-src 'self';
         worker-src 'self' blob:
       `.replace(/\s+/g, ' ').trim()
