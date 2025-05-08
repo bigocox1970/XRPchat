@@ -19,7 +19,8 @@ export const uploadAvatar = async (file: File, userId: string) => {
       .from('avatar-storage')
       .upload(filePath, file, {
         upsert: true, // Replace if exists
-        cacheControl: 'no-cache' // Prevent caching
+        cacheControl: 'no-cache', // Prevent caching
+        contentType: file.type // Ensure correct MIME type
       });
 
     if (uploadError) {
