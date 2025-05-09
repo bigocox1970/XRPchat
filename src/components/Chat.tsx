@@ -931,26 +931,31 @@ export const Chat: React.FC = () => {
       setError(null);
       console.log('Starting message send process...');
 
-      // Try to request notification permission during user interaction
-      if (Notification.permission !== 'granted') {
-        console.log('Attempting to request notification permission during send');
-        try {
-          // Request directly with the Notification API
-          const permission = await Notification.requestPermission();
-          console.log('Notification permission result:', permission);
-          
-          // Store the result in localStorage
-          localStorage.setItem('xrpchat_notification_requested', 'true');
-          localStorage.setItem('xrpchat_notification_user_choice', 'true');
-          localStorage.setItem('xrpchat_notification_permission', permission);
-          
-          // Emit event for other components
-          window.dispatchEvent(new CustomEvent('notificationStateChange', {
-            detail: { permission }
-          }));
-        } catch (notifError) {
-          console.error('Error requesting notification permission during send:', notifError);
+      // Check if Notification API is available before trying to use it
+      if (typeof Notification !== 'undefined') {
+        // Try to request notification permission during user interaction
+        if (Notification.permission !== 'granted') {
+          console.log('Attempting to request notification permission during send');
+          try {
+            // Request directly with the Notification API
+            const permission = await Notification.requestPermission();
+            console.log('Notification permission result:', permission);
+            
+            // Store the result in localStorage
+            localStorage.setItem('xrpchat_notification_requested', 'true');
+            localStorage.setItem('xrpchat_notification_user_choice', 'true');
+            localStorage.setItem('xrpchat_notification_permission', permission);
+            
+            // Emit event for other components
+            window.dispatchEvent(new CustomEvent('notificationStateChange', {
+              detail: { permission }
+            }));
+          } catch (notifError) {
+            console.error('Error requesting notification permission during send:', notifError);
+          }
         }
+      } else {
+        console.log('Notification API not available on this device');
       }
 
       // Get the other participant's ID
