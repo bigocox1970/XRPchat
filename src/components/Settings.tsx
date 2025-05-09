@@ -7,7 +7,6 @@ import {
   HiShieldCheck, 
   HiUser, 
   HiArrowLeft,
-  HiTrash,
   HiClock,
   HiRefresh
 } from 'react-icons/hi';
@@ -18,7 +17,6 @@ import { useNotification } from '../context/NotificationContext';
 import { useTheme } from '../context/DarkModeContext';
 import { supabase } from '../utils/supabase/client';
 import { saveAutoDeleteSettingsToDatabase, loadAutoDeleteSettingsFromDatabase } from '../utils/supabase/autoDelete';
-import { AdminTools } from './AdminTools';
 
 // Auto-delete option types
 type AutoDeleteTimeUnit = 'minutes' | 'hours' | 'days' | 'weeks';
@@ -52,9 +50,6 @@ export const Settings: React.FC = () => {
   } = useNotification();
 
   const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState(notificationsEnabled);
-  const [showBurnConfirm, setShowBurnConfirm] = useState(false);
-  const [burnLoading, setBurnLoading] = useState(false);
-  const [burnError, setBurnError] = useState<string | null>(null);
   const [autoDeleteSettings, setAutoDeleteSettings] = useState<AutoDeleteSettings>({
     enabled: false,
     option: 'off',
@@ -330,66 +325,6 @@ export const Settings: React.FC = () => {
         return `${autoDeleteSettings.customValue} ${autoDeleteSettings.customUnit}`;
       default:
         return 'Off';
-    }
-  };
-
-  // Handle burn wallet confirmation
-  const handleBurnConfirm = () => {
-    setShowBurnConfirm(true);
-    setBurnError(null);
-  };
-
-  // Handle burn wallet action
-  const handleBurnWallet = async () => {
-    if (!user) return;
-    
-    setBurnLoading(true);
-    setBurnError(null);
-    
-    try {
-      // 1. Delete all messages associated with the user's wallet
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('sender_id', user.id);
-      
-      if (messagesError) throw new Error(`Error deleting messages: ${messagesError.message}`);
-      
-      // 2. Delete all threads where the user is a participant
-      const { error: threadsError } = await supabase
-        .from('threads')
-        .delete()
-        .eq('created_by', user.id);
-        
-      if (threadsError) throw new Error(`Error deleting threads: ${threadsError.message}`);
-      
-      // 3. Delete wallet
-      const { error: walletError } = await supabase
-        .from('wallets')
-        .delete()
-        .eq('profile_id', user.id);
-        
-      if (walletError) throw new Error(`Error deleting wallet: ${walletError.message}`);
-      
-      // 4. Delete contacts
-      const { error: contactsError } = await supabase
-        .from('contacts')
-        .delete()
-        .or(`user_id.eq.${user.id},contact_id.eq.${user.id}`);
-        
-      if (contactsError) throw new Error(`Error deleting contacts: ${contactsError.message}`);
-      
-      // 5. Sign the user out
-      await signOut();
-      
-      // Navigate to login page
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error('Error burning wallet:', error);
-      setBurnError(error instanceof Error ? error.message : 'An unknown error occurred');
-    } finally {
-      setBurnLoading(false);
-      setShowBurnConfirm(false);
     }
   };
 
@@ -700,7 +635,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('5min')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '5min'
-                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-white natural-dark:!text-white bg-green-100 dark:bg-green-800 text-white dark:text-white font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -710,7 +645,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('30min')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '30min'
-                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-white natural-dark:!text-white bg-green-100 dark:bg-green-800 text-white dark:text-white font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -720,7 +655,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('1hour')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '1hour'
-                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-white natural-dark:!text-white bg-green-100 dark:bg-green-800 text-white dark:text-white font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -730,7 +665,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('1day')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '1day'
-                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-white natural-dark:!text-white bg-green-100 dark:bg-green-800 text-white dark:text-white font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -740,7 +675,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('1week')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === '1week'
-                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-white natural-dark:!text-white bg-green-100 dark:bg-green-800 text-white dark:text-white font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -750,7 +685,7 @@ export const Settings: React.FC = () => {
                       onClick={() => handleAutoDeleteOptionChange('custom')}
                       className={`px-3 py-1.5 text-sm rounded-md flex items-center justify-center ${
                         autoDeleteSettings.option === 'custom'
-                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-natural-button-active-text natural-dark:!text-natural-button-active-text-dark bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 font-medium'
+                          ? 'natural-light:!bg-natural-button-active-bg natural-dark:!bg-natural-button-active-bg-dark natural-light:!text-white natural-dark:!text-white bg-green-100 dark:bg-green-800 text-white dark:text-white font-medium'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -790,76 +725,6 @@ export const Settings: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Danger Zone */}
-        <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-red-600 dark:text-red-400 mb-6">Danger Zone</h3>
-            
-            <div className="space-y-6">
-              {/* Reset Wallet */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Reset Encryption Keys</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Generate new encryption keys. All existing messages will become unreadable.
-                    </p>
-                  </div>
-                  {!showBurnConfirm ? (
-                    <button
-                      onClick={handleBurnConfirm}
-                      className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-700 text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                    >
-                      <HiTrash className="h-4 w-4 mr-1.5" />
-                      Reset Keys
-                    </button>
-                  ) : (
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setShowBurnConfirm(false)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleBurnWallet}
-                        disabled={burnLoading}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                      >
-                        {burnLoading ? 'Processing...' : 'Confirm Reset'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {burnError && (
-                  <div className="mt-2 text-sm text-red-600 dark:text-red-400">
-                    {burnError}
-                  </div>
-                )}
-              </div>
-              
-              {/* Sign Out */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Sign Out</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Sign out of your account on this device
-                    </p>
-                  </div>
-                  <button
-                    onClick={signOut}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
-                  >
-                    <HiArrowLeft className="h-4 w-4 mr-1.5" />
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
         
         {/* Toast notification for settings updates */}
         {saveSettingsMessage && (
@@ -871,9 +736,6 @@ export const Settings: React.FC = () => {
             {saveSettingsMessage.text}
           </div>
         )}
-
-        {/* Admin Tools Section - only visible to admins */}
-        <AdminTools />
       </div>
     </div>
   );

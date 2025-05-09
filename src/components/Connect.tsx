@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { HiQrcode, HiCamera, HiClipboard, HiDownload, HiShare, HiX, HiPhotograph, HiPlus } from 'react-icons/hi';
+import { HiQrcode, HiCamera, HiClipboard, HiShare, HiX, HiPhotograph, HiPlus } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import { searchUsers, addContact } from '../utils/supabase/auth';
@@ -101,16 +101,6 @@ export const Connect: React.FC = () => {
       navigator.clipboard.writeText(profile.wallet_address);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleDownloadQR = () => {
-    const canvas = document.querySelector('#qr-code canvas') as HTMLCanvasElement;
-    if (canvas) {
-      const link = document.createElement('a');
-      link.download = 'xrpchat-qr.png';
-      link.href = canvas.toDataURL();
-      link.click();
     }
   };
 
@@ -381,7 +371,7 @@ export const Connect: React.FC = () => {
                   <div className="bg-white p-3 rounded-lg mb-4 sm:mb-0 sm:mr-6" id="qr-code">
                     <QRCodeSVG
                       value={profile?.wallet_address || ''}
-                      size={180}
+                      size={250}
                       bgColor={"#ffffff"}
                       fgColor={"#000000"}
                       level={"L"}
@@ -413,15 +403,7 @@ export const Connect: React.FC = () => {
                       )}
                     </div>
                     
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={handleDownloadQR}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
-                      >
-                        <HiDownload className="-ml-0.5 mr-2 h-4 w-4" />
-                        Download QR
-                      </button>
-                      
+                    <div className="flex flex-wrap gap-2 justify-center">
                       {canShare && (
                         <button
                           onClick={shareQRCode}

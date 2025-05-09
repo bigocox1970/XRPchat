@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { isValidAddress, generateKeyPair } from '../utils/encryption';
-import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh, HiChevronDown } from 'react-icons/hi';
+import { HiUser, HiCheck, HiUpload, HiLink, HiKey, HiShieldCheck, HiRefresh, HiChevronDown, HiArrowLeft } from 'react-icons/hi';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { uploadAvatar } from '../utils/supabase/storage';
 import { CopyButton } from './CopyButton';
@@ -10,7 +10,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { PINManagement } from './PINManagement';
 
 export const Profile: React.FC = () => {
-  const { profile, wallet, updateUserProfile, loading, user, regenerateWallet, changePassword, deleteAccount, refreshProfile } = useUser();
+  const { profile, wallet, updateUserProfile, loading, user, regenerateWallet, changePassword, deleteAccount, refreshProfile, signOut } = useUser();
   const { 
     isMaxSecurityEnabled, 
     enableMaxSecurity, 
@@ -477,234 +477,6 @@ export const Profile: React.FC = () => {
           </div>
         </div>
         
-        {/* Security Section */}
-        <div className="mt-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <HiKey className="text-gray-900 dark:text-white" size={24} />
-            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-              Wallet & Encryption Settings
-            </h3>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
-            <div className="px-4 py-5 sm:p-6">
-              <div className="space-y-4">
-                {/* Change Password */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Password</h4>
-                  {!showChangePassword ? (
-                    <button
-                      onClick={() => setShowChangePassword(true)}
-                      className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                    >
-                      Change Password
-                    </button>
-                  ) : (
-                    <form onSubmit={handleChangePassword} className="mt-3 space-y-4">
-                      <div>
-                        <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Current Password
-                        </label>
-                        <div className="mt-1">
-                          <input
-                            id="current-password"
-                            name="current-password"
-                            type="password"
-                            autoComplete="current-password"
-                            required
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          New Password
-                        </label>
-                        <div className="mt-1">
-                          <input
-                            id="new-password"
-                            name="new-password"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="confirm-new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Confirm New Password
-                        </label>
-                        <div className="mt-1">
-                          <input
-                            id="confirm-new-password"
-                            name="confirm-new-password"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            value={confirmNewPassword}
-                            onChange={(e) => setConfirmNewPassword(e.target.value)}
-                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                          />
-                        </div>
-                      </div>
-                      
-                      {passwordError && (
-                        <div className="text-red-600 text-sm">
-                          {passwordError}
-                        </div>
-                      )}
-                      
-                      {passwordSuccess && (
-                        <div className="text-green-600 text-sm">
-                          Password changed successfully!
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowChangePassword(false);
-                            setCurrentPassword('');
-                            setNewPassword('');
-                            setConfirmNewPassword('');
-                            setPasswordError(null);
-                            setPasswordSuccess(false);
-                          }}
-                          className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={passwordLoading}
-                          className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 ${
-                            passwordLoading ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                        >
-                          {passwordLoading ? 'Changing...' : 'Change Password'}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-                
-                {/* Delete Account */}
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-sm font-medium text-red-500">Danger Zone</h4>
-                  {!showDeleteAccount ? (
-                    <button
-                      onClick={() => setShowDeleteAccount(true)}
-                      className="mt-2 inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-700 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800"
-                    >
-                      Delete Account
-                    </button>
-                  ) : (
-                    <form onSubmit={handleDeleteAccount} className="mt-3 space-y-4">
-                      <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md">
-                        <div className="flex">
-                          <div className="flex-shrink-0">
-                            <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
-                              Warning: This action cannot be undone
-                            </h3>
-                            <div className="mt-2 text-sm text-red-700 dark:text-red-400">
-                              <p>
-                                Deleting your account will permanently remove all your data, including:
-                                <ul className="list-disc pl-5 mt-1">
-                                  <li>Your profile information</li>
-                                  <li>Your wallet data and encryption keys</li>
-                                  <li>Your chat history and contacts</li>
-                                </ul>
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    
-                      <div>
-                        <label htmlFor="delete-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Enter your password to confirm
-                        </label>
-                        <div className="mt-1">
-                          <input
-                            id="delete-password"
-                            name="delete-password"
-                            type="password"
-                            autoComplete="current-password"
-                            required
-                            value={deletePassword}
-                            onChange={(e) => setDeletePassword(e.target.value)}
-                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="delete-confirmation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Type DELETE to confirm
-                        </label>
-                        <div className="mt-1">
-                          <input
-                            id="delete-confirmation"
-                            name="delete-confirmation"
-                            type="text"
-                            required
-                            value={deleteConfirmation}
-                            onChange={(e) => setDeleteConfirmation(e.target.value)}
-                            className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                          />
-                        </div>
-                      </div>
-                      
-                      {deleteError && (
-                        <div className="text-red-600 text-sm">
-                          {deleteError}
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowDeleteAccount(false);
-                            setDeletePassword('');
-                            setDeleteConfirmation('');
-                            setDeleteError(null);
-                          }}
-                          className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={deleteLoading || deleteConfirmation !== 'DELETE'}
-                          className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
-                            deleteLoading || deleteConfirmation !== 'DELETE' ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                        >
-                          {deleteLoading ? 'Deleting...' : 'Delete My Account'}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
         {/* Encryption Settings Section */}
         <div>
           <div className="flex items-center space-x-2 mb-4">
@@ -713,10 +485,10 @@ export const Profile: React.FC = () => {
               Wallet & Encryption Settings
             </h3>
           </div>
-        
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+          
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
             <div className="px-4 py-5 sm:p-6">
-              <div className="mt-5 space-y-6">
+              <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Wallet Address</h4>
                   <div className="mt-1 flex items-center space-x-2">
@@ -859,6 +631,246 @@ export const Profile: React.FC = () => {
           {/* Max Security Mode Switch */}
           <div className="mt-6 flex items-center">
             {/* ... existing max security mode code ... */}
+          </div>
+        </div>
+
+        {/* Sign Out */}
+        <div className="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg leading-6 font-medium text-red-600 dark:text-red-400 mb-6">Account Management</h3>
+            
+            <div className="space-y-6">
+              {/* Change Password */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white">Password</h4>
+                {!showChangePassword ? (
+                  <button
+                    onClick={() => setShowChangePassword(true)}
+                    className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                  >
+                    Change Password
+                  </button>
+                ) : (
+                  <form onSubmit={handleChangePassword} className="mt-3 space-y-4">
+                    <div>
+                      <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Current Password
+                      </label>
+                      <div className="mt-1">
+                        <input
+                          id="current-password"
+                          name="current-password"
+                          type="password"
+                          autoComplete="current-password"
+                          required
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        New Password
+                      </label>
+                      <div className="mt-1">
+                        <input
+                          id="new-password"
+                          name="new-password"
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="confirm-new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Confirm New Password
+                      </label>
+                      <div className="mt-1">
+                        <input
+                          id="confirm-new-password"
+                          name="confirm-new-password"
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                          className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        />
+                      </div>
+                    </div>
+                    
+                    {passwordError && (
+                      <div className="text-red-600 text-sm">
+                        {passwordError}
+                      </div>
+                    )}
+                    
+                    {passwordSuccess && (
+                      <div className="text-green-600 text-sm">
+                        Password changed successfully!
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowChangePassword(false);
+                          setCurrentPassword('');
+                          setNewPassword('');
+                          setConfirmNewPassword('');
+                          setPasswordError(null);
+                          setPasswordSuccess(false);
+                        }}
+                        className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={passwordLoading}
+                        className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 ${
+                          passwordLoading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {passwordLoading ? 'Changing...' : 'Change Password'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+                
+              {/* Delete Account */}
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-medium text-red-500">Delete Account</h4>
+                {!showDeleteAccount ? (
+                  <button
+                    onClick={() => setShowDeleteAccount(true)}
+                    className="mt-2 inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-700 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800"
+                  >
+                    Delete Account
+                  </button>
+                ) : (
+                  <form onSubmit={handleDeleteAccount} className="mt-3 space-y-4">
+                    <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
+                            Warning: This action cannot be undone
+                          </h3>
+                          <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+                            <p>
+                              Deleting your account will permanently remove all your data, including:
+                              <ul className="list-disc pl-5 mt-1">
+                                <li>Your profile information</li>
+                                <li>Your wallet data and encryption keys</li>
+                                <li>Your chat history and contacts</li>
+                              </ul>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="delete-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Enter your password to confirm
+                      </label>
+                      <div className="mt-1">
+                        <input
+                          id="delete-password"
+                          name="delete-password"
+                          type="password"
+                          autoComplete="current-password"
+                          required
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="delete-confirmation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Type DELETE to confirm
+                      </label>
+                      <div className="mt-1">
+                        <input
+                          id="delete-confirmation"
+                          name="delete-confirmation"
+                          type="text"
+                          required
+                          value={deleteConfirmation}
+                          onChange={(e) => setDeleteConfirmation(e.target.value)}
+                          className="shadow-sm focus:ring-brand-primary focus:border-brand-primary block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        />
+                      </div>
+                    </div>
+                    
+                    {deleteError && (
+                      <div className="text-red-600 text-sm">
+                        {deleteError}
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDeleteAccount(false);
+                          setDeletePassword('');
+                          setDeleteConfirmation('');
+                          setDeleteError(null);
+                        }}
+                        className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={deleteLoading || deleteConfirmation !== 'DELETE'}
+                        className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                          deleteLoading || deleteConfirmation !== 'DELETE' ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {deleteLoading ? 'Deleting...' : 'Delete My Account'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* Sign Out */}
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Sign Out</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Sign out of your account on this device
+                    </p>
+                  </div>
+                  <button
+                    onClick={signOut}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                  >
+                    <HiArrowLeft className="h-4 w-4 mr-1.5" />
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
