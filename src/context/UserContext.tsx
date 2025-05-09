@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, supabaseAdmin } from '../utils/supabase/client';
 import { createProfile, createWallet } from '../utils/supabase/auth';
-import { generateKeyPair } from '../utils/encryption';
+import { generateKeyPair, encryptPrivateKeyWithPIN, decryptPrivateKeyWithPIN } from '../utils/encryption';
 import { getRedirectURL } from '../utils/site-url';
 import { loadAutoDeleteSettingsFromDatabase } from '../utils/supabase/autoDelete';
 import type { Database } from '../types/supabase';
@@ -23,6 +23,14 @@ interface UserContextType {
   regenerateWallet: (privateKey: string, address: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  
+  // PIN-related functions
+  isPINEnabled: boolean;
+  setupPIN: (pin: string) => Promise<void>;
+  updatePIN: (currentPIN: string, newPIN: string) => Promise<void>;
+  removePIN: (pin: string) => Promise<void>;
+  decryptWithPIN: (pin: string) => Promise<string | null>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -34,6 +42,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [isPINEnabled, setIsPINEnabled] = useState(false);
+  const [decryptedPrivateKey, setDecryptedPrivateKey] = useState<string | null>(null);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -83,6 +93,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Reset state first to avoid stale data
       setProfile(null);
       setWallet(null);
+      setIsPINEnabled(false);
+      setDecryptedPrivateKey(null);
       
       // Use maybeSingle instead of single to avoid errors when profile doesn't exist
       const { data: profile, error: profileError } = await supabase
@@ -126,7 +138,15 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         console.log('Wallet fetched successfully:', wallet ? 'found' : 'not found');
-        setWallet(wallet);
+        if (wallet) {
+          setWallet(wallet);
+          setIsPINEnabled(wallet.pin_enabled || false);
+          
+          // If PIN is not enabled, store decrypted private key in memory
+          if (!wallet.pin_enabled) {
+            setDecryptedPrivateKey(wallet.private_key);
+          }
+        }
       } else {
         console.warn('No profile found for user:', userId);
         // Try with service role client as a fallback (has more permissions)
@@ -377,6 +397,196 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Add refreshProfile function
+  const refreshProfile = async () => {
+    if (user) {
+      console.log('Manually refreshing profile data for:', user.id);
+      setLoading(true);
+      try {
+        await fetchProfile(user.id);
+      } catch (error) {
+        console.error('Error refreshing profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // New PIN-related functions
+  const setupPIN = async (pin: string) => {
+    try {
+      if (!user || !wallet) {
+        throw new Error('User not authenticated or wallet not available');
+      }
+
+      // Validate PIN format
+      if (!/^\d{6}$/.test(pin)) {
+        throw new Error('PIN must be 6 digits');
+      }
+
+      // Encrypt the private key with the PIN
+      const encryptedPrivateKey = await encryptPrivateKeyWithPIN(wallet.private_key, pin);
+
+      // Update the wallet record with the encrypted private key
+      const { error } = await supabase
+        .from('wallets')
+        .update({
+          private_key: encryptedPrivateKey,
+          pin_enabled: true,
+          pin_last_updated: new Date().toISOString(),
+        })
+        .eq('profile_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setWallet({
+        ...wallet,
+        private_key: encryptedPrivateKey,
+        pin_enabled: true,
+        pin_last_updated: new Date().toISOString(),
+      });
+      setIsPINEnabled(true);
+      
+      // Store decrypted key in memory for this session
+      setDecryptedPrivateKey(wallet.private_key);
+    } catch (error) {
+      console.error('Error setting up PIN:', error);
+      throw error;
+    }
+  };
+
+  const updatePIN = async (currentPIN: string, newPIN: string) => {
+    try {
+      if (!user || !wallet || !wallet.pin_enabled) {
+        throw new Error('User not authenticated, wallet not available, or PIN not enabled');
+      }
+
+      // Validate PIN format
+      if (!/^\d{6}$/.test(currentPIN) || !/^\d{6}$/.test(newPIN)) {
+        throw new Error('PIN must be 6 digits');
+      }
+
+      let privateKeyToEncrypt;
+
+      // First try to decrypt with the current PIN
+      try {
+        privateKeyToEncrypt = await decryptPrivateKeyWithPIN(wallet.private_key, currentPIN);
+      } catch (error) {
+        throw new Error('Current PIN is incorrect');
+      }
+
+      // Now encrypt with the new PIN
+      const encryptedPrivateKey = await encryptPrivateKeyWithPIN(privateKeyToEncrypt, newPIN);
+
+      // Update the wallet record with the newly encrypted private key
+      const { error } = await supabase
+        .from('wallets')
+        .update({
+          private_key: encryptedPrivateKey,
+          pin_last_updated: new Date().toISOString(),
+        })
+        .eq('profile_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setWallet({
+        ...wallet,
+        private_key: encryptedPrivateKey,
+        pin_last_updated: new Date().toISOString(),
+      });
+      
+      // Update decrypted key in memory
+      setDecryptedPrivateKey(privateKeyToEncrypt);
+    } catch (error) {
+      console.error('Error updating PIN:', error);
+      throw error;
+    }
+  };
+
+  const removePIN = async (pin: string) => {
+    try {
+      if (!user || !wallet || !wallet.pin_enabled) {
+        throw new Error('User not authenticated, wallet not available, or PIN not enabled');
+      }
+
+      // Validate PIN format
+      if (!/^\d{6}$/.test(pin)) {
+        throw new Error('PIN must be 6 digits');
+      }
+
+      let decryptedKey;
+
+      // First try to decrypt with the current PIN
+      try {
+        decryptedKey = await decryptPrivateKeyWithPIN(wallet.private_key, pin);
+      } catch (error) {
+        throw new Error('PIN is incorrect');
+      }
+
+      // Update the wallet record with the decrypted private key
+      const { error } = await supabase
+        .from('wallets')
+        .update({
+          private_key: decryptedKey,
+          pin_enabled: false,
+          pin_last_updated: new Date().toISOString(),
+        })
+        .eq('profile_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setWallet({
+        ...wallet,
+        private_key: decryptedKey,
+        pin_enabled: false,
+        pin_last_updated: new Date().toISOString(),
+      });
+      setIsPINEnabled(false);
+      setDecryptedPrivateKey(decryptedKey);
+    } catch (error) {
+      console.error('Error removing PIN:', error);
+      throw error;
+    }
+  };
+
+  const decryptWithPIN = async (pin: string): Promise<string | null> => {
+    try {
+      if (!wallet) {
+        throw new Error('Wallet not available');
+      }
+
+      if (!wallet.pin_enabled) {
+        // If PIN is not enabled, return the private key directly
+        return wallet.private_key;
+      }
+
+      // If we already have the decrypted key in memory, return it
+      if (decryptedPrivateKey) {
+        return decryptedPrivateKey;
+      }
+
+      // Otherwise, decrypt with PIN
+      const decryptedKey = await decryptPrivateKeyWithPIN(wallet.private_key, pin);
+      
+      // Store in memory for this session
+      setDecryptedPrivateKey(decryptedKey);
+      
+      return decryptedKey;
+    } catch (error) {
+      console.error('Error decrypting with PIN:', error);
+      throw error;
+    }
+  };
+
   // Don't render until we've initialized auth
   if (!initialized) {
     return (
@@ -571,6 +781,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
     },
+    refreshProfile,
+    
+    // PIN-related functions
+    isPINEnabled,
+    setupPIN,
+    updatePIN,
+    removePIN,
+    decryptWithPIN,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

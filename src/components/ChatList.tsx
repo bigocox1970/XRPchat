@@ -526,6 +526,28 @@ export const ChatList: React.FC = () => {
     navigate('/app/chat/new');
   };
 
+  // Listen for app-refresh events
+  useEffect(() => {
+    const handleAppRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const path = customEvent.detail?.path;
+      
+      // Only refresh if we're on the chats page or a specific chat page
+      if (path && (path === '/app/chats' || path.startsWith('/app/chat/'))) {
+        console.log('Refreshing chat list due to refresh event');
+        loadThreadsWithParticipants();
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('app-refresh', handleAppRefresh);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('app-refresh', handleAppRefresh);
+    };
+  }, []);  // Note: This does create a lint warning about missing loadThreadsWithParticipants dependency
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">

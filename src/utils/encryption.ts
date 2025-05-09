@@ -165,6 +165,11 @@ export const decryptMessage = async (
   _privateKey: string
 ): Promise<string> => {
   try {
+    // Bail early for unencrypted plain text
+    if (!encryptedMessage || encryptedMessage.length < 12) {
+      return encryptedMessage;
+    }
+    
     // Check for unencrypted message markers from our error handlers
     if (encryptedMessage.startsWith('[UNENCRYPTED]')) {
       return encryptedMessage.substring(13);
@@ -226,6 +231,7 @@ export const decryptMessage = async (
     
     // Check minimum length for valid data
     if (data.length < 45) { // At least IV (12) + Key (32) + 1 byte of encrypted data
+      console.warn('Encrypted message too short, treating as plaintext', data.length);
       return encryptedMessage; // Return original if format appears invalid
     }
 
@@ -265,7 +271,7 @@ export const decryptMessage = async (
       );
     } catch (decryptError) {
       console.error('Failed to decrypt data:', decryptError);
-      return 'Failed to decrypt message';
+      throw new Error('Failed to decrypt message');
     }
 
     // Convert to string
@@ -279,8 +285,7 @@ export const decryptMessage = async (
     }
   } catch (error) {
     console.error('Decryption error:', error);
-    // Return a user-friendly message instead of throwing
-    return 'Unable to decrypt message';
+    throw error;
   }
 };
 
@@ -312,6 +317,171 @@ export const getAddressFromPublicKey = async (_publicKey: string): Promise<strin
     // If we can't connect to XRPL, generate a local wallet
     const wallet = Wallet.generate();
     return wallet.classicAddress;
+  }
+};
+
+/**
+ * Encrypts a private key using a 6-digit PIN
+ * @param privateKey The private key to encrypt
+ * @param pin The 6-digit PIN for encryption
+ * @returns The encrypted private key as a string
+ */
+export const encryptPrivateKeyWithPIN = async (
+  privateKey: string,
+  pin: string
+): Promise<string> => {
+  try {
+    // Validate PIN (must be 6 digits)
+    if (!/^\d{6}$/.test(pin)) {
+      throw new Error('PIN must be 6 digits');
+    }
+
+    // First, check if WebCrypto API is fully available
+    if (!window.crypto || !window.crypto.subtle) {
+      console.error('WebCrypto API not available in this browser');
+      // Return the original key with a marker to indicate encryption was skipped
+      return `[UNENCRYPTED]${privateKey}`;
+    }
+
+    // Derive a key from the PIN
+    const encoder = new TextEncoder();
+    const pinData = encoder.encode(pin);
+    const salt = encoder.encode('xrpchat-pin-salt'); // Static salt, could be made more secure
+    
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      pinData,
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    
+    const derivedKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256'
+      },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt']
+    );
+
+    // Generate IV
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    
+    // Encrypt the private key
+    const privateKeyData = encoder.encode(privateKey);
+    const encryptedData = await crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv
+      },
+      derivedKey,
+      privateKeyData
+    );
+
+    // Combine IV and encrypted data
+    const result = new Uint8Array(iv.length + encryptedData.byteLength);
+    result.set(iv, 0);
+    result.set(new Uint8Array(encryptedData), iv.length);
+
+    // Convert to base64
+    let binary = '';
+    const bytes = new Uint8Array(result);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  } catch (error) {
+    console.error('Error encrypting private key with PIN:', error);
+    throw new Error('Failed to encrypt private key with PIN');
+  }
+};
+
+/**
+ * Decrypts a private key using a 6-digit PIN
+ * @param encryptedPrivateKey The encrypted private key
+ * @param pin The 6-digit PIN for decryption
+ * @returns The decrypted private key
+ */
+export const decryptPrivateKeyWithPIN = async (
+  encryptedPrivateKey: string,
+  pin: string
+): Promise<string> => {
+  try {
+    // Check for unencrypted marker
+    if (encryptedPrivateKey.startsWith('[UNENCRYPTED]')) {
+      return encryptedPrivateKey.substring(13);
+    }
+
+    // Validate PIN (must be 6 digits)
+    if (!/^\d{6}$/.test(pin)) {
+      throw new Error('PIN must be 6 digits');
+    }
+
+    // First, check if WebCrypto API is fully available
+    if (!window.crypto || !window.crypto.subtle) {
+      console.error('WebCrypto API not available in this browser');
+      throw new Error('Decryption not supported in this browser');
+    }
+
+    // Derive a key from the PIN
+    const encoder = new TextEncoder();
+    const pinData = encoder.encode(pin);
+    const salt = encoder.encode('xrpchat-pin-salt'); // Same static salt used in encryption
+    
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      pinData,
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    
+    const derivedKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256'
+      },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+
+    // Parse the encrypted data
+    const binaryString = atob(encryptedPrivateKey);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Extract IV and encrypted data
+    const iv = bytes.slice(0, 12);
+    const encryptedData = bytes.slice(12);
+
+    // Decrypt the data
+    const decryptedData = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv
+      },
+      derivedKey,
+      encryptedData
+    );
+
+    // Convert to string
+    const decoder = new TextDecoder();
+    return decoder.decode(decryptedData);
+  } catch (error) {
+    console.error('Error decrypting private key with PIN:', error);
+    throw new Error('Failed to decrypt private key. Incorrect PIN or corrupted key.');
   }
 };
 

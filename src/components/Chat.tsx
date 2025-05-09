@@ -19,6 +19,9 @@ import { useNotification as useNotificationContext } from '../context/Notificati
 import { IoMdSend, IoMdRefresh } from 'react-icons/io';
 import { BsTrash } from 'react-icons/bs';
 import { IoLockClosed, IoLockOpen, IoShieldCheckmark } from 'react-icons/io5';
+import { PINEntryModal } from './PINEntryModal';
+import { EncryptionIndicator } from './EncryptionIndicator';
+import { isPrivateKeyAvailable } from '../utils/privateKeyHelpers';
 
 type Message = Database['public']['Tables']['messages']['Row'];
 
@@ -53,94 +56,103 @@ interface AutoDeleteInfo {
 const MessageContent: React.FC<{
   content: string;
   showEncrypted: boolean;
-}> = ({ content, showEncrypted }) => {
+  isFromCurrentUser: boolean;
+}> = ({ content, showEncrypted, isFromCurrentUser }) => {
   const { decryptMessage } = useEncryption();
   const [decryptedContent, setDecryptedContent] = useState<string>(content);
   const [isDecrypted, setIsDecrypted] = useState(false);
   const [decryptionFailed, setDecryptionFailed] = useState(false);
-  // Add a ref to track decryption attempts
-  const decryptionAttempts = useRef(0);
-  const maxAttempts = 2; // Maximum number of decryption attempts
-
-  // Reset attempts when content changes
+  
+  // Check on each render if private key is available
+  const privateKeyAvailable = isPrivateKeyAvailable();
+  
+  // Effect to handle decryption when component mounts or content changes
+  // Make sure it runs whenever privateKeyAvailable changes
   useEffect(() => {
-    decryptionAttempts.current = 0;
-  }, [content]);
-
-  // When showEncrypted changes, we need to force a re-decryption if needed
-  useEffect(() => {
-    // If we're switching to "show decrypted" mode and haven't successfully decrypted yet or previously failed
-    if (!showEncrypted && (!isDecrypted || decryptionFailed)) {
-      // Only reset if we haven't exceeded max attempts
-      if (decryptionAttempts.current < maxAttempts) {
-        setIsDecrypted(false); // Mark as not decrypted to trigger decryption
-        setDecryptionFailed(false); // Reset failure status
-      }
+    // Reset state when content changes
+    setDecryptionFailed(false);
+    
+    // Always show encrypted content if explicitly requested via showEncrypted
+    if (showEncrypted) {
+      setDecryptedContent(content);
+      setIsDecrypted(false);
+      return;
     }
-  }, [showEncrypted, isDecrypted, decryptionFailed]);
-
+    
+    // If private key is not available, show appropriate message
+    if (!privateKeyAvailable) {
+      setDecryptedContent(`🔒 Private key not available. Restore it in Profile → PIN Security.\n\nEncrypted message:\n${content}`);
+      setIsDecrypted(false);
+      return;
+    }
+    
+    // If we have the private key and aren't in showEncrypted mode, try to decrypt
+    decryptContent();
+  }, [content, showEncrypted, privateKeyAvailable]);
+  
+  // Also listen for storage changes to re-decrypt when private key becomes available
   useEffect(() => {
-    let mounted = true;
-
-    const decrypt = async () => {
-      // Prevent decryption if max attempts reached
-      if (decryptionAttempts.current >= maxAttempts) {
-        return;
-      }
-
-      if (!isDecrypted && !showEncrypted) {
-        decryptionAttempts.current += 1;
-        
-        try {
-          // Check if the content looks like a valid encrypted message (base64)
-          const isBase64 = /^[A-Za-z0-9+/=]+$/.test(content);
-          if (!isBase64) {
-            // If it's not a valid base64 string, don't attempt to decrypt
-            if (mounted) {
-              setDecryptedContent(content); // Just display the original content
-              setIsDecrypted(true);
-              setDecryptionFailed(false);
-            }
-            return;
-          }
-
-          const decrypted = await decryptMessage(content);
-          if (mounted) {
-            setDecryptedContent(decrypted);
-            setIsDecrypted(true);
-            setDecryptionFailed(false);
-          }
-        } catch (error) {
-          console.error('Failed to decrypt message:', error);
-          if (mounted) {
-            // For failed decryption, show a friendly error instead of raw encrypted content
-            setDecryptedContent("⚠️ Could not decrypt this message. Toggle to see encrypted format.");
-            setIsDecrypted(true);
-            setDecryptionFailed(true);
-          }
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'xrpchat_private_key_available' && e.newValue === 'true') {
+        if (!showEncrypted) {
+          decryptContent();
         }
       }
     };
-
-    if (!isDecrypted && !showEncrypted) {
-      decrypt();
-    }
-
-    return () => {
-      mounted = false;
+    
+    const handleKeyRestored = () => {
+      if (!showEncrypted) {
+        // Add a small delay to ensure key is fully available
+        setTimeout(() => {
+          decryptContent();
+        }, 100);
+      }
     };
-  }, [content, decryptMessage, isDecrypted, showEncrypted]);
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('privateKeyRestored', handleKeyRestored);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('privateKeyRestored', handleKeyRestored);
+    };
+  }, [showEncrypted]);
+
+  const decryptContent = async () => {
+    try {
+      // First check if message is actually encrypted (looks like base64)
+      if (!/^[A-Za-z0-9+/=]+$/.test(content)) {
+        // Not encrypted, just show as is
+        setDecryptedContent(content);
+        setIsDecrypted(true);
+        return;
+      }
+      
+      // Attempt decryption
+      console.log('Attempting to decrypt message...');
+      const decrypted = await decryptMessage(content);
+      setDecryptedContent(decrypted);
+      setIsDecrypted(true);
+      setDecryptionFailed(false);
+    } catch (error) {
+      console.log('Decryption error:', error instanceof Error ? error.message : 'Unknown error');
+      
+      // If decryption fails, show the encrypted message with an explanatory note
+      setDecryptionFailed(true);
+      
+      // Different messages based on error type
+      if (error instanceof Error && error.message.includes('PIN required')) {
+        setDecryptedContent(`🔒 Enter PIN in Profile → Settings to decrypt.\n\nEncrypted message:\n${content}`);
+      } else {
+        setDecryptedContent(`⚠️ Could not decrypt this message. It may be encrypted for someone else.\n\nEncrypted form:\n${content}`);
+      }
+    }
+  };
 
   return (
-    <p className="text-sm whitespace-pre-wrap break-words">
-      {showEncrypted ? (
-        <span className="font-mono text-xs">{content}</span>
-      ) : (
-        <span className={decryptionFailed ? "text-red-500 italic" : ""}>
-          {decryptedContent}
-        </span>
-      )}
-    </p>
+    <div className="whitespace-pre-wrap break-words">
+      {decryptedContent}
+    </div>
   );
 };
 
@@ -171,6 +183,9 @@ export const Chat: React.FC = () => {
   const [autoDeleteInfo, setAutoDeleteInfo] = useState<AutoDeleteInfo | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [isPrivateKeyDeleted, setIsPrivateKeyDeleted] = useState(
+    localStorage.getItem('xrpchat_private_key_available') === 'false'
+  );
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -224,6 +239,10 @@ export const Chat: React.FC = () => {
       } catch (error) {
         console.error('Error checking for expired messages during refresh:', error);
       }
+      
+      // Check private key availability - this will be used by MessageContent components
+      const isKeyAvailable = localStorage.getItem('xrpchat_private_key_available') !== 'false';
+      console.log(`Private key availability during refresh: ${isKeyAvailable ? 'Available' : 'Not available'}`);
       
       // Fetch fresh messages
       const messages = await getThreadMessages(threadId);
@@ -1091,6 +1110,49 @@ export const Chat: React.FC = () => {
     };
   }, [threadId, user, loading]);
 
+  // Check for private key status changes
+  useEffect(() => {
+    const checkKeyAvailability = () => {
+      setIsPrivateKeyDeleted(localStorage.getItem('xrpchat_private_key_available') === 'false');
+    };
+    
+    checkKeyAvailability();
+    
+    // Listen for changes to localStorage
+    window.addEventListener('storage', checkKeyAvailability);
+    
+    return () => {
+      window.removeEventListener('storage', checkKeyAvailability);
+    };
+  }, []);
+
+  // Add effect to listen for private key restoration
+  useEffect(() => {
+    const handlePrivateKeyRestored = () => {
+      console.log("Private key has been restored, refreshing messages");
+      setIsPrivateKeyDeleted(false);
+      // Force refresh messages to ensure they're decrypted with the restored key
+      handleRefreshMessages();
+    };
+    
+    window.addEventListener('privateKeyRestored', handlePrivateKeyRestored);
+    
+    // Also listen for localStorage changes directly
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'xrpchat_private_key_available' && e.newValue === 'true') {
+        console.log("Private key availability changed via localStorage, refreshing messages");
+        handleRefreshMessages();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('privateKeyRestored', handlePrivateKeyRestored);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [handleRefreshMessages]);
+
   if (loading || !threadDetails) {
     return (
       <div className="h-full flex items-center justify-center bg-[#efeae2]">
@@ -1107,24 +1169,24 @@ export const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
+    <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
       {/* Chat Header */}
       <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3 overflow-hidden">
           <div className="w-10 h-10 rounded-full">
             <DiceBearAvatar 
-              url={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url} 
+              url={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_url} 
               size={40} 
-              userId={threadDetails.participant_ids.find(id => id !== user?.id) || ''} 
-              seed={participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || undefined}
-              key={`chat-header-avatar-${participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_url}-${participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || ''}`}
+              userId={threadDetails?.participant_ids.find(id => id !== user?.id) || ''} 
+              seed={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || undefined}
+              key={`chat-header-avatar-${participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_url}-${participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || ''}`}
             />
           </div>
           <div className="overflow-hidden">
-            <div className="font-semibold truncate">{participants[threadDetails.participant_ids.find(id => id !== user?.id) || '']?.username || 'Unknown User'}</div>
+            <div className="font-semibold truncate">{participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.username || 'Unknown User'}</div>
             <div className="text-xs text-white/80 truncate">
               {(() => {
-                const participantId = threadDetails.participant_ids.find(id => id !== user?.id) || '';
+                const participantId = threadDetails?.participant_ids.find(id => id !== user?.id) || '';
                 const lastActive = participants[participantId]?.last_active;
                 if (!lastActive) return 'Never active';
                 
@@ -1147,6 +1209,7 @@ export const Chat: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center space-x-3">
+          <EncryptionIndicator />
           <button
             onClick={handleRefreshMessages}
             disabled={isRefreshing || loading}
@@ -1165,6 +1228,30 @@ export const Chat: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Private Key Deleted Notice */}
+      {isPrivateKeyDeleted && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/30 border-b border-yellow-200 dark:border-yellow-900 px-4 py-3">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                <span className="font-medium">Private key unavailable:</span> Messages appear encrypted because your private key has been deleted from this device. This demonstrates true end-to-end encryption - without the key, messages are unreadable.
+              </p>
+              <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-2">
+                <span className="font-medium">Why do both sides of the conversation look encrypted?</span> Each message is individually encrypted and stored in the database until it's auto-deleted. No raw messages or private keys are ever sent to the server. The actual private key never leaves your device.
+              </p>
+              <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">
+                <span className="font-medium">To restore access:</span> Go to Profile → PIN Security Settings and use the "Restore from PIN" button.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main chat content */}
       <div className="flex-1 overflow-y-auto p-4">
@@ -1189,7 +1276,7 @@ export const Chat: React.FC = () => {
               return (
                 <div
                   key={`${message.id}-${index}`}
-                  className={`flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}
                 >
                   {!isUserMessage ? (
                     <>
@@ -1201,9 +1288,9 @@ export const Chat: React.FC = () => {
                       seed={participants[message.sender_id]?.avatar_seed || undefined}
                       key={`chat-message-other-avatar-${message.id}-${participants[message.sender_id]?.avatar_url}-${participants[message.sender_id]?.avatar_seed || ''}`}
                     />
-                      <div>
+                      <div className="max-w-[75%]">
                         <div
-                          className="max-w-lg px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none"
+                          className="px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none"
                         >
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             {participants[message.sender_id]?.username}
@@ -1211,6 +1298,7 @@ export const Chat: React.FC = () => {
                           <MessageContent 
                             content={message.content}
                             showEncrypted={showEncrypted}
+                            isFromCurrentUser={isUserMessage}
                           />
                           <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
                             {new Date(message.created_at).toLocaleTimeString([], {
@@ -1223,9 +1311,9 @@ export const Chat: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <div>
+                      <div className="max-w-[75%]">
                         <div
-                          className="max-w-lg px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none"
+                          className="px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none"
                         >
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             You
@@ -1233,6 +1321,7 @@ export const Chat: React.FC = () => {
                           <MessageContent 
                             content={message.content}
                             showEncrypted={showEncrypted}
+                            isFromCurrentUser={isUserMessage}
                           />
                           <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
                             {new Date(message.created_at).toLocaleTimeString([], {
@@ -1272,11 +1361,11 @@ export const Chat: React.FC = () => {
           <div className="mb-3 text-xs rounded-md overflow-hidden border dark:border-gray-700">
             <div className={`py-2 px-3 flex items-center justify-between ${
               autoDeleteInfo.userInfo.enabled 
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-white' 
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-white natural-light:bg-[#F5EEE0] natural-dark:bg-[#8B5A2B]/30 natural-light:text-[#8B5A2B]' 
                 : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-white'
             }`}>
               <div className="flex items-center">
-                <HiClock className={`mr-1 ${autoDeleteInfo.userInfo.enabled ? 'text-green-600 dark:text-white' : 'text-red-600 dark:text-white'}`} size={14} />
+                <HiClock className={`mr-1 ${autoDeleteInfo.userInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-[#8B5A2B] natural-dark:text-white' : 'text-red-600 dark:text-white'}`} size={14} />
                 <span className="font-medium">
                   {autoDeleteInfo.userInfo.enabled 
                     ? `Your messages will auto-delete after ${autoDeleteInfo.userInfo.timeDisplay}` 
@@ -1286,7 +1375,7 @@ export const Chat: React.FC = () => {
               <div className="ml-2">
                 <button 
                   onClick={() => navigate('/app/settings')}
-                  className={`text-xs underline ${autoDeleteInfo.userInfo.enabled ? 'text-green-700 dark:text-white hover:text-green-800 dark:hover:text-gray-200' : 'text-red-700 dark:text-white hover:text-red-800 dark:hover:text-gray-200'}`}
+                  className={`text-xs underline ${autoDeleteInfo.userInfo.enabled ? 'text-green-700 dark:text-white natural-light:text-[#8B5A2B] hover:text-green-800 natural-light:hover:text-[#A67C52] dark:hover:text-gray-200' : 'text-red-700 dark:text-white hover:text-red-800 dark:hover:text-gray-200'}`}
                   title="Change auto-delete settings"
                 >
                   Change
@@ -1297,14 +1386,13 @@ export const Chat: React.FC = () => {
             {autoDeleteInfo.otherUserInfo !== null ? (
               <div className={`py-2 px-3 flex items-center border-t dark:border-gray-700 ${
                 autoDeleteInfo.otherUserInfo.enabled 
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-white' 
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-white natural-light:bg-[#E5DBCC] natural-dark:bg-[#8B5A2B]/20 natural-light:text-[#8B5A2B]' 
                   : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-white'
               }`}>
-                <HiClock className={`mr-1 ${autoDeleteInfo.otherUserInfo.enabled ? 'text-green-600 dark:text-white' : 'text-red-600 dark:text-white'}`} size={14} />
+                <HiClock className={`mr-1 ${autoDeleteInfo.otherUserInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-[#8B5A2B] natural-dark:text-white' : 'text-red-600 dark:text-white'}`} size={14} />
                 <span>
                   {(() => {
-                    // Get the other participant's username
-                    const otherParticipantId = threadDetails.participant_ids.find(id => id !== user?.id) || '';
+                    const otherParticipantId = threadDetails?.participant_ids?.find(id => id !== user?.id) || '';
                     const username = participants[otherParticipantId]?.username || 'Contact';
                     
                     return autoDeleteInfo.otherUserInfo.enabled 
@@ -1318,8 +1406,7 @@ export const Chat: React.FC = () => {
                 <HiClock className="mr-1 text-gray-500 dark:text-gray-400" size={14} />
                 <span>
                   {(() => {
-                    // Get the other participant's username
-                    const otherParticipantId = threadDetails.participant_ids.find(id => id !== user?.id) || '';
+                    const otherParticipantId = threadDetails?.participant_ids?.find(id => id !== user?.id) || '';
                     const username = participants[otherParticipantId]?.username || 'Contact';
                     
                     return `${username} has not configured auto-delete settings`;

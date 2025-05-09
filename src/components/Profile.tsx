@@ -7,10 +7,15 @@ import { uploadAvatar } from '../utils/supabase/storage';
 import { CopyButton } from './CopyButton';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import { QRCodeSVG } from 'qrcode.react';
+import { PINManagement } from './PINManagement';
 
 export const Profile: React.FC = () => {
-  const { profile, wallet, updateUserProfile, loading, user, regenerateWallet, changePassword, deleteAccount } = useUser();
-  const { isMaxSecurityEnabled, enableMaxSecurity, disableMaxSecurity, showPrivateKey, setShowPrivateKey } = useEncryptionMode();
+  const { profile, wallet, updateUserProfile, loading, user, regenerateWallet, changePassword, deleteAccount, refreshProfile } = useUser();
+  const { 
+    isMaxSecurityEnabled, 
+    enableMaxSecurity, 
+    disableMaxSecurity 
+  } = useEncryptionMode();
   
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState(profile?.username || '');
@@ -49,6 +54,31 @@ export const Profile: React.FC = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Listen for app-refresh events
+  useEffect(() => {
+    const handleAppRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const path = customEvent.detail?.path;
+      
+      // Only refresh if we're on the profile page
+      if (path && path === '/app/profile') {
+        console.log('Refreshing profile data due to refresh event');
+        
+        if (refreshProfile) {
+          refreshProfile();
+        }
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('app-refresh', handleAppRefresh);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('app-refresh', handleAppRefresh);
+    };
+  }, [refreshProfile]);
 
   if (loading || !profile || !wallet) {
     return (
@@ -131,7 +161,6 @@ export const Profile: React.FC = () => {
     setIsEditing(false);
     setUpdateError(null);
     setNewWalletInfo(null);
-    setShowPrivateKey(false);
     setHasConfirmedSave(false);
   };
 
@@ -453,7 +482,7 @@ export const Profile: React.FC = () => {
           <div className="flex items-center space-x-2 mb-4">
             <HiKey className="text-gray-900 dark:text-white" size={24} />
             <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-              Security Settings
+              Wallet & Encryption Settings
             </h3>
           </div>
           
@@ -714,35 +743,6 @@ export const Profile: React.FC = () => {
                   </div>
                 </div>
 
-                {wallet.private_key && (
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Private Key</h4>
-                      <button
-                        type="button"
-                        onClick={() => setShowPrivateKey(!showPrivateKey)}
-                        className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
-                      >
-                        {showPrivateKey ? <HiKey size={12} /> : <HiKey size={12} />}
-                      </button>
-                    </div>
-                    {showPrivateKey ? (
-                      <div className="mt-1 relative">
-                        <p className="text-sm text-gray-900 dark:text-white font-mono break-all">
-                          {wallet.private_key}
-                        </p>
-                        <div className="mt-1">
-                          <CopyButton text={wallet.private_key} />
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        [Hidden for security] Click the key icon to view.
-                      </p>
-                    )}
-                  </div>
-                )}
-                
                 <div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Regenerate Wallet Keys</h4>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -844,6 +844,21 @@ export const Profile: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Max Security Mode */}
+        <div className="mt-8 space-y-2">
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">PIN Security Settings</h3>
+          
+          {/* PIN Management Section */}
+          <div className="mt-6">
+            <PINManagement />
+          </div>
+          
+          {/* Max Security Mode Switch */}
+          <div className="mt-6 flex items-center">
+            {/* ... existing max security mode code ... */}
           </div>
         </div>
       </div>

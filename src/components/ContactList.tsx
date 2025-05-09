@@ -856,6 +856,28 @@ export const ContactList: React.FC = () => {
       });
   };
 
+  // Listen for app-refresh events
+  useEffect(() => {
+    const handleAppRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const path = customEvent.detail?.path;
+      
+      // Only refresh if we're on the contacts page
+      if (path && path === '/app/contacts') {
+        console.log('Refreshing contacts list due to refresh event');
+        reloadContacts();
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('app-refresh', handleAppRefresh);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('app-refresh', handleAppRefresh);
+    };
+  }, [reloadContacts]);
+
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
       {/* Header */}

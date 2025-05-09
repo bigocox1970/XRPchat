@@ -47,6 +47,8 @@ export interface Database {
           private_key: string;
           created_at: string;
           updated_at: string;
+          pin_enabled: boolean;
+          pin_last_updated: string | null;
         };
         Insert: {
           id?: string;
@@ -56,6 +58,8 @@ export interface Database {
           private_key: string;
           created_at?: string;
           updated_at?: string;
+          pin_enabled?: boolean;
+          pin_last_updated?: string | null;
         };
         Update: {
           id?: string;
@@ -65,6 +69,8 @@ export interface Database {
           private_key?: string;
           created_at?: string;
           updated_at?: string;
+          pin_enabled?: boolean;
+          pin_last_updated?: string | null;
         };
       };
       threads: {

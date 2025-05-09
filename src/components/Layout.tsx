@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
-import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLogout, HiCog, HiBell, HiVolumeUp, HiUserAdd, HiMail } from 'react-icons/hi';
+import { HiMenu, HiX, HiChat, HiUserGroup, HiUser, HiPlus, HiLogout, HiCog, HiBell, HiVolumeUp, HiUserAdd, HiMail, HiRefresh } from 'react-icons/hi';
 import { HiQrCode } from 'react-icons/hi2';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
@@ -17,7 +17,7 @@ export const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const { user, profile, signOut } = useUser();
+  const { user, profile, signOut, refreshProfile } = useUser();
   const { isMaxSecurityEnabled } = useEncryptionMode();
   const { 
     unreadCount,
@@ -28,6 +28,8 @@ export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
+  // Add state to track if refreshing is in progress
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Add state to track if audio is being unlocked
   const [unlockingAudio, setUnlockingAudio] = useState(false);
 
@@ -37,6 +39,32 @@ export const Layout: React.FC = () => {
       // This is now handled in the Settings page
     }
   }, []);
+  
+  // Handle refreshing data
+  const handleRefresh = async () => {
+    if (isRefreshing) return; // Prevent multiple refreshes
+    
+    setIsRefreshing(true);
+    console.log("Refreshing data...");
+    
+    try {
+      // Refresh user profile data
+      await refreshProfile();
+      
+      // Create and dispatch a custom event to notify other components
+      const refreshEvent = new CustomEvent('app-refresh', { 
+        detail: { path: location.pathname } 
+      });
+      window.dispatchEvent(refreshEvent);
+      
+      // Add a small delay to show the refresh animation
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   
   // Handle unlocking audio with user interaction
   const handleUnlockAudio = async () => {
@@ -117,13 +145,26 @@ export const Layout: React.FC = () => {
         </div>
       )}
       
-      {/* Sidebar Toggle Button - Mobile */}
-      <button
-        onClick={toggleSidebar}
-        className="lg:hidden fixed top-4 right-16 z-50 p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white shadow-lg"
-      >
-        {sidebarOpen ? <HiX size={24} /> : <HiMenu size={24} />}
-      </button>
+      {/* Mobile Header Controls - Add refresh button next to hamburger menu */}
+      <div className="lg:hidden fixed top-4 right-4 z-50 flex items-center space-x-2">
+        {/* Refresh Button */}
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white shadow-lg"
+          aria-label="Refresh"
+        >
+          <HiRefresh size={24} className={isRefreshing ? "animate-spin" : ""} />
+        </button>
+        
+        {/* Sidebar Toggle Button */}
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white shadow-lg"
+        >
+          {sidebarOpen ? <HiX size={24} /> : <HiMenu size={24} />}
+        </button>
+      </div>
 
       {/* Sidebar */}
       <div
@@ -148,17 +189,27 @@ export const Layout: React.FC = () => {
                 </div>
               </div>
               
-              {/* Notification indicator */}
-              {unreadCount > 0 && (
-                <div className="flex items-center">
+              <div className="flex items-center space-x-3">
+                {/* Notification indicator */}
+                {unreadCount > 0 && (
                   <div className="relative">
                     <HiBell size={20} className="text-white" />
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   </div>
-                </div>
-              )}
+                )}
+                
+                {/* Desktop Refresh Button */}
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="hidden lg:block text-white"
+                  aria-label="Refresh"
+                >
+                  <HiRefresh size={20} className={isRefreshing ? "animate-spin" : ""} />
+                </button>
+              </div>
             </div>
           </div>
 

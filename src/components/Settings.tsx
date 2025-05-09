@@ -17,7 +17,8 @@ import { useDebugMode } from '../context/DebugModeContext';
 import { useNotification } from '../context/NotificationContext';
 import { useTheme } from '../context/DarkModeContext';
 import { supabase } from '../utils/supabase/client';
-import { saveAutoDeleteSettingsToDatabase } from '../utils/supabase/autoDelete';
+import { saveAutoDeleteSettingsToDatabase, loadAutoDeleteSettingsFromDatabase } from '../utils/supabase/autoDelete';
+import { AdminTools } from './AdminTools';
 
 // Auto-delete option types
 type AutoDeleteTimeUnit = 'minutes' | 'hours' | 'days' | 'weeks';
@@ -33,7 +34,7 @@ interface AutoDeleteSettings {
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { ThemeToggle, isNaturalTheme } = useTheme();
-  const { user, signOut } = useUser();
+  const { user, signOut, refreshProfile } = useUser();
   const { 
     showEncrypted, 
     toggleEncryptionMode, 
@@ -61,9 +62,17 @@ export const Settings: React.FC = () => {
     customUnit: 'hours'
   });
   const [saveSettingsMessage, setSaveSettingsMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  // Add state to track refreshing
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load auto-delete settings from localStorage on mount
   useEffect(() => {
+    loadSettingsFromLocalStorage();
+  }, []);
+
+  // Load settings function that can be reused for refresh
+  const loadSettingsFromLocalStorage = () => {
+    console.log('Loading settings from localStorage');
     const savedSettings = localStorage.getItem('xrpchat_auto_delete_settings');
     if (savedSettings) {
       try {
@@ -73,7 +82,65 @@ export const Settings: React.FC = () => {
         console.error('Error parsing auto-delete settings:', e);
       }
     }
-  }, []);
+    
+    // Also update notification state from localStorage
+    const notificationsEnabledInStorage = localStorage.getItem('xrpchat_notifications_enabled') === 'true';
+    setLocalNotificationsEnabled(notificationsEnabledInStorage);
+  };
+
+  // Add event listener for app-refresh events
+  useEffect(() => {
+    const handleAppRefresh = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const path = customEvent.detail?.path;
+      
+      // Only refresh if we're on the settings page
+      if (path && path === '/app/settings') {
+        console.log('Refreshing settings page due to refresh event');
+        setIsRefreshing(true);
+        
+        try {
+          // Refresh user profile data
+          if (refreshProfile) {
+            await refreshProfile();
+          }
+          
+          // Refresh auto-delete settings
+          if (user) {
+            try {
+              const success = await loadAutoDeleteSettingsFromDatabase(user.id);
+              if (success) {
+                console.log('Auto-delete settings refreshed from database');
+              }
+            } catch (error) {
+              console.error('Error refreshing auto-delete settings:', error);
+            }
+          }
+          
+          // Reload settings from localStorage (which would have been updated by the database load)
+          loadSettingsFromLocalStorage();
+          
+          // Update notification state
+          updateNotificationState();
+          
+          // Add a small delay to show feedback
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error('Error refreshing settings:', error);
+        } finally {
+          setIsRefreshing(false);
+        }
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('app-refresh', handleAppRefresh);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('app-refresh', handleAppRefresh);
+    };
+  }, [user, refreshProfile, updateNotificationState]);
 
   // Initialize local state based on the context value
   useEffect(() => {
@@ -352,7 +419,27 @@ export const Settings: React.FC = () => {
             <div className="font-semibold">Settings</div>
           </div>
         </div>
+        
+        {/* Add refresh indicator */}
+        {isRefreshing && (
+          <div className="flex items-center text-white">
+            <HiRefresh className="animate-spin mr-2" size={20} />
+            <span className="text-sm">Refreshing...</span>
+          </div>
+        )}
       </div>
+
+      {/* Refresh indicator toast when settings are being refreshed */}
+      {isRefreshing && (
+        <div className="fixed top-16 right-4 z-50 bg-green-100 dark:bg-green-900 p-2 rounded-lg shadow-lg border border-green-200 dark:border-green-700 max-w-sm">
+          <div className="flex items-center space-x-2">
+            <HiRefresh className="text-green-500 dark:text-green-400 animate-spin" size={20} />
+            <div className="text-sm text-green-700 dark:text-green-300">
+              Refreshing settings...
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6">
@@ -784,6 +871,9 @@ export const Settings: React.FC = () => {
             {saveSettingsMessage.text}
           </div>
         )}
+
+        {/* Admin Tools Section - only visible to admins */}
+        <AdminTools />
       </div>
     </div>
   );
