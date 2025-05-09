@@ -10,6 +10,7 @@ import { CopyButton } from './CopyButton';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
+import { useTheme } from '../context/DarkModeContext';
 
 // Modify the Profile type to make updated_at optional to handle potential missing values
 // and add status field
@@ -18,6 +19,7 @@ type Profile = Database['public']['Tables']['profiles']['Row'] & { status?: stri
 export const ContactList: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile } = useUser();
+  const { isNaturalTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [contacts, setContacts] = useState<Profile[]>([]);
@@ -31,6 +33,35 @@ export const ContactList: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+
+  // Helper function to get appropriate button classes based on theme
+  const getButtonClassesForTheme = (type: 'green' | 'yellow' | 'red' | 'brand') => {
+    if (!isNaturalTheme) {
+      // Return original colors for default theme
+      switch (type) {
+        case 'green':
+          return 'bg-green-600 hover:bg-green-700 focus:ring-green-500';
+        case 'yellow':
+          return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
+        case 'red':
+          return 'bg-red-800 hover:bg-red-900 focus:ring-red-700';
+        case 'brand':
+          return 'bg-brand-primary hover:bg-brand-secondary focus:ring-brand-primary';
+      }
+    } else {
+      // Return brown colors for natural theme
+      switch (type) {
+        case 'green':
+          return 'bg-amber-700 hover:bg-amber-800 focus:ring-amber-600';
+        case 'yellow':
+          return 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500';
+        case 'red':
+          return 'bg-red-800 hover:bg-red-900 focus:ring-red-700';
+        case 'brand':
+          return 'bg-natural-primary hover:bg-natural-secondary focus:ring-natural-primary';
+      }
+    }
+  };
 
   // Helper function to reload contacts
   const reloadContacts = useCallback(async () => {
@@ -430,6 +461,17 @@ export const ContactList: React.FC = () => {
       isBlocked = true;
     }
     
+    // Get appropriate hover classes based on theme
+    const getHoverClasses = () => {
+      if (isNaturalTheme) {
+        // Return brown hover effect for natural theme
+        return 'hover:bg-amber-50/70 dark:hover:bg-amber-900/30';
+      } else {
+        // Return green hover effect for default theme
+        return 'hover:bg-green-50 dark:hover:bg-green-900/30';
+      }
+    };
+    
     // Final debugging to see what we decided
     console.log(`[FINAL] Contact ${contact.username} blocked status:`, {
       rawStatus: contact.status,
@@ -440,7 +482,7 @@ export const ContactList: React.FC = () => {
     return (
     <div
       key={`${contact.id}-${contact.status || 'active'}`}
-      className={`relative rounded-lg border ${isBlocked ? 'border-red-200 dark:border-red-900' : 'border-gray-300 dark:border-gray-600'} ${isBlocked ? 'bg-gray-100 dark:bg-gray-900' : 'bg-white dark:bg-gray-800'} px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 hover:bg-green-50 dark:hover:border-gray-500 dark:hover:bg-green-900/30 w-full transition-colors`}
+      className={`relative rounded-lg border ${isBlocked ? 'border-red-200 dark:border-red-900' : 'border-gray-300 dark:border-gray-600'} ${isBlocked ? 'bg-gray-100 dark:bg-gray-900' : 'bg-white dark:bg-gray-800'} px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 ${getHoverClasses()} dark:hover:border-gray-500 w-full transition-colors`}
     >
       {editMode && !isSearchResult && (
         <div className="flex-shrink-0 mr-2">
@@ -500,7 +542,7 @@ export const ContactList: React.FC = () => {
                 setLoading(false);
               }
             }}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800"
+            className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white ${getButtonClassesForTheme('green')} focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}
           >
             Add to Contacts
           </button>
@@ -634,7 +676,7 @@ export const ContactList: React.FC = () => {
                 setLoading(false);
               }
             }}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 dark:focus:ring-offset-gray-800"
+            className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white ${getButtonClassesForTheme('yellow')} focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}
           >
             <HiLockOpen className="h-3.5 w-3.5 mr-1" />
             Unblock
@@ -645,7 +687,7 @@ export const ContactList: React.FC = () => {
             <button
               type="button"
               disabled
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-red-800 cursor-not-allowed opacity-90"
+              className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white ${getButtonClassesForTheme('red')} cursor-not-allowed opacity-90`}
             >
               <HiLockClosed className="h-3.5 w-3.5 mr-1" />
               Blocked
@@ -658,7 +700,7 @@ export const ContactList: React.FC = () => {
                 e.stopPropagation();
                 startChat(contact);
               }}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800"
+              className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white ${getButtonClassesForTheme('brand')} focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800`}
             >
               Start Chat
             </button>
@@ -907,15 +949,15 @@ export const ContactList: React.FC = () => {
                   onClick={toggleEditMode}
                   className="flex items-center h-8 px-3 py-0 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
                 >
-                  {editMode ? 'Cancel Edit' : 'Edit Contacts'}
+                  {editMode ? 'Cancel' : 'Edit'}
                 </button>
                 
                 <button
                   onClick={() => setShowScanner(true)}
-                  className="flex items-center h-8 px-3 py-0 bg-brand-primary hover:bg-brand-secondary text-white text-xs font-medium rounded-lg transition-colors"
+                  className={`flex items-center h-8 px-3 py-0 text-white text-xs font-medium rounded-lg transition-colors ${getButtonClassesForTheme('brand')}`}
                 >
                   <HiPlus className="h-4 w-4 mr-1" />
-                  Add Contact
+                  Add
                 </button>
               </div>
             </div>
@@ -963,7 +1005,7 @@ export const ContactList: React.FC = () => {
                         }}
                         className="text-gray-500 hover:text-gray-700 dark:text-white dark:hover:text-gray-200"
                       >
-                        ✕
+                        �o
                       </button>
                     </div>
                     
@@ -1172,7 +1214,7 @@ export const ContactList: React.FC = () => {
                                 }
                               }}
                               disabled={loading}
-                              className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-brand-primary hover:bg-brand-secondary rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className={`w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ${getButtonClassesForTheme('brand')}`}
                             >
                               {loading ? (
                                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1210,7 +1252,7 @@ export const ContactList: React.FC = () => {
                       </span>
                       <button
                         onClick={deleteSelectedContacts}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-full"
+                        className={`px-3 py-1.5 text-white text-xs font-medium rounded-full ${getButtonClassesForTheme('red').replace('bg-red-800', 'bg-red-600').replace('hover:bg-red-900', 'hover:bg-red-700')}`}
                       >
                         Delete
                       </button>

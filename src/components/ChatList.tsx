@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
+import { useTheme } from '../context/DarkModeContext';
 import { getUserThreads, subscribeToUserThreads, getProfile, subscribeToThread, deleteThread } from '../utils/supabase/index';
 import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil, HiChat } from 'react-icons/hi';
 import { DiceBearAvatar } from './DiceBearAvatar';
@@ -24,6 +25,7 @@ type Message = Database['public']['Tables']['messages']['Row'];
 export const ChatList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { isNaturalTheme } = useTheme();
   const { 
     notificationsEnabled, 
     showNotification, 
@@ -548,6 +550,26 @@ export const ChatList: React.FC = () => {
     };
   }, []);  // Note: This does create a lint warning about missing loadThreadsWithParticipants dependency
 
+  // Helper function to get appropriate hover classes based on theme
+  const getHoverClasses = () => {
+    if (isNaturalTheme) {
+      // Return brown hover effect for natural theme
+      return 'hover:bg-amber-50/70 dark:hover:bg-amber-900/30';
+    } else {
+      // Return green hover effect for default theme
+      return 'hover:bg-green-50 dark:hover:bg-green-900/30';
+    }
+  };
+
+  // Helper function to get the active/selected classes based on theme
+  const getActiveClasses = () => {
+    if (isNaturalTheme) {
+      return 'bg-natural-button-active-bg dark:bg-natural-button-active-bg-dark';
+    } else {
+      return 'bg-green-100 dark:bg-green-900/50';
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
@@ -578,7 +600,7 @@ export const ChatList: React.FC = () => {
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-4">
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-3">
           <div className="px-3 py-4">
             <div className="flex items-center justify-between mb-3">
@@ -660,15 +682,33 @@ export const ChatList: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 shadow rounded-lg">
+          <div className="space-y-2">
             {filteredThreads.map((thread) => (
-              <div key={thread.id} className="px-2">
+              <div key={thread.id} className="w-full">
                 <div
-                  className={`rounded-md my-1 ${
-                    thread.id === window.location.pathname.split('/').pop() ? 'bg-green-100 dark:bg-green-900/50' : ''
-                  } ${selectedThreads.includes(thread.id) ? 'bg-green-100 dark:bg-green-900/40' : 'hover:bg-green-50 dark:hover:bg-green-900/30'}`}
+                  className={`relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 shadow-sm ${
+                    thread.id === window.location.pathname.split('/').pop() 
+                      ? getActiveClasses()
+                      : selectedThreads.includes(thread.id) 
+                        ? getActiveClasses()
+                        : getHoverClasses()
+                  } hover:border-gray-400 dark:hover:border-gray-500 w-full transition-colors`}
+                  onClick={() => {
+                    if (selectionMode) {
+                      toggleThreadSelection(thread.id, { stopPropagation: () => {} } as React.MouseEvent);
+                    } else {
+                      // Clear unread counter for this thread when clicked
+                      if (unreadThreads[thread.id]) {
+                        setUnreadThreads(prev => ({
+                          ...prev,
+                          [thread.id]: 0
+                        }));
+                      }
+                      navigate(`/app/chat/${thread.id}`);
+                    }
+                  }}
                 >
-                  <div className="grid grid-cols-12 items-center gap-1 py-2">
+                  <div className="grid grid-cols-12 items-center gap-1">
                     {/* Selection checkbox in selection mode */}
                     {selectionMode && (
                       <div 
@@ -677,7 +717,7 @@ export const ChatList: React.FC = () => {
                       >
                         <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
                           selectedThreads.includes(thread.id) 
-                            ? 'bg-brand-primary border-brand-primary' 
+                            ? 'bg-brand-primary border-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary' 
                             : 'border-gray-300 dark:border-gray-600'
                         }`}>
                           {selectedThreads.includes(thread.id) && (
@@ -691,7 +731,7 @@ export const ChatList: React.FC = () => {
                     <div className={`${selectionMode ? 'col-span-2' : 'col-span-2'} flex justify-center`}>
                       <DiceBearAvatar 
                         url={thread.otherParticipant?.avatar_url}
-                        size={36}
+                        size={40}
                         className="flex-shrink-0"
                         userId={thread.participant_ids.find(id => id !== user?.id)}
                         seed={thread.otherParticipant?.avatar_seed || undefined}
@@ -700,23 +740,7 @@ export const ChatList: React.FC = () => {
                     </div>
                     
                     {/* Chat Content */}
-                    <div 
-                      className={`${selectionMode ? 'col-span-8' : 'col-span-9'} flex flex-col min-w-0 pr-1`}
-                      onClick={() => {
-                        if (selectionMode) {
-                          toggleThreadSelection(thread.id, { stopPropagation: () => {} } as React.MouseEvent);
-                        } else {
-                          // Clear unread counter for this thread when clicked
-                          if (unreadThreads[thread.id]) {
-                            setUnreadThreads(prev => ({
-                              ...prev,
-                              [thread.id]: 0
-                            }));
-                          }
-                          navigate(`/app/chat/${thread.id}`);
-                        }
-                      }}
-                    >
+                    <div className={`${selectionMode ? 'col-span-8' : 'col-span-9'} flex flex-col min-w-0 pl-3`}>
                       <div className="flex justify-between items-center">
                         <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
                           {thread.otherParticipant?.username || 'Chat'}
@@ -735,12 +759,15 @@ export const ChatList: React.FC = () => {
                       {!selectionMode ? (
                         <div className="flex items-center space-x-1">
                           {unreadThreads[thread.id] && unreadThreads[thread.id] > 0 && (
-                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 text-white text-xs font-medium">
+                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark text-white text-xs font-medium">
                               {unreadThreads[thread.id] > 9 ? '9+' : unreadThreads[thread.id]}
                             </span>
                           )}
                           <button
-                            onClick={(e) => handleOpenDeleteDialog(thread.id, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDeleteDialog(thread.id, e);
+                            }}
                             className="p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             title="Delete chat"
                           >
@@ -750,7 +777,7 @@ export const ChatList: React.FC = () => {
                       ) : (
                         <div className="flex items-center">
                           {unreadThreads[thread.id] && unreadThreads[thread.id] > 0 && (
-                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 text-white text-xs font-medium">
+                            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500 natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark text-white text-xs font-medium">
                               {unreadThreads[thread.id] > 9 ? '9+' : unreadThreads[thread.id]}
                             </span>
                           )}

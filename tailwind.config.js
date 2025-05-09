@@ -38,6 +38,15 @@ export default {
           'button-active-bg-dark': 'rgba(191, 135, 86, 0.3)',  // Semi-transparent version of toggle-active-dark
           'button-active-text': '#8B5A2B',  // Brown text for active buttons (replacing green-800)
           'button-active-text-dark': '#4A3C31', // Dark brown text for dark mode buttons (was "#F2E6D0")
+          // Dialog colors (replacing green dialogs)
+          'success-bg': '#D4A76A',      // Light amber/brown for success dialogs (light mode)
+          'success-bg-dark': '#8B5A2B', // Dark brown for success dialogs (dark mode)
+          'success-text': '#8B5A2B',    // Dark brown text for success dialogs (light mode)
+          'success-text-dark': '#F9F6F0', // Off-white text for success dialogs (dark mode)
+          'info-bg': '#E5DBCC',         // Light beige for info dialogs (light mode)
+          'info-bg-dark': '#A67C52',    // Medium brown for info dialogs (dark mode)
+          'info-text': '#8B5A2B',       // Dark brown text for info dialogs (light mode)
+          'info-text-dark': '#F9F6F0'  // Off-white text for info dialogs (dark mode)
         }
       },
       animation: {
