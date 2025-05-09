@@ -4,6 +4,15 @@ import { supabase } from './client';
 type AutoDeleteTimeUnit = 'minutes' | 'hours' | 'days' | 'weeks';
 type AutoDeleteOption = 'off' | '5min' | '30min' | '1hour' | '1day' | '1week' | 'custom';
 
+/**
+ * Auto-delete implementation for messages
+ * 
+ * Key changes:
+ * - Messages are now deleted from both sides of the chat (for both participants)
+ * - Auto-delete takes into account both users' settings, using the shorter time if both have it enabled
+ * - If only one user has auto-delete enabled, their setting will apply to all messages in the thread
+ */
+
 interface AutoDeleteSettings {
   enabled: boolean;
   option: AutoDeleteOption;
@@ -85,52 +94,100 @@ export const getAutoDeleteSettings = (): AutoDeleteSettings => {
 
 /**
  * Checks for and deletes expired messages based on the auto-delete settings
+ * Modified to delete messages on both sides of the chat
  */
 export const checkAndDeleteExpiredMessages = async (userId: string): Promise<number> => {
   try {
+    // Get the current user's auto-delete settings
     const autoDeleteSettings = getAutoDeleteSettings();
     const autoDeleteMilliseconds = getAutoDeleteMilliseconds(autoDeleteSettings);
     
-    if (!autoDeleteMilliseconds) {
-      return 0; // Auto-delete is disabled
+    // If auto-delete is disabled for the current user, we can still 
+    // proceed to check threads where the other participant might have it enabled
+    
+    // First, get all threads the user is part of
+    const { data: userThreads, error: threadsError } = await supabase
+      .from('threads')
+      .select('id, participant_ids')
+      .contains('participant_ids', [userId]);
+    
+    if (threadsError) {
+      console.error('Error fetching user threads:', threadsError);
+      return 0; // No threads or error
     }
     
-    const now = new Date();
-    const expiryTime = new Date(now.getTime() - autoDeleteMilliseconds);
-    const expiryTimeISO = expiryTime.toISOString();
-    
-    // Query for messages that need to be deleted (older than the expiry time)
-    const { data: messagesToDelete, error: queryError } = await supabase
-      .from('messages')
-      .select('id')
-      .eq('sender_id', userId) // Only delete messages sent by the current user
-      .lt('created_at', expiryTimeISO);
-    
-    if (queryError) {
-      console.error('Error querying expired messages:', queryError);
-      return 0;
+    if (!userThreads || userThreads.length === 0) {
+      return 0; // No threads found
     }
     
-    if (!messagesToDelete || messagesToDelete.length === 0) {
-      return 0; // No messages to delete
+    let totalDeleted = 0;
+    
+    // For each thread, check both participants' settings
+    for (const thread of userThreads) {
+      // Find the other participant's ID
+      const otherParticipantId = thread.participant_ids.find((id: string) => id !== userId);
+      
+      if (!otherParticipantId) continue;
+      
+      // Get other user's settings
+      const otherUserSettings = await getOtherUserAutoDeleteSettings(otherParticipantId);
+      const otherUserMs = otherUserSettings ? getAutoDeleteMilliseconds(otherUserSettings) : null;
+      
+      // If neither user has auto-delete enabled, skip this thread
+      if (!autoDeleteMilliseconds && !otherUserMs) continue;
+      
+      // Determine the shortest expiry time (most aggressive deletion policy)
+      // If one user doesn't have auto-delete enabled, use the other user's setting
+      let effectiveMs: number;
+      
+      if (autoDeleteMilliseconds && otherUserMs) {
+        // Both users have auto-delete enabled, use the shorter timeframe
+        effectiveMs = Math.min(autoDeleteMilliseconds, otherUserMs);
+      } else {
+        // Only one user has auto-delete enabled, use that setting
+        effectiveMs = autoDeleteMilliseconds || otherUserMs || 0; // Default to 0 if somehow both are null (shouldn't happen)
+      }
+      
+      // Calculate expiry time
+      const now = new Date();
+      const expiryTime = new Date(now.getTime() - effectiveMs);
+      const expiryTimeISO = expiryTime.toISOString();
+      
+      // Query for messages in this thread that need to be deleted (older than the expiry time)
+      const { data: messagesToDelete, error: queryError } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('thread_id', thread.id)
+        .lt('created_at', expiryTimeISO);
+      
+      if (queryError) {
+        console.error('Error querying expired messages for thread:', thread.id, queryError);
+        continue;
+      }
+      
+      if (!messagesToDelete || messagesToDelete.length === 0) {
+        continue; // No messages to delete in this thread
+      }
+      
+      // Get the IDs of messages to delete
+      const messageIds = messagesToDelete.map(message => message.id);
+      
+      // Delete the expired messages
+      const { error: deleteError } = await supabase
+        .from('messages')
+        .delete()
+        .in('id', messageIds);
+      
+      if (deleteError) {
+        console.error('Error deleting expired messages:', deleteError);
+        continue;
+      }
+      
+      console.log(`Deleted ${messageIds.length} expired messages from thread ${thread.id}`);
+      totalDeleted += messageIds.length;
     }
     
-    // Get the IDs of messages to delete
-    const messageIds = messagesToDelete.map(message => message.id);
-    
-    // Delete the expired messages
-    const { error: deleteError } = await supabase
-      .from('messages')
-      .delete()
-      .in('id', messageIds);
-    
-    if (deleteError) {
-      console.error('Error deleting expired messages:', deleteError);
-      return 0;
-    }
-    
-    console.log(`Deleted ${messageIds.length} expired messages`);
-    return messageIds.length;
+    return totalDeleted;
   } catch (error) {
     console.error('Error in checkAndDeleteExpiredMessages:', error);
     return 0;
