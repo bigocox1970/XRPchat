@@ -1008,12 +1008,25 @@ export const Chat: React.FC = () => {
         console.error('Encryption error:', encryptError);
         throw new Error('Failed to encrypt message');
       }
-
-      // Send the message - make sure we don't trigger sound for our own messages
+      
+      // Send the message
       try {
         console.log('Sending message to Supabase...');
         await sendMessage(threadId, user.id, finalContent);
         console.log('Message sent successfully');
+        
+        // Immediately refresh messages to show the new message
+        setMessages([]);
+        getThreadMessages(threadId).then(messages => {
+          setMessages(messages.reverse()); // Reverse to show oldest first
+        });
+        
+        // Scroll to bottom after a short delay
+        setTimeout(() => {
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
       } catch (sendError) {
         console.error('Error sending message to database:', sendError);
         throw new Error('Network error while sending message');
