@@ -612,7 +612,7 @@ export const ChatList: React.FC = () => {
                   {filteredThreads.length > 0 && (
                     <button
                       onClick={selectAllThreads}
-                      className="flex items-center space-x-1 text-xs text-brand-primary hover:text-brand-secondary px-2 py-1 border border-transparent rounded-md"
+                      className="flex items-center space-x-1 text-xs text-brand-primary hover:text-brand-secondary natural-light:text-natural-primary natural-dark:text-natural-dark-primary natural-light:hover:text-natural-secondary natural-dark:hover:text-natural-dark-secondary px-2 py-1 border border-transparent rounded-md"
                     >
                       <HiSelector size={14} />
                       <span>{selectedThreads.length === filteredThreads.length ? 'Deselect All' : 'Select All'}</span>
@@ -639,7 +639,7 @@ export const ChatList: React.FC = () => {
               ) : (
                 <button
                   onClick={toggleSelectionMode}
-                  className="flex items-center space-x-1 text-xs text-brand-primary hover:text-brand-secondary px-2 py-1 border border-brand-primary/20 rounded-md"
+                  className="flex items-center space-x-1 text-xs text-brand-primary hover:text-brand-secondary natural-light:text-natural-primary natural-dark:text-natural-dark-primary natural-light:hover:text-natural-secondary natural-dark:hover:text-natural-dark-secondary px-2 py-1 border border-brand-primary/20 natural-light:border-natural-primary/20 natural-dark:border-natural-dark-primary/30 rounded-md"
                 >
                   <HiPencil size={14} />
                   <span>Edit</span>

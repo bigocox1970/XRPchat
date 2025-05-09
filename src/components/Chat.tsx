@@ -15,7 +15,6 @@ import {
   getAutoDeleteMilliseconds,
   getOtherUserAutoDeleteSettings
 } from '../utils/supabase/autoDelete';
-import { useNotification as useNotificationContext } from '../context/NotificationContext';
 import { IoMdSend, IoMdRefresh } from 'react-icons/io';
 import { BsTrash } from 'react-icons/bs';
 import { IoLockClosed, IoLockOpen, IoShieldCheckmark } from 'react-icons/io5';
@@ -164,14 +163,16 @@ export const Chat: React.FC = () => {
   const { 
     notificationsEnabled, 
     requestNotificationPermission, 
-    unlockAudio 
+    unlockAudio,
+    showNotification,
+    incrementUnread,
+    clearUnread
   } = useNotification();
   const { encryptForRecipient, decryptMessage } = useEncryption();
   const { debugMode } = useDebugMode();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [threadDetails, setThreadDetails] = useState<ThreadDetails | null>(null);
   const [participants, setParticipants] = useState<ThreadParticipants>({});
-  const { notificationsEnabled: notificationsEnabledContext, showNotification, incrementUnread, clearUnread } = useNotificationContext();
   const { showEncrypted } = useEncryptionMode();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -950,6 +951,15 @@ export const Chat: React.FC = () => {
       setError(null);
       console.log('Starting message send process...');
 
+      // Unlock audio using this user interaction
+      try {
+        await unlockAudio();
+        console.log('Audio unlocked during message send');
+      } catch (audioError) {
+        console.error('Non-critical error unlocking audio:', audioError);
+        // Continue with sending even if audio unlock fails
+      }
+
       // Check if Notification API is available before trying to use it
       if (typeof Notification !== 'undefined') {
         // Try to request notification permission during user interaction
@@ -1358,14 +1368,14 @@ export const Chat: React.FC = () => {
         )}
 
         {autoDeleteInfo && (
-          <div className="mb-3 text-xs rounded-md overflow-hidden border dark:border-gray-700">
+          <div className="mb-3 text-xs rounded-md overflow-hidden border dark:border-gray-700 natural-light:border-[#A67C52] natural-dark:border-[#8B5A2B]">
             <div className={`py-2 px-3 flex items-center justify-between ${
               autoDeleteInfo.userInfo.enabled 
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-white natural-light:bg-natural-button-active-bg natural-dark:bg-natural-button-active-bg-dark natural-light:text-natural-button-active-text natural-dark:text-natural-dark-text' 
-                : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-white'
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-white natural-light:!bg-[#A67C52]/50 natural-dark:!bg-[#A67C52] natural-light:!text-[#4A3C31] natural-dark:!text-[#F5EEE0]' 
+                : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-white natural-light:bg-red-100 natural-dark:bg-red-900/30 natural-light:text-red-800 natural-dark:text-white'
             }`}>
               <div className="flex items-center">
-                <HiClock className={`mr-1 ${autoDeleteInfo.userInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-natural-primary natural-dark:text-natural-dark-paper' : 'text-red-600 dark:text-white'}`} size={14} />
+                <HiClock className={`mr-1 ${autoDeleteInfo.userInfo.enabled ? 'text-green-600 dark:text-white natural-light:!text-[#4A3C31] natural-dark:!text-[#F5EEE0]' : 'text-red-600 dark:text-white natural-light:text-red-600 natural-dark:text-white'}`} size={14} />
                 <span className="font-medium">
                   {autoDeleteInfo.userInfo.enabled 
                     ? `Your messages will auto-delete after ${autoDeleteInfo.userInfo.timeDisplay}` 
@@ -1375,7 +1385,7 @@ export const Chat: React.FC = () => {
               <div className="ml-2">
                 <button 
                   onClick={() => navigate('/app/settings')}
-                  className={`text-xs underline ${autoDeleteInfo.userInfo.enabled ? 'text-green-700 dark:text-white natural-light:text-natural-primary natural-dark:text-natural-dark-text hover:text-green-800 natural-light:hover:text-natural-secondary natural-dark:hover:text-natural-dark-secondary' : 'text-red-700 dark:text-white hover:text-red-800 dark:hover:text-gray-200'}`}
+                  className={`text-xs underline ${autoDeleteInfo.userInfo.enabled ? 'text-green-700 dark:text-white natural-light:!text-[#4A3C31] natural-dark:!text-[#F5EEE0] hover:text-green-800 natural-light:hover:!text-black natural-dark:hover:!text-white' : 'text-red-700 dark:text-white hover:text-red-800 dark:hover:text-gray-200 natural-light:text-red-700 natural-dark:text-white natural-light:hover:text-red-800 natural-dark:hover:text-gray-200'}`}
                   title="Change auto-delete settings"
                 >
                   Change
@@ -1384,12 +1394,12 @@ export const Chat: React.FC = () => {
             </div>
             
             {autoDeleteInfo.otherUserInfo !== null ? (
-              <div className={`py-2 px-3 flex items-center border-t dark:border-gray-700 ${
+              <div className={`py-2 px-3 flex items-center border-t dark:border-gray-700 natural-light:border-[#A67C52] natural-dark:border-[#8B5A2B] ${
                 autoDeleteInfo.otherUserInfo.enabled 
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-white natural-light:bg-natural-button-active-bg/50 natural-dark:bg-natural-button-active-bg-dark/50 natural-light:text-natural-button-active-text natural-dark:text-natural-dark-text' 
-                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-white'
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-white natural-light:!bg-[#A67C52]/30 natural-dark:!bg-[#A67C52]/80 natural-light:!text-[#4A3C31] natural-dark:!text-[#F5EEE0]' 
+                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-white natural-light:bg-red-50 natural-dark:bg-red-900/20 natural-light:text-red-700 natural-dark:text-white'
               }`}>
-                <HiClock className={`mr-1 ${autoDeleteInfo.otherUserInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-natural-primary natural-dark:text-natural-dark-paper' : 'text-red-600 dark:text-white'}`} size={14} />
+                <HiClock className={`mr-1 ${autoDeleteInfo.otherUserInfo.enabled ? 'text-green-600 dark:text-white natural-light:!text-[#4A3C31] natural-dark:!text-[#F5EEE0]' : 'text-red-600 dark:text-white natural-light:text-red-600 natural-dark:text-white'}`} size={14} />
                 <span>
                   {(() => {
                     const otherParticipantId = threadDetails?.participant_ids?.find(id => id !== user?.id) || '';
@@ -1402,8 +1412,8 @@ export const Chat: React.FC = () => {
                 </span>
               </div>
             ) : (
-              <div className="py-2 px-3 flex items-center border-t dark:border-gray-700 bg-gray-100 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300">
-                <HiClock className="mr-1 text-gray-500 dark:text-gray-400" size={14} />
+              <div className="py-2 px-3 flex items-center border-t dark:border-gray-700 natural-light:border-[#A67C52] natural-dark:border-[#8B5A2B] bg-gray-100 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300 natural-light:!bg-gray-100 natural-dark:!bg-gray-800/80 natural-light:!text-gray-700 natural-dark:!text-gray-300">
+                <HiClock className="mr-1 text-gray-500 dark:text-gray-400 natural-light:!text-gray-500 natural-dark:!text-gray-400" size={14} />
                 <span>
                   {(() => {
                     const otherParticipantId = threadDetails?.participant_ids?.find(id => id !== user?.id) || '';

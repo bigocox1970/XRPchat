@@ -126,25 +126,6 @@ export const Layout: React.FC = () => {
         </div>
       </div>
       
-      {/* Notification Sound Status and Unlock Button - shown when sound is not unlocked */}
-      {!soundUnlocked && (
-        <div className="fixed top-20 right-4 z-50 bg-yellow-50 dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-yellow-200 dark:border-gray-700 max-w-sm">
-          <div className="flex items-center space-x-2">
-            <HiVolumeUp className="text-yellow-500 dark:text-yellow-400" size={20} />
-            <div className="flex-1 text-sm text-gray-700 dark:text-gray-300">
-              Notification sounds require user interaction. Click the button to enable sounds.
-            </div>
-            <button
-              onClick={handleUnlockAudio}
-              disabled={unlockingAudio}
-              className="px-3 py-1 bg-brand-primary text-white rounded-md text-sm font-medium hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary transition-colors disabled:opacity-50"
-            >
-              {unlockingAudio ? 'Enabling...' : 'Enable Sounds'}
-            </button>
-          </div>
-        </div>
-      )}
-      
       {/* Mobile Header Controls - Add refresh button next to hamburger menu */}
       <div className="lg:hidden fixed top-4 right-4 z-50 flex items-center space-x-2">
         {/* Refresh Button */}
