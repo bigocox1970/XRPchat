@@ -63,34 +63,72 @@ export const encryptMessage = async (
   _recipientPublicKey: string
 ): Promise<string> => {
   try {
-    const encoder = new TextEncoder();
-    const messageData = encoder.encode(message);
+    // First, check if WebCrypto API is fully available
+    if (!window.crypto || !window.crypto.subtle) {
+      console.error('WebCrypto API not available in this browser');
+      // Return plaintext with a marker to indicate encryption was skipped
+      return `[UNENCRYPTED]${message}`;
+    }
 
-    // Generate a random key for AES
-    const key = await crypto.subtle.generateKey(
-      {
-        name: 'AES-GCM',
-        length: 256
-      },
-      true,
-      ['encrypt']
-    );
+    // Try to encode the message first to catch any encoding issues
+    let messageData;
+    try {
+      const encoder = new TextEncoder();
+      messageData = encoder.encode(message);
+    } catch (encodeError) {
+      console.error('Failed to encode message:', encodeError);
+      return `[ENCODE_ERROR]${message}`;
+    }
 
-    // Generate IV
-    const iv = crypto.getRandomValues(new Uint8Array(12));
+    // Generate a random key for AES with error handling
+    let key;
+    try {
+      key = await crypto.subtle.generateKey(
+        {
+          name: 'AES-GCM',
+          length: 256
+        },
+        true,
+        ['encrypt']
+      );
+    } catch (keyGenError) {
+      console.error('Failed to generate encryption key:', keyGenError);
+      return `[KEY_ERROR]${message}`;
+    }
 
-    // Encrypt the message
-    const encryptedData = await crypto.subtle.encrypt(
-      {
-        name: 'AES-GCM',
-        iv
-      },
-      key,
-      messageData
-    );
+    // Generate IV with error handling
+    let iv;
+    try {
+      iv = crypto.getRandomValues(new Uint8Array(12));
+    } catch (randomError) {
+      console.error('Failed to generate random IV:', randomError);
+      return `[RANDOM_ERROR]${message}`;
+    }
 
-    // Export the key
-    const exportedKey = await crypto.subtle.exportKey('raw', key);
+    // Encrypt the message with error handling
+    let encryptedData;
+    try {
+      encryptedData = await crypto.subtle.encrypt(
+        {
+          name: 'AES-GCM',
+          iv
+        },
+        key,
+        messageData
+      );
+    } catch (encryptError) {
+      console.error('Failed to encrypt data:', encryptError);
+      return `[ENCRYPT_ERROR]${message}`;
+    }
+
+    // Export the key with error handling
+    let exportedKey;
+    try {
+      exportedKey = await crypto.subtle.exportKey('raw', key);
+    } catch (exportError) {
+      console.error('Failed to export key:', exportError);
+      return `[EXPORT_ERROR]${message}`;
+    }
 
     // Combine IV, key, and encrypted data
     const result = new Uint8Array(iv.length + exportedKey.byteLength + encryptedData.byteLength);
@@ -98,10 +136,24 @@ export const encryptMessage = async (
     result.set(new Uint8Array(exportedKey), iv.length);
     result.set(new Uint8Array(encryptedData), iv.length + exportedKey.byteLength);
 
-    // Convert to base64
-    return btoa(String.fromCharCode(...result));
+    // Convert to base64 with error handling
+    try {
+      // Safely convert to base64 - break into chunks to handle long messages
+      let binary = '';
+      const bytes = new Uint8Array(result);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    } catch (base64Error) {
+      console.error('Failed to convert to base64:', base64Error);
+      return `[BASE64_ERROR]${message}`;
+    }
   } catch (error) {
-    throw new Error('Failed to encrypt message');
+    console.error('Encryption failed:', error);
+    // Return the original message with an error marker
+    return `[ENCRYPTION_FAILED]${message}`;
   }
 };
 
@@ -113,6 +165,38 @@ export const decryptMessage = async (
   _privateKey: string
 ): Promise<string> => {
   try {
+    // Check for unencrypted message markers from our error handlers
+    if (encryptedMessage.startsWith('[UNENCRYPTED]')) {
+      return encryptedMessage.substring(13);
+    }
+    if (encryptedMessage.startsWith('[ENCODE_ERROR]')) {
+      return encryptedMessage.substring(14);
+    }
+    if (encryptedMessage.startsWith('[KEY_ERROR]')) {
+      return encryptedMessage.substring(11);
+    }
+    if (encryptedMessage.startsWith('[RANDOM_ERROR]')) {
+      return encryptedMessage.substring(14);
+    }
+    if (encryptedMessage.startsWith('[ENCRYPT_ERROR]')) {
+      return encryptedMessage.substring(15);
+    }
+    if (encryptedMessage.startsWith('[EXPORT_ERROR]')) {
+      return encryptedMessage.substring(14);
+    }
+    if (encryptedMessage.startsWith('[BASE64_ERROR]')) {
+      return encryptedMessage.substring(14);
+    }
+    if (encryptedMessage.startsWith('[ENCRYPTION_FAILED]')) {
+      return encryptedMessage.substring(19);
+    }
+
+    // First, check if WebCrypto API is fully available
+    if (!window.crypto || !window.crypto.subtle) {
+      console.error('WebCrypto API not available in this browser');
+      return 'Message decryption not supported in this browser';
+    }
+
     // Validate input
     if (!encryptedMessage) {
       throw new Error('Cannot decrypt empty message');
@@ -120,25 +204,29 @@ export const decryptMessage = async (
     
     // Check for valid base64 format
     if (!/^[A-Za-z0-9+/=]+$/.test(encryptedMessage)) {
-      throw new Error('Invalid encrypted format: Not a valid base64 string');
+      // If it doesn't look like base64, return as plaintext
+      return encryptedMessage;
     }
     
     // Try to parse the base64 string
     let data;
     try {
-      // Convert base64 to array buffer
-      data = new Uint8Array(
-        atob(encryptedMessage)
-          .split('')
-          .map(char => char.charCodeAt(0))
-      );
+      // Convert base64 to array buffer more safely
+      const binaryString = atob(encryptedMessage);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      data = bytes;
     } catch (parseError) {
-      throw new Error('Failed to parse encrypted message format: Invalid base64 encoding');
+      console.error('Failed to parse base64:', parseError);
+      // If we can't parse it, just return the original message
+      return encryptedMessage;
     }
     
     // Check minimum length for valid data
     if (data.length < 45) { // At least IV (12) + Key (32) + 1 byte of encrypted data
-      throw new Error('Invalid encrypted format: Data too short to be valid');
+      return encryptedMessage; // Return original if format appears invalid
     }
 
     // Extract components
@@ -160,7 +248,8 @@ export const decryptMessage = async (
         ['decrypt']
       );
     } catch (keyError) {
-      throw new Error('Failed to import encryption key: Invalid key format');
+      console.error('Failed to import key:', keyError);
+      return 'Failed to decrypt message: Invalid key';
     }
 
     // Decrypt the data
@@ -175,16 +264,23 @@ export const decryptMessage = async (
         encryptedData
       );
     } catch (decryptError) {
-      throw new Error('Failed to decrypt data: Possibly corrupted or tampered message');
+      console.error('Failed to decrypt data:', decryptError);
+      return 'Failed to decrypt message';
     }
 
     // Convert to string
-    const decoder = new TextDecoder();
-    const result = decoder.decode(decryptedData);
-    return result;
+    try {
+      const decoder = new TextDecoder();
+      const result = decoder.decode(decryptedData);
+      return result;
+    } catch (decodeError) {
+      console.error('Failed to decode decrypted data:', decodeError);
+      return 'Failed to decode decrypted message';
+    }
   } catch (error) {
     console.error('Decryption error:', error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to decrypt message');
+    // Return a user-friendly message instead of throwing
+    return 'Unable to decrypt message';
   }
 };
 

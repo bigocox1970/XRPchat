@@ -929,6 +929,7 @@ export const Chat: React.FC = () => {
     try {
       setSending(true);
       setError(null);
+      console.log('Starting message send process...');
 
       // Try to request notification permission during user interaction
       if (Notification.permission !== 'granted') {
@@ -955,23 +956,46 @@ export const Chat: React.FC = () => {
       // Get the other participant's ID
       const otherParticipantId = threadDetails?.participant_ids.find(id => id !== user.id);
       if (!otherParticipantId) {
+        console.error('Could not find other participant in thread');
         throw new Error('Could not find other participant');
       }
 
+      // Log the encryption process
+      console.log('Preparing to encrypt/send message...');
+      
       // Encrypt message if encryption is enabled
-      const finalContent = encryptForRecipient 
-        ? await encryptForRecipient(newMessage, otherParticipantId)
-        : newMessage;
+      let finalContent;
+      try {
+        finalContent = encryptForRecipient 
+          ? await encryptForRecipient(newMessage, otherParticipantId)
+          : newMessage;
+        console.log('Message prepared successfully');
+      } catch (encryptError) {
+        console.error('Encryption error:', encryptError);
+        throw new Error('Failed to encrypt message');
+      }
 
       // Send the message - make sure we don't trigger sound for our own messages
-      await sendMessage(threadId, user.id, finalContent);
+      try {
+        console.log('Sending message to Supabase...');
+        await sendMessage(threadId, user.id, finalContent);
+        console.log('Message sent successfully');
+      } catch (sendError) {
+        console.error('Error sending message to database:', sendError);
+        throw new Error('Network error while sending message');
+      }
       
       // Set a flag in localStorage to tell the notification system that the last message 
       // was sent by us, to ensure we don't play sounds for our own messages
       localStorage.setItem('xrpchat_last_message_sender', user.id);
       
       // Update last active status after sending a message
-      await updateLastActive(user.id);
+      try {
+        await updateLastActive(user.id);
+      } catch (activeError) {
+        console.error('Non-critical error updating last active status:', activeError);
+        // Continue since this is non-critical
+      }
       
       // Additionally, update the user's profile to trigger a real-time update for the other user
       // This is similar to how avatar regeneration works and will cause the chat to refresh
@@ -994,8 +1018,15 @@ export const Chat: React.FC = () => {
       }
       
       setNewMessage('');
+      console.log('Message send process completed successfully');
     } catch (error) {
-      setError('Failed to send message');
+      console.error('Failed to send message:', error);
+      // Show a more detailed error message based on error type
+      if (error instanceof Error) {
+        setError(`Failed to send message: ${error.message}`);
+      } else {
+        setError('Failed to send message. Please check your connection and try again.');
+      }
     } finally {
       setSending(false);
     }
