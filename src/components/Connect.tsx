@@ -547,7 +547,7 @@ export const Connect: React.FC = () => {
               )}
               
               {successMessage && (
-                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 natural-dark:bg-green-100/20 text-green-700 dark:text-green-400 natural-dark:text-green-700 rounded-md">
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 natural-light:bg-natural-button-active-bg/30 natural-dark:bg-natural-button-active-bg-dark/30 text-green-700 dark:text-green-400 natural-light:text-natural-primary natural-dark:text-natural-dark-text rounded-md">
                   {successMessage}
                 </div>
               )}

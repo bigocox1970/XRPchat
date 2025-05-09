@@ -1361,11 +1361,11 @@ export const Chat: React.FC = () => {
           <div className="mb-3 text-xs rounded-md overflow-hidden border dark:border-gray-700">
             <div className={`py-2 px-3 flex items-center justify-between ${
               autoDeleteInfo.userInfo.enabled 
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-white natural-light:bg-[#F5EEE0] natural-dark:bg-[#8B5A2B]/30 natural-light:text-[#8B5A2B]' 
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-white natural-light:bg-natural-button-active-bg natural-dark:bg-natural-button-active-bg-dark natural-light:text-natural-button-active-text natural-dark:text-natural-dark-text' 
                 : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-white'
             }`}>
               <div className="flex items-center">
-                <HiClock className={`mr-1 ${autoDeleteInfo.userInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-[#8B5A2B] natural-dark:text-white' : 'text-red-600 dark:text-white'}`} size={14} />
+                <HiClock className={`mr-1 ${autoDeleteInfo.userInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-natural-primary natural-dark:text-natural-dark-paper' : 'text-red-600 dark:text-white'}`} size={14} />
                 <span className="font-medium">
                   {autoDeleteInfo.userInfo.enabled 
                     ? `Your messages will auto-delete after ${autoDeleteInfo.userInfo.timeDisplay}` 
@@ -1375,7 +1375,7 @@ export const Chat: React.FC = () => {
               <div className="ml-2">
                 <button 
                   onClick={() => navigate('/app/settings')}
-                  className={`text-xs underline ${autoDeleteInfo.userInfo.enabled ? 'text-green-700 dark:text-white natural-light:text-[#8B5A2B] hover:text-green-800 natural-light:hover:text-[#A67C52] dark:hover:text-gray-200' : 'text-red-700 dark:text-white hover:text-red-800 dark:hover:text-gray-200'}`}
+                  className={`text-xs underline ${autoDeleteInfo.userInfo.enabled ? 'text-green-700 dark:text-white natural-light:text-natural-primary natural-dark:text-natural-dark-text hover:text-green-800 natural-light:hover:text-natural-secondary natural-dark:hover:text-natural-dark-secondary' : 'text-red-700 dark:text-white hover:text-red-800 dark:hover:text-gray-200'}`}
                   title="Change auto-delete settings"
                 >
                   Change
@@ -1386,10 +1386,10 @@ export const Chat: React.FC = () => {
             {autoDeleteInfo.otherUserInfo !== null ? (
               <div className={`py-2 px-3 flex items-center border-t dark:border-gray-700 ${
                 autoDeleteInfo.otherUserInfo.enabled 
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-white natural-light:bg-[#E5DBCC] natural-dark:bg-[#8B5A2B]/20 natural-light:text-[#8B5A2B]' 
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-white natural-light:bg-natural-button-active-bg/50 natural-dark:bg-natural-button-active-bg-dark/50 natural-light:text-natural-button-active-text natural-dark:text-natural-dark-text' 
                   : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-white'
               }`}>
-                <HiClock className={`mr-1 ${autoDeleteInfo.otherUserInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-[#8B5A2B] natural-dark:text-white' : 'text-red-600 dark:text-white'}`} size={14} />
+                <HiClock className={`mr-1 ${autoDeleteInfo.otherUserInfo.enabled ? 'text-green-600 dark:text-white natural-light:text-natural-primary natural-dark:text-natural-dark-paper' : 'text-red-600 dark:text-white'}`} size={14} />
                 <span>
                   {(() => {
                     const otherParticipantId = threadDetails?.participant_ids?.find(id => id !== user?.id) || '';
