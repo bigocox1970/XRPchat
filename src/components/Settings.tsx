@@ -645,12 +645,12 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-live-typing"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            liveTypingEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            liveTypingEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         >
                           <span
                             className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              liveTypingEnabled ? 'translate-x-4' : 'translate-x-0'
+                              liveTypingEnabled ? "translate-x-4" : "translate-x-0"
                             }`}
                           ></span>
                         </label>
