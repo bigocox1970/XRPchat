@@ -63,26 +63,10 @@ export const Settings: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Feature toggles with default ON
-  const [imageFilesEnabled, setImageFilesEnabled] = useState(() => {
-    const val = localStorage.getItem('xrpchat_feature_image_files');
+  const [mediaFilesEnabled, setMediaFilesEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_media_files');
     if (val === null) {
-      localStorage.setItem('xrpchat_feature_image_files', 'true');
-      return true;
-    }
-    return val === 'true';
-  });
-  const [videoFilesEnabled, setVideoFilesEnabled] = useState(() => {
-    const val = localStorage.getItem('xrpchat_feature_video_files');
-    if (val === null) {
-      localStorage.setItem('xrpchat_feature_video_files', 'true');
-      return true;
-    }
-    return val === 'true';
-  });
-  const [audioFilesEnabled, setAudioFilesEnabled] = useState(() => {
-    const val = localStorage.getItem('xrpchat_feature_audio_files');
-    if (val === null) {
-      localStorage.setItem('xrpchat_feature_audio_files', 'true');
+      localStorage.setItem('xrpchat_feature_media_files', 'true');
       return true;
     }
     return val === 'true';
@@ -630,7 +614,7 @@ export const Settings: React.FC = () => {
                           Show what the other user is typing in real time (instead of just 'is typing...')
                         </p>
                       </div>
-                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                      <div className="relative inline-block w-10 min-w-[40px] mr-2 align-middle select-none">
                         <input
                           type="checkbox"
                           id="toggle-live-typing"
@@ -644,7 +628,7 @@ export const Settings: React.FC = () => {
                         />
                         <label
                           htmlFor="toggle-live-typing"
-                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                          className={`block overflow-hidden h-6 w-10 rounded-full cursor-pointer ${
                             liveTypingEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         >
@@ -656,103 +640,35 @@ export const Settings: React.FC = () => {
                         </label>
                       </div>
                     </div>
-                    {/* Allow Image Files */}
+                    {/* Allow Media Files */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Image Files</h4>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Media Files</h4>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Enable sending and receiving image files in chat
+                          Enable sending and receiving image, video, and audio files in chat
                         </p>
                       </div>
-                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                      <div className="relative inline-block w-10 min-w-[40px] mr-2 align-middle select-none">
                         <input
                           type="checkbox"
-                          id="toggle-image-files"
-                          checked={imageFilesEnabled}
+                          id="toggle-media-files"
+                          checked={mediaFilesEnabled}
                           onChange={e => {
-                            setImageFilesEnabled(e.target.checked);
-                            localStorage.setItem('xrpchat_feature_image_files', e.target.checked ? 'true' : 'false');
+                            setMediaFilesEnabled(e.target.checked);
+                            localStorage.setItem('xrpchat_feature_media_files', e.target.checked ? 'true' : 'false');
                             window.dispatchEvent(new Event('storage'));
                           }}
                           className="sr-only"
                         />
                         <label
-                          htmlFor="toggle-image-files"
-                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            imageFilesEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                          htmlFor="toggle-media-files"
+                          className={`block overflow-hidden h-6 w-10 rounded-full cursor-pointer ${
+                            mediaFilesEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         >
                           <span
                             className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              imageFilesEnabled ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          ></span>
-                        </label>
-                      </div>
-                    </div>
-                    {/* Allow Video Files */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Video Files</h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Enable sending and receiving video files in chat
-                        </p>
-                      </div>
-                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                        <input
-                          type="checkbox"
-                          id="toggle-video-files"
-                          checked={videoFilesEnabled}
-                          onChange={e => {
-                            setVideoFilesEnabled(e.target.checked);
-                            localStorage.setItem('xrpchat_feature_video_files', e.target.checked ? 'true' : 'false');
-                            window.dispatchEvent(new Event('storage'));
-                          }}
-                          className="sr-only"
-                        />
-                        <label
-                          htmlFor="toggle-video-files"
-                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            videoFilesEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
-                          }`}
-                        >
-                          <span
-                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              videoFilesEnabled ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          ></span>
-                        </label>
-                      </div>
-                    </div>
-                    {/* Allow Audio Files */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Audio Files</h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Enable sending and receiving audio files in chat
-                        </p>
-                      </div>
-                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                        <input
-                          type="checkbox"
-                          id="toggle-audio-files"
-                          checked={audioFilesEnabled}
-                          onChange={e => {
-                            setAudioFilesEnabled(e.target.checked);
-                            localStorage.setItem('xrpchat_feature_audio_files', e.target.checked ? 'true' : 'false');
-                            window.dispatchEvent(new Event('storage'));
-                          }}
-                          className="sr-only"
-                        />
-                        <label
-                          htmlFor="toggle-audio-files"
-                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            audioFilesEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
-                          }`}
-                        >
-                          <span
-                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              audioFilesEnabled ? 'translate-x-4' : 'translate-x-0'
+                              mediaFilesEnabled ? "translate-x-4" : "translate-x-0"
                             }`}
                           ></span>
                         </label>
