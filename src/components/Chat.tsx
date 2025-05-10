@@ -187,6 +187,12 @@ export const Chat: React.FC = () => {
   const [isPrivateKeyDeleted, setIsPrivateKeyDeleted] = useState(
     localStorage.getItem('xrpchat_private_key_available') === 'false'
   );
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [liveTypingEnabled, setLiveTypingEnabled] = useState(
+    localStorage.getItem('xrpchat_feature_live_typing') === 'true'
+  );
+  const [otherUserTypingText, setOtherUserTypingText] = useState('');
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -1176,6 +1182,40 @@ export const Chat: React.FC = () => {
     };
   }, [handleRefreshMessages]);
 
+  useEffect(() => {
+    if (!threadId || !user) return;
+
+    const channel = supabase
+      .channel(`typing-${threadId}`)
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        // Only show if it's from the other user
+        if (payload.payload.userId !== user.id) {
+          setOtherUserTyping(true);
+          setOtherUserTypingText(payload.payload.text || '');
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => {
+            setOtherUserTyping(false);
+            setOtherUserTypingText('');
+          }, 2000);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [threadId, user]);
+
+  // Listen for changes to the toggle (e.g., if user changes it in another tab)
+  useEffect(() => {
+    const handleStorage = () => {
+      setLiveTypingEnabled(localStorage.getItem('xrpchat_feature_live_typing') === 'true');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   if (loading || !threadDetails) {
     return (
       <div className="h-full flex items-center justify-center bg-[#efeae2]">
@@ -1278,7 +1318,7 @@ export const Chat: React.FC = () => {
 
       {/* Main chat content */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col h-full space-y-4 max-w-3xl mx-auto">
+      <div className="flex flex-col h-full space-y-4 w-full">
           {/* Push content to bottom when few messages */}
           <div className="flex-1 mt-auto">
             {/* Debug Logs */}
@@ -1367,6 +1407,28 @@ export const Chat: React.FC = () => {
                 </div>
               );
             })}
+            {otherUserTyping && (
+              <div className="flex items-end justify-start mb-4">
+                <DiceBearAvatar
+                  url={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_url}
+                  size={32}
+                  className="flex-shrink-0 mr-2"
+                  userId={threadDetails?.participant_ids.find(id => id !== user?.id) || ''}
+                  seed={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || undefined}
+                />
+                <div className="max-w-[75%]">
+                  <div className="px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none flex items-center">
+                    <span className="italic text-gray-500">
+                      {participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.username || "User"} is typing...
+                    </span>
+                    {liveTypingEnabled && otherUserTypingText && (
+                      <span className="ml-2 text-gray-700 dark:text-gray-200">{otherUserTypingText}</span>
+                    )}
+                    <span className="ml-2 animate-bounce text-lg text-gray-400">...</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} className="h-6 mb-4" />
           </div>
         </div>
@@ -1445,7 +1507,14 @@ export const Chat: React.FC = () => {
             ref={inputRef}
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              supabase.channel(`typing-${threadId}`).send({
+                type: 'broadcast',
+                event: 'typing',
+                payload: { userId: user.id, text: e.target.value }
+              });
+            }}
             placeholder="Type a message..."
             className="flex-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-full px-4 py-2 focus:ring-brand-primary focus:border-brand-primary dark:focus:ring-blue-500 dark:focus:border-blue-500 natural-light:focus:ring-natural-primary natural-light:focus:border-natural-primary natural-dark:focus:ring-natural-dark-primary natural-dark:focus:border-natural-dark-primary"
             disabled={sending}

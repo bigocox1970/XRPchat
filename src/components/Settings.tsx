@@ -581,6 +581,148 @@ export const Settings: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Features Card */}
+              <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6 mt-8">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">Features</h3>
+                  <div className="space-y-6">
+                    {/* Live Typing Feed */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Live Typing Feed</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Show what the other user is typing in real time (instead of just 'is typing...')
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-live-typing"
+                          checked={localStorage.getItem('xrpchat_feature_live_typing') === 'true'}
+                          onChange={e => {
+                            localStorage.setItem('xrpchat_feature_live_typing', e.target.checked ? 'true' : 'false');
+                            // Force re-render
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-live-typing"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            localStorage.getItem('xrpchat_feature_live_typing') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              localStorage.getItem('xrpchat_feature_live_typing') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
+                    {/* Allow Image Files */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Image Files</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Enable sending and receiving image files in chat
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-image-files"
+                          checked={localStorage.getItem('xrpchat_feature_image_files') === 'true'}
+                          onChange={e => {
+                            localStorage.setItem('xrpchat_feature_image_files', e.target.checked ? 'true' : 'false');
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-image-files"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            localStorage.getItem('xrpchat_feature_image_files') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              localStorage.getItem('xrpchat_feature_image_files') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
+                    {/* Allow Video Files */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Video Files</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Enable sending and receiving video files in chat
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-video-files"
+                          checked={localStorage.getItem('xrpchat_feature_video_files') === 'true'}
+                          onChange={e => {
+                            localStorage.setItem('xrpchat_feature_video_files', e.target.checked ? 'true' : 'false');
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-video-files"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            localStorage.getItem('xrpchat_feature_video_files') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              localStorage.getItem('xrpchat_feature_video_files') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
+                    {/* Allow Audio Files */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Audio Files</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Enable sending and receiving audio files in chat
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-audio-files"
+                          checked={localStorage.getItem('xrpchat_feature_audio_files') === 'true'}
+                          onChange={e => {
+                            localStorage.setItem('xrpchat_feature_audio_files', e.target.checked ? 'true' : 'false');
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-audio-files"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            localStorage.getItem('xrpchat_feature_audio_files') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              localStorage.getItem('xrpchat_feature_audio_files') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

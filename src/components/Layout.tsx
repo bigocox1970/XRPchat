@@ -35,6 +35,7 @@ export const Layout: React.FC = () => {
   // Add state to track refresh failures
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [refreshAttempts, setRefreshAttempts] = useState(0);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
 
   // Request notification permission on component mount if not already granted
   useEffect(() => {
