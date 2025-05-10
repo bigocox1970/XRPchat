@@ -679,7 +679,7 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-image-files"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            imageFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            imageFilesEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         >
                           <span
@@ -713,7 +713,7 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-video-files"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            videoFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            videoFilesEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         >
                           <span
@@ -747,7 +747,7 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-audio-files"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            audioFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            audioFilesEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
                           }`}
                         >
                           <span
