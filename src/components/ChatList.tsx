@@ -570,6 +570,23 @@ export const ChatList: React.FC = () => {
     }
   };
 
+  // Add focus/visibility refresh for chat list
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      loadThreadsWithParticipants();
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshOnFocus();
+      }
+    });
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
+  }, [loadThreadsWithParticipants]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
