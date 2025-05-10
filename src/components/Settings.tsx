@@ -62,6 +62,32 @@ export const Settings: React.FC = () => {
   // Add state to track refreshing
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Feature toggles with default ON
+  const [imageFilesEnabled, setImageFilesEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_image_files');
+    if (val === null) {
+      localStorage.setItem('xrpchat_feature_image_files', 'true');
+      return true;
+    }
+    return val === 'true';
+  });
+  const [videoFilesEnabled, setVideoFilesEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_video_files');
+    if (val === null) {
+      localStorage.setItem('xrpchat_feature_video_files', 'true');
+      return true;
+    }
+    return val === 'true';
+  });
+  const [audioFilesEnabled, setAudioFilesEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_audio_files');
+    if (val === null) {
+      localStorage.setItem('xrpchat_feature_audio_files', 'true');
+      return true;
+    }
+    return val === 'true';
+  });
+
   // Load auto-delete settings from localStorage on mount
   useEffect(() => {
     loadSettingsFromLocalStorage();
@@ -633,8 +659,9 @@ export const Settings: React.FC = () => {
                         <input
                           type="checkbox"
                           id="toggle-image-files"
-                          checked={localStorage.getItem('xrpchat_feature_image_files') === 'true'}
+                          checked={imageFilesEnabled}
                           onChange={e => {
+                            setImageFilesEnabled(e.target.checked);
                             localStorage.setItem('xrpchat_feature_image_files', e.target.checked ? 'true' : 'false');
                             window.dispatchEvent(new Event('storage'));
                           }}
@@ -643,12 +670,12 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-image-files"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            localStorage.getItem('xrpchat_feature_image_files') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            imageFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                           }`}
                         >
                           <span
                             className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              localStorage.getItem('xrpchat_feature_image_files') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                              imageFilesEnabled ? 'translate-x-4' : 'translate-x-0'
                             }`}
                           ></span>
                         </label>
@@ -666,8 +693,9 @@ export const Settings: React.FC = () => {
                         <input
                           type="checkbox"
                           id="toggle-video-files"
-                          checked={localStorage.getItem('xrpchat_feature_video_files') === 'true'}
+                          checked={videoFilesEnabled}
                           onChange={e => {
+                            setVideoFilesEnabled(e.target.checked);
                             localStorage.setItem('xrpchat_feature_video_files', e.target.checked ? 'true' : 'false');
                             window.dispatchEvent(new Event('storage'));
                           }}
@@ -676,12 +704,12 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-video-files"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            localStorage.getItem('xrpchat_feature_video_files') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            videoFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                           }`}
                         >
                           <span
                             className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              localStorage.getItem('xrpchat_feature_video_files') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                              videoFilesEnabled ? 'translate-x-4' : 'translate-x-0'
                             }`}
                           ></span>
                         </label>
@@ -699,8 +727,9 @@ export const Settings: React.FC = () => {
                         <input
                           type="checkbox"
                           id="toggle-audio-files"
-                          checked={localStorage.getItem('xrpchat_feature_audio_files') === 'true'}
+                          checked={audioFilesEnabled}
                           onChange={e => {
+                            setAudioFilesEnabled(e.target.checked);
                             localStorage.setItem('xrpchat_feature_audio_files', e.target.checked ? 'true' : 'false');
                             window.dispatchEvent(new Event('storage'));
                           }}
@@ -709,12 +738,12 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-audio-files"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            localStorage.getItem('xrpchat_feature_audio_files') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            audioFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                           }`}
                         >
                           <span
                             className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              localStorage.getItem('xrpchat_feature_audio_files') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                              audioFilesEnabled ? 'translate-x-4' : 'translate-x-0'
                             }`}
                           ></span>
                         </label>

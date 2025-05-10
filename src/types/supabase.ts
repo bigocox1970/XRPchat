@@ -110,6 +110,7 @@ export interface Database {
           sender_id: string;
           content: string;
           read: boolean;
+          type: string;
         };
         Insert: {
           id?: string;
@@ -118,6 +119,7 @@ export interface Database {
           sender_id: string;
           content: string;
           read?: boolean;
+          type?: string;
         };
         Update: {
           id?: string;
@@ -126,6 +128,7 @@ export interface Database {
           sender_id?: string;
           content?: string;
           read?: boolean;
+          type?: string;
         };
       };
     };
