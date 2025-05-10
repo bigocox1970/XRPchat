@@ -9,6 +9,9 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
 
+console.log('[DEBUG] Supabase URL:', supabaseUrl);
+console.log('[DEBUG] Supabase Anon Key:', supabaseAnonKey ? supabaseAnonKey.substring(0, 8) + '...' : undefined);
+
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Supabase URL or anon key is missing');
 }
@@ -33,6 +36,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     }
   }
 });
+
+console.log('[DEBUG] Supabase client created:', !!supabase);
 
 // Admin client for operations that require service role
 export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey || supabaseAnonKey, {
