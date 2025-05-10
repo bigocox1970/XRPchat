@@ -1324,7 +1324,7 @@ export const Chat: React.FC = () => {
         <div className="flex items-center space-x-3">
           <EncryptionIndicator />
           <button
-            onClick={handleRefreshMessages}
+            onClick={() => window.location.reload()}
             disabled={isRefreshing || loading}
             className="p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Refresh messages"
