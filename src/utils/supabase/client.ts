@@ -33,6 +33,10 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
       'apikey': supabaseAnonKey
+    },
+    fetch: (input, init = {}) => {
+      // Always use cache: 'no-store' for all requests
+      return fetch(input, { ...init, cache: 'no-store' });
     }
   }
 });
@@ -50,7 +54,11 @@ export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseService
       'Accept': 'application/json',
       'Content-Type': 'application/json',
       'apikey': supabaseServiceKey || supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseServiceKey || supabaseAnonKey}`
+      'Authorization': `Bearer ${supabaseServiceKey || supabaseAnonKey}`,
+    },
+    fetch: (input, init = {}) => {
+      // Always use cache: 'no-store' for all requests
+      return fetch(input, { ...init, cache: 'no-store' });
     }
   }
 });

@@ -57,3 +57,46 @@ export const uploadAvatar = async (file: File, userId: string) => {
     throw error;
   }
 };
+
+export const uploadChatImage = async (file: File | Blob, threadId: string, userId: string) => {
+  try {
+    // Debug log for file type and instance
+    console.log('[uploadChatImage] file info:', {
+      type: file.type,
+      size: file.size,
+      instance: file instanceof File,
+      isBlob: file instanceof Blob
+    });
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Only image files are allowed');
+    }
+    // Limit file size to 5MB
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new Error('Image size should be less than 5MB');
+    }
+    // Create a unique file path
+    let fileExt = 'png';
+    if (file instanceof File) {
+      fileExt = file.name.split('.').pop() || 'png';
+    }
+    const timestamp = new Date().getTime();
+    const filePath = `${threadId}/${userId}_${timestamp}.${fileExt}`;
+    // Upload to chat-images bucket
+    const { error: uploadError } = await supabase.storage
+      .from('chat-images')
+      .upload(filePath, file, {
+        upsert: false,
+        cacheControl: 'no-cache',
+        contentType: file.type
+      });
+    if (uploadError) throw uploadError;
+    // Get public URL
+    const { data } = supabase.storage.from('chat-images').getPublicUrl(filePath);
+    return data.publicUrl;
+  } catch (error) {
+    console.error('[uploadChatImage] Error:', error);
+    throw error;
+  }
+};

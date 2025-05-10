@@ -32,6 +32,10 @@ export const Layout: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Add state to track if audio is being unlocked
   const [unlockingAudio, setUnlockingAudio] = useState(false);
+  // Add state to track refresh failures
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [refreshAttempts, setRefreshAttempts] = useState(0);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
 
   // Request notification permission on component mount if not already granted
   useEffect(() => {
@@ -40,30 +44,63 @@ export const Layout: React.FC = () => {
     }
   }, []);
   
+  // Service worker update check
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) {
+          reg.update();
+          reg.onupdatefound = () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.onstatechange = () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New update available, reload to activate
+                  alert('A new version of the app is available. The page will now reload.');
+                  window.location.reload();
+                }
+              };
+            }
+          };
+        }
+      });
+    }
+  }, []);
+  
   // Handle refreshing data
   const handleRefresh = async () => {
     if (isRefreshing) return; // Prevent multiple refreshes
-    
     setIsRefreshing(true);
-    console.log("Refreshing data...");
-    
+    setRefreshFailed(false);
+    setRefreshAttempts((prev) => prev + 1);
+    // Service worker update check on refresh
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) reg.update();
+      });
+    }
     try {
       // Refresh user profile data
       await refreshProfile();
-      
       // Create and dispatch a custom event to notify other components
       const refreshEvent = new CustomEvent('app-refresh', { 
         detail: { path: location.pathname } 
       });
       window.dispatchEvent(refreshEvent);
-      
       // Add a small delay to show the refresh animation
       await new Promise(resolve => setTimeout(resolve, 500));
+      setRefreshFailed(false); // Success
     } catch (error) {
       console.error("Error refreshing data:", error);
+      setRefreshFailed(true);
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // Hard reload handler
+  const handleHardReload = () => {
+    window.location.reload();
   };
   
   // Handle unlocking audio with user interaction
@@ -137,6 +174,16 @@ export const Layout: React.FC = () => {
         >
           <HiRefresh size={24} className={isRefreshing ? "animate-spin" : ""} />
         </button>
+        {/* Show Hard Reload if refresh failed */}
+        {refreshFailed && (
+          <button
+            onClick={handleHardReload}
+            className="p-2 rounded-full bg-red-600 text-white shadow-lg ml-2"
+            aria-label="Hard Reload"
+          >
+            Hard Reload
+          </button>
+        )}
         
         {/* Sidebar Toggle Button */}
         <button
@@ -190,6 +237,16 @@ export const Layout: React.FC = () => {
                 >
                   <HiRefresh size={20} className={isRefreshing ? "animate-spin" : ""} />
                 </button>
+                {/* Show Hard Reload if refresh failed */}
+                {refreshFailed && (
+                  <button
+                    onClick={handleHardReload}
+                    className="ml-2 px-3 py-1 rounded bg-red-600 text-white text-xs font-semibold"
+                    aria-label="Hard Reload"
+                  >
+                    Hard Reload
+                  </button>
+                )}
               </div>
             </div>
           </div>

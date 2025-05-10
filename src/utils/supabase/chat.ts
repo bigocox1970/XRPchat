@@ -166,10 +166,11 @@ export const getThreadMessages = async (
 export const sendMessage = async (
   threadId: string,
   senderId: string,
-  content: string
+  content: string,
+  type: string = 'text'
 ) => {
   try {
-    console.log('Sending message in thread:', threadId, 'by user:', senderId);
+    console.log('Sending message in thread:', threadId, 'by user:', senderId, 'type:', type);
     
     // Insert message directly
     const { data: message, error: messageError } = await supabase
@@ -178,6 +179,7 @@ export const sendMessage = async (
         thread_id: threadId,
         sender_id: senderId,
         content: content,
+        type: type,
       })
       .select()
       .single();

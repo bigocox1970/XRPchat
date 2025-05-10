@@ -46,7 +46,9 @@ export const Settings: React.FC = () => {
     notificationPermission,
     requestNotificationPermission,
     updateNotificationState,
-    playNotificationSound
+    playNotificationSound,
+    subscribeToPush,
+    unsubscribeFromPush
   } = useNotification();
 
   const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState(notificationsEnabled);
@@ -59,6 +61,32 @@ export const Settings: React.FC = () => {
   const [saveSettingsMessage, setSaveSettingsMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   // Add state to track refreshing
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Feature toggles with default ON
+  const [imageFilesEnabled, setImageFilesEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_image_files');
+    if (val === null) {
+      localStorage.setItem('xrpchat_feature_image_files', 'true');
+      return true;
+    }
+    return val === 'true';
+  });
+  const [videoFilesEnabled, setVideoFilesEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_video_files');
+    if (val === null) {
+      localStorage.setItem('xrpchat_feature_video_files', 'true');
+      return true;
+    }
+    return val === 'true';
+  });
+  const [audioFilesEnabled, setAudioFilesEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_audio_files');
+    if (val === null) {
+      localStorage.setItem('xrpchat_feature_audio_files', 'true');
+      return true;
+    }
+    return val === 'true';
+  });
 
   // Load auto-delete settings from localStorage on mount
   useEffect(() => {
@@ -159,12 +187,16 @@ export const Settings: React.FC = () => {
     if (newEnabledState) {
       // User wants to enable notifications
       console.log('User is enabling notifications from settings');
-      
       // Update localStorage values to enable notifications
       localStorage.setItem('xrpchat_notification_user_choice', 'true');
       localStorage.setItem('xrpchat_notification_permission', 'granted');
       localStorage.setItem('xrpchat_notifications_enabled', 'true');
-      
+      // Subscribe to push notifications
+      try {
+        await subscribeToPush();
+      } catch (err) {
+        console.error('Failed to subscribe to push notifications:', err);
+      }
       // Show a toast message to confirm the change
       setSaveSettingsMessage({
         type: 'success',
@@ -173,27 +205,28 @@ export const Settings: React.FC = () => {
     } else {
       // User wants to disable notifications
       console.log('User is disabling notifications from settings');
-      
       // Update localStorage values to disable notifications
       localStorage.setItem('xrpchat_notification_permission', 'disabled');
       localStorage.setItem('xrpchat_notification_user_choice', 'false');
       localStorage.setItem('xrpchat_notifications_enabled', 'false');
-      
+      // Unsubscribe from push notifications
+      try {
+        await unsubscribeFromPush();
+      } catch (err) {
+        console.error('Failed to unsubscribe from push notifications:', err);
+      }
       // Show a toast message to confirm the change
       setSaveSettingsMessage({
         type: 'success',
         text: 'Notifications disabled - you won\'t receive alerts for new messages'
       });
     }
-    
     // Force update of the notification context state to match localStorage
     updateNotificationState();
-    
     // Clear toast after 3 seconds
     setTimeout(() => {
       setSaveSettingsMessage(null);
     }, 3000);
-    
     // Manually dispatch a storage event to trigger listeners in other components
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'xrpchat_notifications_enabled',
@@ -571,6 +604,151 @@ export const Settings: React.FC = () => {
                       <HiRefresh className="h-4 w-4 mr-1.5" />
                       Reset Settings
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Features Card */}
+              <div className="max-w-full bg-white dark:bg-gray-800 shadow rounded-lg mb-6 mt-8">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">Features</h3>
+                  <div className="space-y-6">
+                    {/* Live Typing Feed */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Live Typing Feed</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Show what the other user is typing in real time (instead of just 'is typing...')
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-live-typing"
+                          checked={localStorage.getItem('xrpchat_feature_live_typing') === 'true'}
+                          onChange={e => {
+                            localStorage.setItem('xrpchat_feature_live_typing', e.target.checked ? 'true' : 'false');
+                            // Force re-render
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-live-typing"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            localStorage.getItem('xrpchat_feature_live_typing') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              localStorage.getItem('xrpchat_feature_live_typing') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
+                    {/* Allow Image Files */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Image Files</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Enable sending and receiving image files in chat
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-image-files"
+                          checked={imageFilesEnabled}
+                          onChange={e => {
+                            setImageFilesEnabled(e.target.checked);
+                            localStorage.setItem('xrpchat_feature_image_files', e.target.checked ? 'true' : 'false');
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-image-files"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            imageFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              imageFilesEnabled ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
+                    {/* Allow Video Files */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Video Files</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Enable sending and receiving video files in chat
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-video-files"
+                          checked={videoFilesEnabled}
+                          onChange={e => {
+                            setVideoFilesEnabled(e.target.checked);
+                            localStorage.setItem('xrpchat_feature_video_files', e.target.checked ? 'true' : 'false');
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-video-files"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            videoFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              videoFilesEnabled ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
+                    {/* Allow Audio Files */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Allow Audio Files</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Enable sending and receiving audio files in chat
+                        </p>
+                      </div>
+                      <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          id="toggle-audio-files"
+                          checked={audioFilesEnabled}
+                          onChange={e => {
+                            setAudioFilesEnabled(e.target.checked);
+                            localStorage.setItem('xrpchat_feature_audio_files', e.target.checked ? 'true' : 'false');
+                            window.dispatchEvent(new Event('storage'));
+                          }}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="toggle-audio-files"
+                          className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
+                            audioFilesEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                        >
+                          <span
+                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                              audioFilesEnabled ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          ></span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
