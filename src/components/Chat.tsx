@@ -1246,6 +1246,26 @@ export const Chat: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    let lastHidden = Date.now();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        lastHidden = Date.now();
+      } else if (document.visibilityState === 'visible') {
+        // If hidden for more than 10 minutes, reload
+        if (Date.now() - lastHidden > 10 * 60 * 1000) {
+          window.location.reload();
+        } else {
+          handleRefreshMessages();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [handleRefreshMessages]);
+
   if (loading || !threadDetails) {
     return (
       <div className="h-full flex items-center justify-center bg-[#efeae2]">
