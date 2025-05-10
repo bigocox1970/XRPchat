@@ -87,6 +87,15 @@ export const Settings: React.FC = () => {
     }
     return val === 'true';
   });
+  // Add state for live typing feed toggle
+  const [liveTypingEnabled, setLiveTypingEnabled] = useState(() => {
+    const val = localStorage.getItem('xrpchat_feature_live_typing');
+    if (val === null) {
+      localStorage.setItem('xrpchat_feature_live_typing', 'true');
+      return true;
+    }
+    return val === 'true';
+  });
 
   // Load auto-delete settings from localStorage on mount
   useEffect(() => {
@@ -625,10 +634,10 @@ export const Settings: React.FC = () => {
                         <input
                           type="checkbox"
                           id="toggle-live-typing"
-                          checked={localStorage.getItem('xrpchat_feature_live_typing') === 'true'}
+                          checked={liveTypingEnabled}
                           onChange={e => {
+                            setLiveTypingEnabled(e.target.checked);
                             localStorage.setItem('xrpchat_feature_live_typing', e.target.checked ? 'true' : 'false');
-                            // Force re-render
                             window.dispatchEvent(new Event('storage'));
                           }}
                           className="sr-only"
@@ -636,12 +645,12 @@ export const Settings: React.FC = () => {
                         <label
                           htmlFor="toggle-live-typing"
                           className={`block overflow-hidden h-6 rounded-full cursor-pointer ${
-                            localStorage.getItem('xrpchat_feature_live_typing') === 'true' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                            liveTypingEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                           }`}
                         >
                           <span
                             className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              localStorage.getItem('xrpchat_feature_live_typing') === 'true' ? 'translate-x-4' : 'translate-x-0'
+                              liveTypingEnabled ? 'translate-x-4' : 'translate-x-0'
                             }`}
                           ></span>
                         </label>
