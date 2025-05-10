@@ -46,7 +46,9 @@ export const Settings: React.FC = () => {
     notificationPermission,
     requestNotificationPermission,
     updateNotificationState,
-    playNotificationSound
+    playNotificationSound,
+    subscribeToPush,
+    unsubscribeFromPush
   } = useNotification();
 
   const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState(notificationsEnabled);
@@ -159,12 +161,16 @@ export const Settings: React.FC = () => {
     if (newEnabledState) {
       // User wants to enable notifications
       console.log('User is enabling notifications from settings');
-      
       // Update localStorage values to enable notifications
       localStorage.setItem('xrpchat_notification_user_choice', 'true');
       localStorage.setItem('xrpchat_notification_permission', 'granted');
       localStorage.setItem('xrpchat_notifications_enabled', 'true');
-      
+      // Subscribe to push notifications
+      try {
+        await subscribeToPush();
+      } catch (err) {
+        console.error('Failed to subscribe to push notifications:', err);
+      }
       // Show a toast message to confirm the change
       setSaveSettingsMessage({
         type: 'success',
@@ -173,27 +179,28 @@ export const Settings: React.FC = () => {
     } else {
       // User wants to disable notifications
       console.log('User is disabling notifications from settings');
-      
       // Update localStorage values to disable notifications
       localStorage.setItem('xrpchat_notification_permission', 'disabled');
       localStorage.setItem('xrpchat_notification_user_choice', 'false');
       localStorage.setItem('xrpchat_notifications_enabled', 'false');
-      
+      // Unsubscribe from push notifications
+      try {
+        await unsubscribeFromPush();
+      } catch (err) {
+        console.error('Failed to unsubscribe from push notifications:', err);
+      }
       // Show a toast message to confirm the change
       setSaveSettingsMessage({
         type: 'success',
         text: 'Notifications disabled - you won\'t receive alerts for new messages'
       });
     }
-    
     // Force update of the notification context state to match localStorage
     updateNotificationState();
-    
     // Clear toast after 3 seconds
     setTimeout(() => {
       setSaveSettingsMessage(null);
     }, 3000);
-    
     // Manually dispatch a storage event to trigger listeners in other components
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'xrpchat_notifications_enabled',
