@@ -556,12 +556,12 @@ export const Chat: React.FC = () => {
 
   // Load messages and handle subscriptions
   useEffect(() => {
+    if (!threadId || !user) return;
+    setMessages([]); // Optionally clear messages only when thread changes
+
+    // Define loadMessages inside the effect
     const loadMessages = async () => {
-      if (!threadId || !user) return;
-      
-      // Set loading to true at the start
       setLoading(true);
-      
       try {
         // Check for expired messages before loading
         if (user.id) {
@@ -574,30 +574,21 @@ export const Chat: React.FC = () => {
             console.error('Error checking for expired messages:', error);
           }
         }
-        
         console.log(`Loading messages for thread ${threadId} at path ${location.pathname}`);
         const messages = await getThreadMessages(threadId);
         setMessages(messages.reverse()); // Reverse to show oldest first
-        
-        // When entering a thread, clear unread counter for this thread
         clearUnread();
-        
-        // Mark unread messages as read - only for messages sent TO the current user
         const unreadMessages = messages.filter(msg => !msg.read && msg.sender_id !== user.id);
         console.log(`Marking ${unreadMessages.length} messages as read in thread ${threadId}`);
-        
         if (unreadMessages.length > 0) {
           await Promise.all(unreadMessages.map(async (message) => {
             try {
-              // Only update the message read status, not the profile
               await markMessageAsRead(message.id, user.id);
             } catch (error) {
               console.error(`Error marking message ${message.id} as read:`, error);
             }
           }));
         }
-        
-        // Update user's last active time
         if (user.id) {
           try {
             await updateLastActive(user.id);
@@ -613,43 +604,23 @@ export const Chat: React.FC = () => {
       }
     };
 
-    // Reset messages when changing threads
-    setMessages([]);
     loadMessages();
 
     // Subscribe to new messages
-    if (!threadId) return;
-
     const unsubscribe = subscribeToThread(
       threadId,
       async (payload) => {
         if (payload.new && user) {
           const message = payload.new;
-          
-          // Mark message as read immediately if it's not from the current user
-          // and the user is actively viewing this chat thread
           if (message.sender_id !== user.id && document.hasFocus()) {
-            console.log(`Marking new message ${message.id} as read immediately`);
             try {
               await markMessageAsRead(message.id, user.id);
-            } catch (error) {
-              console.error(`Error marking new message ${message.id} as read:`, error);
-            }
+            } catch (error) {}
           }
-          
-          // Add message to state FIRST, before trying to show notification
-          // This ensures messages appear immediately even if notification fails
           setMessages(prev => {
-            // Check if message already exists
-            if (prev.some(m => m.id === message.id)) {
-              return prev;
-            }
-            // Sort messages by creation time to maintain order
-            return [...prev, message].sort((a, b) => 
-              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-            );
+            if (prev.some(m => m.id === message.id)) return prev;
+            return [...prev, message].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           });
-          
           // Show notification if it's from another user
           try {
             // Check both our state and localStorage to make absolutely sure notifications are wanted
@@ -698,10 +669,7 @@ export const Chat: React.FC = () => {
       },
       () => {}
     );
-
-    return () => {
-      unsubscribe();
-    };
+    return () => { unsubscribe(); };
   }, [threadId, user, notificationsEnabled, showNotification, incrementUnread, clearUnread, location.pathname, participants, decryptMessage, showEncrypted]);
 
   // Also add an effect to mark messages as read when user focuses window
@@ -1030,13 +998,9 @@ export const Chat: React.FC = () => {
         console.log('Sending message to Supabase...');
         await sendMessage(threadId, user.id, finalContent);
         console.log('Message sent successfully');
-        
-        // Immediately refresh messages to show the new message
-        setMessages([]);
         getThreadMessages(threadId).then(messages => {
           setMessages(messages.reverse()); // Reverse to show oldest first
         });
-        
         // Scroll to bottom after a short delay
         setTimeout(() => {
           if (messagesEndRef.current) {
@@ -1272,8 +1236,6 @@ export const Chat: React.FC = () => {
       await sendMessage(threadId, user.id, imageUrl, 'image');
       setSelectedImage(null);
       setImagePreview(null);
-      // Refresh messages
-      setMessages([]);
       getThreadMessages(threadId).then(messages => {
         setMessages(messages.reverse());
       });
@@ -1283,6 +1245,26 @@ export const Chat: React.FC = () => {
       setUploadingImage(false);
     }
   };
+
+  useEffect(() => {
+    let lastHidden = Date.now();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        lastHidden = Date.now();
+      } else if (document.visibilityState === 'visible') {
+        // If hidden for more than 10 minutes, reload
+        if (Date.now() - lastHidden > 10 * 60 * 1000) {
+          window.location.reload();
+        } else {
+          handleRefreshMessages();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [handleRefreshMessages]);
 
   if (loading || !threadDetails) {
     return (
@@ -1342,7 +1324,7 @@ export const Chat: React.FC = () => {
         <div className="flex items-center space-x-3">
           <EncryptionIndicator />
           <button
-            onClick={handleRefreshMessages}
+            onClick={() => window.location.reload()}
             disabled={isRefreshing || loading}
             className="p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Refresh messages"
@@ -1580,32 +1562,6 @@ export const Chat: React.FC = () => {
                 </span>
               </div>
             )}
-          </div>
-        )}
-
-        {imageFeatureEnabled && (
-          <div className="mb-3 flex items-center space-x-2">
-            <label className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center" title="Attach Image">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageChange}
-                disabled={uploadingImage}
-              />
-              <HiPaperClip className="w-5 h-5" />
-              <span className="sr-only">Attach Image</span>
-            </label>
-            <button
-              type="button"
-              className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-              title="Record Audio"
-              onClick={() => alert('Audio message feature coming soon!')}
-              disabled={uploadingImage}
-            >
-              <HiMicrophone className="w-5 h-5" />
-              <span className="sr-only">Record Audio</span>
-            </button>
           </div>
         )}
 

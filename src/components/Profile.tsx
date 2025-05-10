@@ -80,6 +80,23 @@ export const Profile: React.FC = () => {
     };
   }, [refreshProfile]);
 
+  // Add focus/visibility refresh for profile
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      if (refreshProfile) refreshProfile();
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshOnFocus();
+      }
+    });
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
+  }, [refreshProfile]);
+
   if (loading || !profile || !wallet) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">

@@ -920,6 +920,23 @@ export const ContactList: React.FC = () => {
     };
   }, [reloadContacts]);
 
+  // Add focus/visibility refresh for contacts
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      reloadContacts();
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshOnFocus();
+      }
+    });
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
+  }, [reloadContacts]);
+
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
       {/* Header */}

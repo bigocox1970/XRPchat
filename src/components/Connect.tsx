@@ -96,6 +96,24 @@ export const Connect: React.FC = () => {
     };
   }, [showScanner]);
 
+  // Add focus/visibility refresh for wallet/profile
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      // If you have a function to reload the wallet/profile, call it here
+      window.location.reload(); // fallback: reload the page
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshOnFocus();
+      }
+    });
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
+  }, []);
+
   const handleCopyAddress = () => {
     if (profile?.wallet_address) {
       navigator.clipboard.writeText(profile.wallet_address);
