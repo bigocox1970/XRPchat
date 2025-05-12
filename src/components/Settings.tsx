@@ -380,8 +380,15 @@ export const Settings: React.FC = () => {
             <div className="font-semibold">Settings</div>
           </div>
         </div>
-        
         {/* Add refresh indicator */}
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
         {isRefreshing && (
           <div className="flex items-center text-white">
             <HiRefresh className="animate-spin mr-2" size={20} />

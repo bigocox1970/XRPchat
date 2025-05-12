@@ -167,7 +167,7 @@ export const Layout: React.FC = () => {
       <div className="lg:hidden fixed top-4 right-4 z-50 flex items-center space-x-2">
         {/* Refresh Button */}
         <button
-          onClick={handleRefresh}
+          onClick={() => window.location.reload()}
           disabled={isRefreshing}
           className="p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white shadow-lg"
           aria-label="Refresh"
@@ -177,7 +177,7 @@ export const Layout: React.FC = () => {
         {/* Show Hard Reload if refresh failed */}
         {refreshFailed && (
           <button
-            onClick={handleHardReload}
+            onClick={() => window.location.reload()}
             className="p-2 rounded-full bg-red-600 text-white shadow-lg ml-2"
             aria-label="Hard Reload"
           >
@@ -230,7 +230,7 @@ export const Layout: React.FC = () => {
                 
                 {/* Desktop Refresh Button */}
                 <button
-                  onClick={handleRefresh}
+                  onClick={() => window.location.reload()}
                   disabled={isRefreshing}
                   className="hidden lg:block text-white"
                   aria-label="Refresh"
@@ -240,7 +240,7 @@ export const Layout: React.FC = () => {
                 {/* Show Hard Reload if refresh failed */}
                 {refreshFailed && (
                   <button
-                    onClick={handleHardReload}
+                    onClick={() => window.location.reload()}
                     className="ml-2 px-3 py-1 rounded bg-red-600 text-white text-xs font-semibold"
                     aria-label="Hard Reload"
                   >

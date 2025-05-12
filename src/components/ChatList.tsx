@@ -4,7 +4,7 @@ import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
 import { useTheme } from '../context/DarkModeContext';
 import { getUserThreads, subscribeToUserThreads, getProfile, subscribeToThread, deleteThread } from '../utils/supabase/index';
-import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil, HiChat } from 'react-icons/hi';
+import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil, HiChat, HiRefresh } from 'react-icons/hi';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { supabase } from '../utils/supabase/index';
@@ -621,15 +621,18 @@ export const ChatList: React.FC = () => {
             <HiChat size={24} />
           </div>
           <div>
-            <div className="font-semibold">Chats</div>
+            <div className="flex items-center space-x-4">
+              <div className="font-semibold">Chats</div>
+            </div>
           </div>
         </div>
         <button
-          onClick={handleNewChat}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors"
-          aria-label="New Chat"
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
         >
-          <HiPlus size={24} />
+          <HiRefresh className="" size={20} />
         </button>
       </div>
 

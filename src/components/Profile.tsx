@@ -272,6 +272,14 @@ export const Profile: React.FC = () => {
             <div className="font-semibold">Profile</div>
           </div>
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">

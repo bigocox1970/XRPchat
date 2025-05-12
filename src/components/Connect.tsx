@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { HiQrcode, HiCamera, HiClipboard, HiShare, HiX, HiPhotograph, HiPlus } from 'react-icons/hi';
+import { HiQrcode, HiCamera, HiClipboard, HiShare, HiX, HiPhotograph, HiPlus, HiUserAdd, HiRefresh } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import { searchUsers, addContact } from '../utils/supabase/auth';
@@ -377,12 +377,20 @@ export const Connect: React.FC = () => {
       <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
-            <HiQrcode size={24} />
+            <HiUserAdd size={24} />
           </div>
           <div>
             <div className="font-semibold">Connect</div>
           </div>
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
