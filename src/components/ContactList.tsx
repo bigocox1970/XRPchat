@@ -5,7 +5,7 @@ import { searchUsers, getContacts } from '../utils/supabase/auth';
 import { addContact, removeContact, blockContact, unblockContact } from '../utils/supabase/auth';
 import { createThread } from '../utils/supabase/chat';
 import { supabase } from '../utils/supabase/client';
-import { HiUser, HiPlus, HiLockClosed, HiLockOpen } from 'react-icons/hi';
+import { HiUser, HiPlus, HiLockClosed, HiLockOpen, HiRefresh } from 'react-icons/hi';
 import { CopyButton } from './CopyButton';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
@@ -971,6 +971,14 @@ export const ContactList: React.FC = () => {
             </div>
           </div>
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
