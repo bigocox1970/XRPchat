@@ -26,6 +26,7 @@ export const Connect: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
@@ -99,19 +100,25 @@ export const Connect: React.FC = () => {
 
   // Add focus/visibility refresh for wallet/profile
   useEffect(() => {
-    const refreshOnFocus = () => {
-      // If you have a function to reload the wallet/profile, call it here
-      window.location.reload(); // fallback: reload the page
-    };
-    window.addEventListener('focus', refreshOnFocus);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        refreshOnFocus();
+    let lastHidden = Date.now();
+    const refreshOnFocusOrVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        lastHidden = Date.now();
+      } else if (document.visibilityState === 'visible' || document.hasFocus()) {
+        // If hidden for more than 10 minutes, reload
+        if (Date.now() - lastHidden > 10 * 60 * 1000) {
+          window.location.reload();
+        } else {
+          // If you have a function to reload wallet/profile, call it here
+          // Otherwise, do nothing or a light refresh
+        }
       }
-    });
+    };
+    document.addEventListener('visibilitychange', refreshOnFocusOrVisibility);
+    window.addEventListener('focus', refreshOnFocusOrVisibility);
     return () => {
-      window.removeEventListener('focus', refreshOnFocus);
-      document.removeEventListener('visibilitychange', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocusOrVisibility);
+      window.removeEventListener('focus', refreshOnFocusOrVisibility);
     };
   }, []);
 
@@ -370,6 +377,24 @@ export const Connect: React.FC = () => {
       }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
+        <div className="text-center">
+          <div className="text-gray-600 dark:text-gray-400 mb-2">Loading...</div>
+          <button
+            className={`mt-2 text-blue-700 text-sm flex items-center justify-center mx-auto transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
+            onClick={() => { setIsRefreshing(true); window.location.reload(); }}
+            style={{ outline: 'none', border: 'none', background: 'none', cursor: 'pointer' }}
+          >
+            <HiRefresh className="w-5 h-5 mr-1" />
+            <span>Reload</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900 natural-dark:bg-natural-dark-background">

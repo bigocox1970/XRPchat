@@ -1285,6 +1285,18 @@ export const Chat: React.FC = () => {
     }, 600); // match explosion duration
   };
 
+  if (!user) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#efeae2]">
+        <div className="text-center text-red-600">User not loaded. Please sign in again or refresh the page.</div>
+      </div>
+    );
+  }
+
+  // Debug log for user id and message sender ids
+  console.log('Current user id:', user?.id);
+  messages.forEach(m => console.log('Message', m.id, 'sender:', m.sender_id));
+
   if (loading || !threadDetails) {
     return (
       <div className="h-full flex items-center justify-center bg-[#efeae2]">
@@ -1464,7 +1476,7 @@ export const Chat: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <div className="max-w-[75%] relative group">
+                      <div className="max-w-[75%] relative">
                         <div
                           className={`px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none transition-transform duration-500 ${deletingMessageId === message.id ? 'explode-out' : ''}`}
                         >
@@ -1488,13 +1500,12 @@ export const Chat: React.FC = () => {
                               minute: '2-digit',
                             })}
                           </p>
-                          {/* Trash icon for deleting message, only show on hover/focus */}
+                          {/* Trash icon for deleting message */}
                           <button
-                            className="absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-200"
+                            className="absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10"
                             style={{ display: deletingMessageId === message.id ? 'none' : 'block' }}
                             onClick={() => handleDeleteMessage(message.id)}
                             tabIndex={-1}
-                            aria-label="Delete message"
                           >
                             <HiTrash size={16} />
                           </button>
@@ -1609,27 +1620,31 @@ export const Chat: React.FC = () => {
         )}
 
         <form onSubmit={handleSend} className="flex items-center space-x-2">
-          {/* Always show media buttons */}
-          <button
-            type="button"
-            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-            title="Attach Image"
-            onClick={() => alert('Feature coming soon!')}
-            disabled={uploadingImage}
-          >
-            <HiPaperClip className="w-5 h-5" />
-            <span className="sr-only">Attach Image</span>
-          </button>
-          <button
-            type="button"
-            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-            title="Record Audio"
-            onClick={() => alert('Audio message feature coming soon!')}
-            disabled={uploadingImage}
-          >
-            <HiMicrophone className="w-5 h-5" />
-            <span className="sr-only">Record Audio</span>
-          </button>
+          {imageFeatureEnabled && (
+            <>
+              <label className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center" title="Attach Image">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                  disabled={uploadingImage}
+                />
+                <HiPaperClip className="w-5 h-5" />
+                <span className="sr-only">Attach Image</span>
+              </label>
+              <button
+                type="button"
+                className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+                title="Record Audio"
+                onClick={() => alert('Audio message feature coming soon!')}
+                disabled={uploadingImage}
+              >
+                <HiMicrophone className="w-5 h-5" />
+                <span className="sr-only">Record Audio</span>
+              </button>
+            </>
+          )}
           <input
             ref={inputRef}
             type="text"
