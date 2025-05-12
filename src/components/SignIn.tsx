@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { HiLockClosed } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
@@ -11,6 +11,16 @@ export const SignIn: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +124,12 @@ export const SignIn: React.FC = () => {
               </button>
             </div>
           </form>
+
+          {loading && loadingTimeout && (
+            <div className="mt-2 text-red-700 text-sm text-center">
+              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          )}
 
           <div className="mt-6">
             <div className="relative">

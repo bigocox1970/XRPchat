@@ -203,6 +203,7 @@ export const Chat: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -1266,11 +1267,25 @@ export const Chat: React.FC = () => {
     };
   }, [handleRefreshMessages]);
 
+  useEffect(() => {
+    if (loading || !threadDetails) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading, threadDetails]);
+
   if (loading || !threadDetails) {
     return (
       <div className="h-full flex items-center justify-center bg-[#efeae2]">
         <div className="text-center">
           <div className="text-gray-600 mb-2">Loading messages...</div>
+          {loadingTimeout && (
+            <div className="mt-2 text-red-700 text-sm">
+              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          )}
           {error && (
             <div className="text-sm text-red-600 max-w-md mx-auto">
               {error}
