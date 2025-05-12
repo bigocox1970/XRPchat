@@ -205,6 +205,7 @@ export const Chat: React.FC = () => {
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -1425,10 +1426,17 @@ export const Chat: React.FC = () => {
             {/* Chat Messages */}
             {messages.map((message, index) => {
               const isUserMessage = message.sender_id === user?.id;
+              const isDeleting = deletingMessageId === message.id;
+              const isHovered = hoveredMessageId === message.id;
               return (
                 <div
                   key={`${message.id}-${index}`}
-                  className={`flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}
+                  className={`group flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}
+                  onMouseEnter={() => setHoveredMessageId(message.id)}
+                  onMouseLeave={() => setHoveredMessageId(null)}
+                  onFocus={() => setHoveredMessageId(message.id)}
+                  onBlur={() => setHoveredMessageId(null)}
+                  tabIndex={0}
                 >
                   {!isUserMessage ? (
                     <>
@@ -1440,16 +1448,18 @@ export const Chat: React.FC = () => {
                       seed={participants[message.sender_id]?.avatar_seed || undefined}
                       key={`chat-message-other-avatar-${message.id}-${participants[message.sender_id]?.avatar_url}-${participants[message.sender_id]?.avatar_seed || ''}`}
                     />
-                      <div className="max-w-[75%]">
+                      <div className="max-w-[75%] relative">
                         <div
-                          className={
-                            isUserMessage
-                              ? "px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none"
-                              : "px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none"
-                          }
+                          className={`px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
                         >
+                          {/* Explosion overlay */}
+                          {isDeleting && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                              <span className="text-3xl animate-explode">💥</span>
+                            </div>
+                          )}
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                            {isUserMessage ? 'You' : participants[message.sender_id]?.username}
+                            {participants[message.sender_id]?.username}
                           </p>
                           {message.type === 'image' ? (
                             <img
@@ -1471,6 +1481,16 @@ export const Chat: React.FC = () => {
                               minute: '2-digit',
                             })}
                           </p>
+                          {/* Trash icon for deleting message (all messages) */}
+                          <button
+                            className={`absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10 transition-opacity duration-200 chat-trash-btn`}
+                            style={{ display: isDeleting ? 'none' : 'block' }}
+                            onClick={() => handleDeleteMessage(message.id)}
+                            tabIndex={-1}
+                            aria-label="Delete message"
+                          >
+                            <HiTrash size={16} />
+                          </button>
                         </div>
                       </div>
                     </>
@@ -1478,10 +1498,10 @@ export const Chat: React.FC = () => {
                     <>
                       <div className="max-w-[75%] relative">
                         <div
-                          className={`px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none transition-transform duration-500 ${deletingMessageId === message.id ? 'explode-out' : ''}`}
+                          className={`px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
                         >
                           {/* Explosion overlay */}
-                          {deletingMessageId === message.id && (
+                          {isDeleting && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
                               <span className="text-3xl animate-explode">💥</span>
                             </div>
@@ -1500,12 +1520,13 @@ export const Chat: React.FC = () => {
                               minute: '2-digit',
                             })}
                           </p>
-                          {/* Trash icon for deleting message */}
+                          {/* Trash icon for deleting message (all messages) */}
                           <button
-                            className="absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10"
-                            style={{ display: deletingMessageId === message.id ? 'none' : 'block' }}
+                            className={`absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10 transition-opacity duration-200 chat-trash-btn`}
+                            style={{ display: isDeleting ? 'none' : 'block' }}
                             onClick={() => handleDeleteMessage(message.id)}
                             tabIndex={-1}
+                            aria-label="Delete message"
                           >
                             <HiTrash size={16} />
                           </button>
