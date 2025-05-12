@@ -50,6 +50,7 @@ export const ChatList: React.FC = () => {
   const [selectedThreads, setSelectedThreads] = useState<string[]>([]);
   // Display wallet addresses in shortened form
   const [expandedThread, setExpandedThread] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   // Filter threads based on search query
   const filteredThreads = threads.filter(thread => 
@@ -587,10 +588,26 @@ export const ChatList: React.FC = () => {
     };
   }, [loadThreadsWithParticipants]);
 
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading chats...</div>
+        <div className="text-gray-600 dark:text-gray-400">
+          Loading chats...
+          {loadingTimeout && (
+            <div className="mt-2 text-red-700 text-sm">
+              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

@@ -25,6 +25,7 @@ export const Connect: React.FC = () => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
@@ -113,6 +114,15 @@ export const Connect: React.FC = () => {
       document.removeEventListener('visibilitychange', refreshOnFocus);
     };
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
 
   const handleCopyAddress = () => {
     if (profile?.wallet_address) {
@@ -484,9 +494,13 @@ export const Connect: React.FC = () => {
                     <div id="qr-reader" className="w-full max-w-lg mx-auto"></div>
                     
                     {loading && (
-                      <div className="mt-4 flex flex-col items-center">
-                        <div className="animate-pulse rounded-full bg-gray-300 h-8 w-8 mb-2"></div>
-                        <p className="text-gray-600 dark:text-gray-400">Processing...</p>
+                      <div className="flex justify-center items-center mt-4">
+                        <span className="text-gray-600 dark:text-gray-300">Loading...</span>
+                        {loadingTimeout && (
+                          <div className="ml-4 text-red-700 text-sm">
+                            Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+                          </div>
+                        )}
                       </div>
                     )}
                     
