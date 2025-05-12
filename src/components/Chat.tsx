@@ -6,7 +6,7 @@ import { useEncryption } from '../context/EncryptionContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
 import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile, updateLastActive } from '../utils/supabase/index';
-import { HiX, HiPaperAirplane, HiClock, HiRefresh, HiArrowLeft, HiDotsHorizontal, HiMicrophone, HiPaperClip } from 'react-icons/hi';
+import { HiX, HiPaperAirplane, HiClock, HiRefresh, HiArrowLeft, HiDotsHorizontal, HiMicrophone, HiPaperClip, HiTrash } from 'react-icons/hi';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { 
@@ -204,6 +204,7 @@ export const Chat: React.FC = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -1276,16 +1277,27 @@ export const Chat: React.FC = () => {
     }
   }, [loading, threadDetails]);
 
+  const handleDeleteMessage = (messageId: string) => {
+    setDeletingMessageId(messageId);
+    setTimeout(() => {
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setDeletingMessageId(null);
+    }, 600); // match explosion duration
+  };
+
   if (loading || !threadDetails) {
     return (
       <div className="h-full flex items-center justify-center bg-[#efeae2]">
         <div className="text-center">
           <div className="text-gray-600 mb-2">Loading messages...</div>
-          {loadingTimeout && (
-            <div className="mt-2 text-red-700 text-sm">
-              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
-            </div>
-          )}
+          <button
+            className={`mt-2 text-blue-700 text-sm flex items-center justify-center mx-auto transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
+            onClick={() => { setIsRefreshing(true); window.location.reload(); }}
+            style={{ outline: 'none', border: 'none', background: 'none', cursor: 'pointer' }}
+          >
+            <HiRefresh className="w-5 h-5 mr-1" />
+            <span>Reload</span>
+          </button>
           {error && (
             <div className="text-sm text-red-600 max-w-md mx-auto">
               {error}
@@ -1452,10 +1464,16 @@ export const Chat: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <div className="max-w-[75%]">
+                      <div className="max-w-[75%] relative group">
                         <div
-                          className="px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none"
+                          className={`px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none transition-transform duration-500 ${deletingMessageId === message.id ? 'explode-out' : ''}`}
                         >
+                          {/* Explosion overlay */}
+                          {deletingMessageId === message.id && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                              <span className="text-3xl animate-explode">💥</span>
+                            </div>
+                          )}
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             You
                           </p>
@@ -1470,6 +1488,16 @@ export const Chat: React.FC = () => {
                               minute: '2-digit',
                             })}
                           </p>
+                          {/* Trash icon for deleting message, only show on hover/focus */}
+                          <button
+                            className="absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-200"
+                            style={{ display: deletingMessageId === message.id ? 'none' : 'block' }}
+                            onClick={() => handleDeleteMessage(message.id)}
+                            tabIndex={-1}
+                            aria-label="Delete message"
+                          >
+                            <HiTrash size={16} />
+                          </button>
                         </div>
                       </div>
                       <DiceBearAvatar 
@@ -1581,31 +1609,27 @@ export const Chat: React.FC = () => {
         )}
 
         <form onSubmit={handleSend} className="flex items-center space-x-2">
-          {imageFeatureEnabled && (
-            <>
-              <label className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center" title="Attach Image">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageChange}
-                  disabled={uploadingImage}
-                />
-                <HiPaperClip className="w-5 h-5" />
-                <span className="sr-only">Attach Image</span>
-              </label>
-              <button
-                type="button"
-                className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-                title="Record Audio"
-                onClick={() => alert('Audio message feature coming soon!')}
-                disabled={uploadingImage}
-              >
-                <HiMicrophone className="w-5 h-5" />
-                <span className="sr-only">Record Audio</span>
-              </button>
-            </>
-          )}
+          {/* Always show media buttons */}
+          <button
+            type="button"
+            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+            title="Attach Image"
+            onClick={() => alert('Feature coming soon!')}
+            disabled={uploadingImage}
+          >
+            <HiPaperClip className="w-5 h-5" />
+            <span className="sr-only">Attach Image</span>
+          </button>
+          <button
+            type="button"
+            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+            title="Record Audio"
+            onClick={() => alert('Audio message feature coming soon!')}
+            disabled={uploadingImage}
+          >
+            <HiMicrophone className="w-5 h-5" />
+            <span className="sr-only">Record Audio</span>
+          </button>
           <input
             ref={inputRef}
             type="text"
