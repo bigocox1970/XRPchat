@@ -51,6 +51,7 @@ export const ChatList: React.FC = () => {
   // Display wallet addresses in shortened form
   const [expandedThread, setExpandedThread] = useState<string | null>(null);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
 
   // Filter threads based on search query
   const filteredThreads = threads.filter(thread => 
@@ -490,7 +491,11 @@ export const ChatList: React.FC = () => {
       const threadsToDelete = threadToDelete 
         ? [threadToDelete] 
         : selectedThreads;
-      
+      // Show explosion for the first thread (single delete UI)
+      if (threadsToDelete.length > 0) {
+        setDeletingThreadId(threadsToDelete[0]);
+        await new Promise(res => setTimeout(res, 600)); // Wait for animation
+      }
       // Delete each thread
       for (const threadId of threadsToDelete) {
         await deleteThread(threadId, user.id);
@@ -721,9 +726,9 @@ export const ChatList: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {filteredThreads.map((thread) => (
-              <div key={thread.id} className="w-full">
+              <div key={thread.id} className="w-full relative">
                 <div
-                  className={`relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 shadow-sm ${
+                  className={`relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 shadow-sm transition-transform duration-500 ${deletingThreadId === thread.id ? 'explode-out' : ''} ${
                     thread.id === window.location.pathname.split('/').pop() 
                       ? getActiveClasses()
                       : selectedThreads.includes(thread.id) 
@@ -745,6 +750,12 @@ export const ChatList: React.FC = () => {
                     }
                   }}
                 >
+                  {/* Explosion overlay */}
+                  {deletingThreadId === thread.id && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                      <span className="text-5xl animate-explode">💥</span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-12 items-center gap-1">
                     {/* Selection checkbox in selection mode */}
                     {selectionMode && (
@@ -882,3 +893,25 @@ export const ChatList: React.FC = () => {
     </div>
   );
 };
+
+// Add this CSS to your global stylesheet (e.g., index.css or App.css):
+/*
+.explode-out {
+  animation: explodeFade 0.6s forwards;
+  z-index: 10;
+}
+@keyframes explodeFade {
+  0% { opacity: 1; transform: scale(1); }
+  60% { opacity: 1; transform: scale(1.2) rotate(-8deg); }
+  80% { opacity: 0.7; transform: scale(1.4) rotate(8deg); }
+  100% { opacity: 0; transform: scale(0.7) rotate(-12deg); }
+}
+.animate-explode {
+  animation: popExplode 0.5s cubic-bezier(.36,1.7,.5,.8);
+}
+@keyframes popExplode {
+  0% { transform: scale(0.5) rotate(-10deg); opacity: 0.7; }
+  60% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 0; }
+}
+*/
