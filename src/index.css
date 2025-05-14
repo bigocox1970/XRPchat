@@ -60,3 +60,46 @@
 .no-select {
   user-select: none;
 }
+
+/* Explosion animation for chat bubble delete */
+@keyframes explode-out {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.1) rotate(-8deg);
+  }
+  80% {
+    opacity: 0.7;
+    transform: scale(0.7) rotate(8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3) rotate(20deg);
+  }
+}
+
+.explode-out {
+  animation: explode-out 0.6s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+
+@keyframes explode-emoji {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+.animate-explode {
+  animation: explode-emoji 0.6s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
