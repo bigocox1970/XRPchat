@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+/*
 // Register service worker for better caching and offline capabilities
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -15,6 +16,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+*/
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

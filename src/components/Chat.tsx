@@ -156,11 +156,37 @@ const MessageContent: React.FC<{
   );
 };
 
+// ErrorBoundary for catching render/runtime errors in Chat
+class ErrorBoundary extends React.Component<any, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    // You can log error info here if needed
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ color: 'red', padding: 24, background: '#fffbe6' }}>
+          <h2>Something went wrong in the chat.</h2>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.toString()}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export const Chat: React.FC = () => {
   const { id: threadId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useUser();
+  const { user, profileRefreshing } = useUser();
   const { 
     notificationsEnabled, 
     requestNotificationPermission, 
@@ -193,10 +219,9 @@ export const Chat: React.FC = () => {
   const [liveTypingEnabled, setLiveTypingEnabled] = useState(
     localStorage.getItem('xrpchat_feature_live_typing') === 'true'
   );
-  const [otherUserTypingText, setOtherUserTypingText] = useState('');
   // Image sending feature toggle
   const [imageFeatureEnabled, setImageFeatureEnabled] = useState(
-    localStorage.getItem('xrpchat_feature_image_files') === 'true'
+    localStorage.getItem('xrpchat_feature_media_files') === 'true'
   );
   // Image upload state
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -294,21 +319,6 @@ export const Chat: React.FC = () => {
       setIsRefreshing(false);
     }
   }, [threadId, user, clearUnread]);
-
-  // Validate thread ID and handle navigation
-  useEffect(() => {
-    if (!threadId || threadId === 'new') {
-      navigate('/app/contacts');
-      return;
-    }
-
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(threadId)) {
-      navigate('/app');
-      return;
-    }
-  }, [threadId, navigate]);
 
   // Load thread details
   useEffect(() => {
@@ -615,59 +625,20 @@ export const Chat: React.FC = () => {
       async (payload) => {
         if (payload.new && user) {
           const message = payload.new;
+          // Remove typing bubble for this sender before adding the real message
+          setMessages(prev => {
+            const filtered = prev.filter(m => m.id !== `typing-${message.sender_id}`);
+            // Only add if not already present
+            if (filtered.some(m => m.id === message.id)) return filtered;
+            return [...filtered, message].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          });
+          // Mark as read if not from current user and window is focused
           if (message.sender_id !== user.id && document.hasFocus()) {
             try {
               await markMessageAsRead(message.id, user.id);
             } catch (error) {}
           }
-          setMessages(prev => {
-            if (prev.some(m => m.id === message.id)) return prev;
-            return [...prev, message].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          });
-          // Show notification if it's from another user
-          try {
-            // Check both our state and localStorage to make absolutely sure notifications are wanted
-            const userWantsNotifications = 
-              notificationsEnabled && 
-              Notification.permission === 'granted' && 
-              localStorage.getItem('xrpchat_notification_permission') !== 'disabled';
-            
-            // Only show notification if explicitly enabled and window is not focused
-            if (userWantsNotifications && !document.hasFocus()) {
-              const senderName = participants[message.sender_id]?.username || 'Someone';
-              
-              // Add try/catch specifically around decryption
-              let decryptedContent = 'New message';
-              try {
-                // Skip decryption if showing encrypted content
-                decryptedContent = showEncrypted ? 'New encrypted message' : 
-                  await decryptMessage(message.content);
-              } catch (decryptError) {
-                console.error('Error decrypting message for notification:', decryptError);
-                decryptedContent = 'New encrypted message'; // Fallback content
-              }
-              
-              try {
-                showNotification(`New message from ${senderName}`, {
-                  body: decryptedContent,
-                  data: {
-                    threadId: threadId,
-                    url: `/app/chat/${threadId}`
-                  },
-                  tag: `thread-${threadId}`,
-                  senderId: message.sender_id // Pass the sender ID to ensure it's not our own message
-                } as any); // Cast to any to allow our custom property
-                
-                // Increment unread counter
-                incrementUnread();
-              } catch (notificationError) {
-                console.error('Error showing notification:', notificationError);
-              }
-            }
-          } catch (error) {
-            // This catch won't block message display since we update state first
-            console.error('Error handling notification:', error);
-          }
+          // Notification logic (if needed) can go here
         }
       },
       () => {}
@@ -1159,30 +1130,53 @@ export const Chat: React.FC = () => {
     };
   }, [handleRefreshMessages]);
 
+  // Add a helper to insert or update the typing bubble in messages
+  const insertOrUpdateTypingBubble = useCallback((userId: string, username: string) => {
+    setMessages(prev => {
+      // Remove any existing typing bubble for this user
+      const filtered = prev.filter(m => m.id !== `typing-${userId}`);
+      // Add the typing bubble as a fake message (include thread_id)
+      return [
+        ...filtered,
+        {
+          id: `typing-${userId}`,
+          sender_id: userId,
+          content: '', // never show actual text
+          created_at: new Date().toISOString(),
+          type: 'typing',
+          read: true,
+          thread_id: threadId || '',
+        }
+      ];
+    });
+  }, [threadId]);
+
+  // Remove typing bubble for a user
+  const removeTypingBubble = useCallback((userId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== `typing-${userId}`));
+  }, []);
+
+  // Listen for typing events and show typing bubble as a message
   useEffect(() => {
     if (!threadId || !user) return;
-
     const channel = supabase
       .channel(`typing-${threadId}`)
       .on('broadcast', { event: 'typing' }, (payload) => {
-        // Only show if it's from the other user
         if (payload.payload.userId !== user.id) {
-          setOtherUserTyping(true);
-          setOtherUserTypingText(payload.payload.text || '');
+          const username = participants[payload.payload.userId]?.username || 'User';
+          insertOrUpdateTypingBubble(payload.payload.userId, username);
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => {
-            setOtherUserTyping(false);
-            setOtherUserTypingText('');
+            removeTypingBubble(payload.payload.userId);
           }, 2000);
         }
       })
       .subscribe();
-
     return () => {
       channel.unsubscribe();
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [threadId, user]);
+  }, [threadId, user, participants, insertOrUpdateTypingBubble, removeTypingBubble]);
 
   // Listen for changes to the toggle (e.g., if user changes it in another tab)
   useEffect(() => {
@@ -1196,7 +1190,7 @@ export const Chat: React.FC = () => {
   // Listen for storage changes to update image feature toggle
   useEffect(() => {
     const handleStorage = () => {
-      setImageFeatureEnabled(localStorage.getItem('xrpchat_feature_image_files') === 'true');
+      setImageFeatureEnabled(localStorage.getItem('xrpchat_feature_media_files') === 'true');
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -1248,26 +1242,6 @@ export const Chat: React.FC = () => {
       setUploadingImage(false);
     }
   };
-
-  useEffect(() => {
-    let lastHidden = Date.now();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        lastHidden = Date.now();
-      } else if (document.visibilityState === 'visible') {
-        // If hidden for more than 10 minutes, reload
-        if (Date.now() - lastHidden > 10 * 60 * 1000) {
-          window.location.reload();
-        } else {
-          handleRefreshMessages();
-        }
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [handleRefreshMessages]);
 
   useEffect(() => {
     if (loading || !threadDetails) {
@@ -1323,6 +1297,9 @@ export const Chat: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
+      {profileRefreshing && (
+        <div className="absolute top-0 left-0 right-0 z-50 bg-yellow-100 text-yellow-800 text-center py-1 text-xs">Refreshing profile...</div>
+      )}
       {/* Chat Header */}
       <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3 overflow-hidden">
@@ -1450,7 +1427,7 @@ export const Chat: React.FC = () => {
                     />
                       <div className="max-w-[75%] relative">
                         <div
-                          className={`px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
+                          className={`px-3 py-1.5 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
                         >
                           {/* Explosion overlay */}
                           {isDeleting && (
@@ -1461,7 +1438,12 @@ export const Chat: React.FC = () => {
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             {participants[message.sender_id]?.username}
                           </p>
-                          {message.type === 'image' ? (
+                          {message.type === 'typing' && liveTypingEnabled ? (
+                            <span className="italic text-gray-500">
+                              {participants[message.sender_id]?.username || 'User'} is typing...
+                              <span className="ml-2 animate-bounce text-lg text-gray-400">...</span>
+                            </span>
+                          ) : message.type === 'image' ? (
                             <img
                               src={message.content}
                               alt="Sent image"
@@ -1475,22 +1457,23 @@ export const Chat: React.FC = () => {
                               isFromCurrentUser={isUserMessage}
                             />
                           )}
-                          <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
-                            {new Date(message.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                          {/* Trash icon for deleting message (all messages) */}
-                          <button
-                            className={`absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10 transition-opacity duration-200 chat-trash-btn`}
-                            style={{ display: isDeleting ? 'none' : 'block' }}
-                            onClick={() => handleDeleteMessage(message.id)}
-                            tabIndex={-1}
-                            aria-label="Delete message"
-                          >
-                            <HiTrash size={16} />
-                          </button>
+                          <div className="flex items-center justify-between mt-1 space-x-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <button
+                              className="text-gray-400 hover:text-red-600 p-0.5 rounded-full transition-colors"
+                              style={{ display: isDeleting ? 'none' : 'inline-flex' }}
+                              onClick={() => handleDeleteMessage(message.id)}
+                              tabIndex={-1}
+                              aria-label="Delete message"
+                            >
+                              <HiTrash size={12} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </>
@@ -1498,7 +1481,7 @@ export const Chat: React.FC = () => {
                     <>
                       <div className="max-w-[75%] relative">
                         <div
-                          className={`px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
+                          className={`px-3 py-1.5 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
                         >
                           {/* Explosion overlay */}
                           {isDeleting && (
@@ -1509,27 +1492,42 @@ export const Chat: React.FC = () => {
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             You
                           </p>
-                          <MessageContent 
-                            content={message.content}
-                            showEncrypted={showEncrypted}
-                            isFromCurrentUser={isUserMessage}
-                          />
-                          <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
-                            {new Date(message.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                          {/* Trash icon for deleting message (all messages) */}
-                          <button
-                            className={`absolute top-1 right-1 text-gray-400 hover:text-red-600 p-1 bg-white/70 rounded-full z-10 transition-opacity duration-200 chat-trash-btn`}
-                            style={{ display: isDeleting ? 'none' : 'block' }}
-                            onClick={() => handleDeleteMessage(message.id)}
-                            tabIndex={-1}
-                            aria-label="Delete message"
-                          >
-                            <HiTrash size={16} />
-                          </button>
+                          {message.type === 'typing' && liveTypingEnabled ? (
+                            <span className="italic text-gray-500">
+                              {participants[user?.id || '']?.username || 'User'} is typing...
+                              <span className="ml-2 animate-bounce text-lg text-gray-400">...</span>
+                            </span>
+                          ) : message.type === 'image' ? (
+                            <img
+                              src={message.content}
+                              alt="Sent image"
+                              className="max-w-xs max-h-64 rounded border my-2"
+                              onError={e => { (e.target as HTMLImageElement).src = '/img/image-placeholder.png'; }}
+                            />
+                          ) : (
+                            <MessageContent
+                              content={message.content}
+                              showEncrypted={showEncrypted}
+                              isFromCurrentUser={isUserMessage}
+                            />
+                          )}
+                          <div className="flex items-center justify-between mt-1 space-x-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <button
+                              className="text-gray-400 hover:text-red-600 p-0.5 rounded-full transition-colors"
+                              style={{ display: isDeleting ? 'none' : 'inline-flex' }}
+                              onClick={() => handleDeleteMessage(message.id)}
+                              tabIndex={-1}
+                              aria-label="Delete message"
+                            >
+                              <HiTrash size={12} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <DiceBearAvatar 
@@ -1545,28 +1543,6 @@ export const Chat: React.FC = () => {
                 </div>
               );
             })}
-            {otherUserTyping && (
-              <div className="flex items-end justify-start mb-4">
-                <DiceBearAvatar
-                  url={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_url}
-                  size={32}
-                  className="flex-shrink-0 mr-2"
-                  userId={threadDetails?.participant_ids.find(id => id !== user?.id) || ''}
-                  seed={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || undefined}
-                />
-                <div className="max-w-[75%]">
-                  <div className="px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none flex items-center">
-                    <span className="italic text-gray-500">
-                      {participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.username || "User"} is typing...
-                    </span>
-                    {liveTypingEnabled && otherUserTypingText && (
-                      <span className="ml-2 text-gray-700 dark:text-gray-200">{otherUserTypingText}</span>
-                    )}
-                    <span className="ml-2 animate-bounce text-lg text-gray-400">...</span>
-                  </div>
-                </div>
-              </div>
-            )}
             <div ref={messagesEndRef} className="h-6 mb-4" />
           </div>
         </div>
@@ -1605,6 +1581,7 @@ export const Chat: React.FC = () => {
                 </button>
               </div>
             </div>
+            
             
             {autoDeleteInfo.otherUserInfo !== null ? (
               <div className={`py-2 px-3 flex items-center border-t dark:border-gray-700 natural-light:border-[#A67C52] natural-dark:border-[#8B5A2B] ${
@@ -1717,3 +1694,12 @@ export const Chat: React.FC = () => {
     </div>
   );
 };
+
+// Wrap Chat export with ErrorBoundary
+const ChatWithBoundary: React.FC = (props) => (
+  <ErrorBoundary>
+    <Chat {...props} />
+  </ErrorBoundary>
+);
+
+export default ChatWithBoundary;
