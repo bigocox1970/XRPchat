@@ -239,6 +239,20 @@ export const WebsiteLayout: React.FC = () => {
         </div>
       </main>
 
+      <footer className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p>
+          App design by{' '}
+          <a
+            href="https://diamondinternet.co.uk/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-brand-primary"
+          >
+            Diamond Internet
+          </a>
+        </p>
+      </footer>
+
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
