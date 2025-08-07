@@ -175,7 +175,7 @@ export const GunTest: React.FC = () => {
 
             {/* Individual Test Results */}
             <div className="space-y-2">
-              {testResults.results.map((result, index) => (
+              {testResults.results.map((result: any, index: number) => (
                 <div key={index} className={`p-3 rounded-lg border ${
                   result.passed ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800' 
                                 : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'

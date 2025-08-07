@@ -26,7 +26,7 @@ interface TestResult {
   details?: any;
 }
 
-interface TestSuite {
+export interface TestSuite {
   name: string;
   results: TestResult[];
   passed: boolean;
@@ -117,7 +117,7 @@ export const testGunAuthentication = async (config: TestConfig = DEFAULT_TEST_CO
     }
     
     // Generate test wallet
-    const wallet = generateKeyPair();
+    const wallet = await generateKeyPair();
     const testUsername = `test_user_${Date.now()}`;
     
     // Test user creation
@@ -174,8 +174,8 @@ export const testGunMessaging = async (config: TestConfig = DEFAULT_TEST_CONFIG)
     }
     
     // Create two test users
-    const wallet1 = generateKeyPair();
-    const wallet2 = generateKeyPair();
+    const wallet1 = await generateKeyPair();
+    const wallet2 = await generateKeyPair();
     
     const user1 = await createGunUser(`sender_${Date.now()}`, wallet1.privateKey, wallet1.address);
     const user2 = await createGunUser(`recipient_${Date.now()}`, wallet2.privateKey, wallet2.address);
@@ -265,11 +265,11 @@ export const testGunContacts = async (config: TestConfig = DEFAULT_TEST_CONFIG):
     }
     
     // Create test user
-    const wallet = generateKeyPair();
+    const wallet = await generateKeyPair();
     const user = await createGunUser(`contact_test_${Date.now()}`, wallet.privateKey, wallet.address);
     
     // Create test contact
-    const contactWallet = generateKeyPair();
+    const contactWallet = await generateKeyPair();
     const contactUsername = `test_contact_${Date.now()}`;
     
     const contact = await addGunContact(

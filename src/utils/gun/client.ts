@@ -25,13 +25,13 @@ export let isConnected = false;
 export let connectedPeers = 0;
 
 // Track connection status with better logging
-gun.on('hi', (peer: any) => {
+(gun as any).on('hi', (peer: any) => {
   connectedPeers++;
   isConnected = true;
   console.log(`✅ Gun.js connected to peer:`, peer?.id || 'unknown', `(${connectedPeers} total peers)`);
 });
 
-gun.on('bye', (peer: any) => {
+(gun as any).on('bye', (peer: any) => {
   connectedPeers = Math.max(0, connectedPeers - 1);
   isConnected = connectedPeers > 0;
   console.log(`❌ Gun.js disconnected from peer:`, peer?.id || 'unknown', `(${connectedPeers} remaining peers)`);

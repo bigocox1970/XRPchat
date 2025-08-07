@@ -199,7 +199,7 @@ export const addHybridContact = async (
   // Add to Supabase
   if (hybridConfig.fallbackToSupabase || hybridConfig.enableDualWrite) {
     try {
-      supabaseResult = await supabaseAuth.addContact(contactAddress, contactPublicKey);
+      supabaseResult = await supabaseAuth.addContact(contactAddress);
       console.log('Contact added via Supabase');
     } catch (error) {
       console.error('Supabase contact add failed:', error);
@@ -283,13 +283,13 @@ const migrateUserContacts = async (userId: string) => {
     for (const contact of supabaseContacts) {
       try {
         await gunContacts.addGunContact(
-          contact.friend_address,
-          contact.friend_public_key,
-          contact.friend_username || 'Unknown'
+          (contact as any).friend_address,
+          (contact as any).friend_public_key,
+          (contact as any).friend_username || 'Unknown'
         );
-        console.log('Migrated contact:', contact.friend_address);
+        console.log('Migrated contact:', (contact as any).friend_address);
       } catch (error) {
-        console.warn('Failed to migrate contact:', contact.friend_address, error);
+        console.warn('Failed to migrate contact:', (contact as any).friend_address, error);
       }
     }
 
