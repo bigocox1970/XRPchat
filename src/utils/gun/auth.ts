@@ -48,9 +48,14 @@ export const createGunUser = async (username: string, xrpPrivateKey?: string, xr
     // Ensure password meets Gun.js minimum length requirement (typically 8+ chars)
     const pass = (privateKey && privateKey.length >= 8) ? privateKey : (privateKey || '') + '00000000'.slice(0, 8 - (privateKey || '').length);
 
-    // Create Gun user account
+    // Create Gun user account with timeout
     const user = await new Promise<any>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('User creation timeout'));
+      }, 10000); // 10 second timeout
+      
       gun.user().create(alias, pass, (ack: any) => {
+        clearTimeout(timeout);
         if (ack.err) {
           reject(new Error(ack.err));
         } else {
@@ -95,28 +100,46 @@ export const authenticateGunUser = async (address: string, privateKey: string): 
   return new Promise((resolve, reject) => {
     // Ensure password meets Gun.js minimum length requirement
     const pass = (privateKey && privateKey.length >= 8) ? privateKey : (privateKey || '') + '00000000'.slice(0, 8 - (privateKey || '').length);
+    
+    const timeout = setTimeout(() => {
+      reject(new Error('Authentication timeout'));
+    }, 10000); // 10 second timeout
+    
     gun.user().auth(address, pass, (ack: any) => {
+      clearTimeout(timeout);
       if (ack.err) {
         reject(new Error(ack.err));
       } else {
         currentUser = gun.user();
         
-        // Load profile
+        // Load profile with timeout
+        const profileTimeout = setTimeout(() => {
+          // Resolve without profile if loading takes too long
+          resolve({
+            publicKey: ack.pub,
+            privateKey,
+            address,
+            username: 'Unknown',
+            last_active: new Date().toISOString()
+          });
+        }, 2000);
+        
         currentUser.get('profile').once((profile: GunProfile) => {
+          clearTimeout(profileTimeout);
           if (profile) {
             currentProfile = profile;
           }
-        });
-
-        resolve({
-          publicKey: ack.pub,
-          privateKey,
-          address,
-          username: currentProfile?.username || 'Unknown',
-          avatar_url: currentProfile?.avatar_url,
-          avatar_seed: currentProfile?.avatar_seed,
-          auto_delete_settings: currentProfile?.auto_delete_settings,
-          last_active: new Date().toISOString()
+          
+          resolve({
+            publicKey: ack.pub,
+            privateKey,
+            address,
+            username: currentProfile?.username || 'Unknown',
+            avatar_url: currentProfile?.avatar_url,
+            avatar_seed: currentProfile?.avatar_seed,
+            auto_delete_settings: currentProfile?.auto_delete_settings,
+            last_active: new Date().toISOString()
+          });
         });
       }
     });
