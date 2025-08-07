@@ -14,6 +14,7 @@ import { DarkModeProvider } from './context/DarkModeContext';
 import { EncryptionModeProvider } from './context/EncryptionModeContext';
 import { DebugModeProvider } from './context/DebugModeContext';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
+import { GunProvider } from './context/GunContext';
 import { SignUp } from './components/SignUp';
 import { SignIn } from './components/SignIn';
 import { ForgotPassword } from './components/ForgotPassword';
@@ -34,6 +35,7 @@ import { Security } from './components/Security';
 import { FAQ } from './components/FAQ';
 import { Community } from './components/Community';
 import { Settings } from './components/Settings';
+import { GunTest } from './components/GunTest';
 import { supabase, subscribeToUserThreads, subscribeToThread } from './utils/supabase/index';
 import { setupAutoDeleteInterval } from './utils/supabase/autoDelete';
 import './index.css';
@@ -109,12 +111,14 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     <DarkModeProvider>
       <DebugModeProvider>
         <UserProvider>
-          <NotificationProvider>
-            <EncryptionModeProvider>
-              <AutoDeleteInitializer />
-              {children}
-            </EncryptionModeProvider>
-          </NotificationProvider>
+          <GunProvider>
+            <NotificationProvider>
+              <EncryptionModeProvider>
+                <AutoDeleteInitializer />
+                {children}
+              </EncryptionModeProvider>
+            </NotificationProvider>
+          </GunProvider>
         </UserProvider>
       </DebugModeProvider>
     </DarkModeProvider>
@@ -174,6 +178,7 @@ const createAppRoutes = () => {
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
         <Route path="connect" element={<Connect />} />
+        <Route path="gun-test" element={<GunTest />} />
       </Route>
       
       {/* Special route for mobile auth callback */}

@@ -1,6 +1,6 @@
-# XRPchat.app
+# Encryptr PWA
 
-A modern, secure chat application with end-to-end encryption using wallet-based keys.
+A modern, secure progressive web application with end-to-end encryption capabilities.
 
 ## Features
 
