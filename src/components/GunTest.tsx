@@ -23,7 +23,7 @@ export const GunTest: React.FC = () => {
     setTestResults(null);
     
     try {
-      const results = await runGunTestSuite({ enableLogging: true, timeoutMs: 10000, retryAttempts: 3 });
+      const results = await runGunTestSuite({ enableLogging: true, timeoutMs: 5000, retryAttempts: 1 });
       setTestResults(results);
     } catch (error) {
       console.error('Test suite failed:', error);

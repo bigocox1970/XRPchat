@@ -3,11 +3,17 @@ import Gun from 'gun';
 // @ts-ignore
 import 'gun/sea';
 
-// Initialize Gun in localStorage-only mode to avoid WebSocket issues
+// Initialize Gun with more reliable relay servers for P2P messaging
 const gun = Gun({
-  peers: [], // No remote peers - localStorage only
+  peers: [
+    'https://gunjs.herokuapp.com/gun', // More stable relay
+    'wss://gundb.herokuapp.com/gun',   // WebSocket relay
+  ],
   localStorage: true,
-  // Disable all network features to prevent WebSocket errors
+  // Connection stability settings
+  retry: 2000,
+  timeout: 8000,
+  // Allow graceful fallback
   axe: false
 });
 
@@ -21,10 +27,28 @@ export const SEA = Gun.SEA;
 export let isConnected = false;
 export let connectedPeers = 0;
 
-// Set as connected since we're in localStorage-only mode
-isConnected = true;
-connectedPeers = 0;
-console.log('✅ Gun.js initialized in localStorage-only mode (no P2P networking)');
+// Track connection status with better error handling
+(gun as any).on('hi', (peer: any) => {
+  connectedPeers++;
+  isConnected = true;
+  console.log(`✅ Gun.js connected to peer:`, peer?.url || peer?.id || 'unknown', `(${connectedPeers} total peers)`);
+});
+
+(gun as any).on('bye', (peer: any) => {
+  connectedPeers = Math.max(0, connectedPeers - 1);
+  isConnected = connectedPeers > 0;
+  console.log(`❌ Gun.js disconnected from peer:`, peer?.url || peer?.id || 'unknown', `(${connectedPeers} remaining peers)`);
+});
+
+// Graceful fallback to localStorage after connection attempts
+setTimeout(() => {
+  if (connectedPeers === 0) {
+    console.warn('⚠️ Gun.js: No relay connections after 10s, continuing with localStorage (offline mode)');
+    isConnected = true; // Allow local operation as fallback
+  } else {
+    console.log(`🌐 Gun.js: Connected to ${connectedPeers} peers for P2P messaging`);
+  }
+}, 10000);
 
 // Helper to get connection status
 export const getConnectionStatus = () => ({
@@ -33,7 +57,30 @@ export const getConnectionStatus = () => ({
   hasRelay: connectedPeers > 0
 });
 
-// Helper to wait for Gun to be ready (always ready in localStorage mode)
-export const waitForGun = (timeout = 5000): Promise<void> => {
-  return Promise.resolve(); // Always resolve immediately in localStorage-only mode
+// Helper to wait for Gun to be ready with P2P connection attempts
+export const waitForGun = (timeout = 10000): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (isConnected) {
+      resolve();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      // Don't reject - allow fallback to localStorage mode
+      console.warn('Gun.js: Connection timeout, proceeding with localStorage fallback');
+      isConnected = true;
+      resolve();
+    }, timeout);
+
+    const checkConnection = () => {
+      if (isConnected) {
+        clearTimeout(timer);
+        resolve();
+      } else {
+        setTimeout(checkConnection, 100);
+      }
+    };
+    
+    checkConnection();
+  });
 };
