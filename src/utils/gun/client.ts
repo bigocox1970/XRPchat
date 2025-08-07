@@ -3,15 +3,18 @@ import Gun from 'gun';
 // @ts-ignore
 import 'gun/sea';
 
-// Initialize Gun with relay servers only (avoid problematic browser storage extensions)
+// Initialize Gun with more stable relay servers and connection settings
 const gun = Gun({
   peers: [
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://gun-us.herokuapp.com/gun', 
+    'https://gun-us.herokuapp.com/gun',
     'https://gun-eu.herokuapp.com/gun'
   ],
-  localStorage: true,  // Use built-in localStorage
-  // Remove radisk and store as they cause browser compatibility issues
+  localStorage: true,
+  // Add connection stability settings
+  retry: 1000,  // Retry connection after 1 second
+  timeout: 5000, // 5 second timeout for operations
+  // Reduce aggressive reconnection attempts
+  axe: false
 });
 
 // Global Gun instance

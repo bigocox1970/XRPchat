@@ -1,10 +1,11 @@
 // Local Gun.js P2P server for testing
-const Gun = require('gun');
+import Gun from 'gun';
+import http from 'http';
 const port = 8080;
 
 // Create Gun server
 const gun = Gun({
-  web: require('http').createServer().listen(port),
+  web: http.createServer().listen(port),
   peers: []
 });
 
