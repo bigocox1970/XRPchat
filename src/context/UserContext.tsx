@@ -705,7 +705,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('Found threads to delete:', threadsData.length);
           
           // Get array of thread IDs
-          const threadIds = threadsData.map(thread => thread.id);
+          const threadIds = threadsData.map((thread: { id: string }) => thread.id);
           
           // Delete all messages from these threads first
           const { error: messagesError } = await supabaseAdmin

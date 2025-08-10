@@ -42,7 +42,10 @@ export const migrateExistingWallets = async (): Promise<void> => {
       
       // Process each wallet in the batch
       const updates = await Promise.all(
-        batch.map(async (wallet) => {
+        batch.map(async (wallet: {
+          id: string;
+          private_key: string;
+        }) => {
           try {
             // Encrypt the private key with the default PIN
             const encryptedPrivateKey = await encryptPrivateKeyWithPIN(wallet.private_key, defaultPin);
