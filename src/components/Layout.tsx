@@ -61,11 +61,24 @@ export const Layout: React.FC = () => {
     try {
       // Refresh user profile data
       await refreshProfile();
-      // Create and dispatch a custom event to notify other components
+      
+      // Dispatch BOTH events to ensure complete refresh
+      // 1. App refresh for data updates
       const refreshEvent = new CustomEvent('app-refresh', { 
         detail: { path: location.pathname } 
       });
       window.dispatchEvent(refreshEvent);
+      
+      // 2. Supabase connection refresh for realtime reconnections
+      const connectionRefreshEvent = new CustomEvent('supabaseConnectionRefresh', {
+        detail: { 
+          timestamp: Date.now(),
+          manual: true,
+          source: 'app-refresh-button'
+        }
+      });
+      window.dispatchEvent(connectionRefreshEvent);
+      
       // Add a small delay to show the refresh animation
       await new Promise(resolve => setTimeout(resolve, 500));
       setRefreshFailed(false); // Success

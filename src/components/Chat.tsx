@@ -361,6 +361,7 @@ export const Chat: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'error'>('connecting');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [errorDisplayTimer, setErrorDisplayTimer] = useState<NodeJS.Timeout | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
@@ -863,6 +864,13 @@ export const Chat: React.FC = () => {
       lastRefreshAtRef.current = now;
       
       console.log('🔄 Received Supabase connection refresh event');
+      
+      // Clear any pending error display timer since we're reconnecting
+      if (errorDisplayTimer) {
+        clearTimeout(errorDisplayTimer);
+        setErrorDisplayTimer(null);
+      }
+      
       setIsReconnecting(true);
       
       // Refresh messages after connection restoration
@@ -877,14 +885,30 @@ export const Chat: React.FC = () => {
     
     const handleConnectionError = (event: any) => {
       console.error('📶 Supabase connection error:', event.detail);
-      setConnectionStatus('error');
-      setConnectionError(event.detail.error || 'Connection failed');
+      
+      // Clear any existing timer
+      if (errorDisplayTimer) {
+        clearTimeout(errorDisplayTimer);
+      }
+      
+      // Wait 3 seconds before showing error state to avoid flashing on brief disconnections
+      const timer = setTimeout(() => {
+        setConnectionStatus('error');
+        setConnectionError(event.detail.error || 'Connection failed');
+      }, 3000);
+      
+      setErrorDisplayTimer(timer);
     };
     
     window.addEventListener('supabaseConnectionRefresh', handleConnectionRefresh);
     window.addEventListener('supabaseConnectionError', handleConnectionError);
     
     return () => {
+      // Clean up error display timer
+      if (errorDisplayTimer) {
+        clearTimeout(errorDisplayTimer);
+      }
+      
       window.removeEventListener('supabaseConnectionRefresh', handleConnectionRefresh);
       window.removeEventListener('supabaseConnectionError', handleConnectionError);
     };
