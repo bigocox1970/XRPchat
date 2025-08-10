@@ -569,6 +569,7 @@ export const Chat: React.FC = () => {
 
   // Auto hard-retry on focus/online/visibility if we're stuck loading or disconnected
   useEffect(() => {
+    let lastFocusTime = 0;
     const attemptAutoRecover = () => {
       const isLoaderVisible = loading || !threadDetails || loadingTimeout;
       const isDisconnected = connectionStatus !== 'connected' || !!connectionError;
@@ -577,7 +578,14 @@ export const Chat: React.FC = () => {
         setTimeout(() => handleHardRetry(), 150);
       }
     };
-    const handleFocus = () => attemptAutoRecover();
+    const handleFocus = () => {
+      // Only auto-recover on window focus, not input focus
+      const now = Date.now();
+      if (now - lastFocusTime > 1000) { // Debounce to prevent rapid firing
+        lastFocusTime = now;
+        attemptAutoRecover();
+      }
+    };
     const handleOnline = () => attemptAutoRecover();
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') attemptAutoRecover();

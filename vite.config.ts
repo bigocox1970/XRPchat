@@ -34,7 +34,7 @@ export default defineConfig({
       // Set CSP headers
       'Content-Security-Policy': `
         default-src 'self';
-        connect-src 'self' https://*.supabase.co wss://*.supabase.co:* wss://aoqvffeqscehfnrjgjrs.supabase.co wss://s.altnet.rippletest.net:51233;
+        connect-src 'self' https://*.supabase.co wss://*.supabase.co:* wss://aoqvffeqscehfnrjgjrs.supabase.co wss://s.altnet.rippletest.net:51233 http://localhost:* ws://localhost:* https://*.ngrok-free.app wss://*.ngrok-free.app https://relay.peer.ooo:8765 wss://relay.peer.ooo:8765;
         script-src 'self' 'unsafe-inline' 'unsafe-eval';
         style-src 'self' 'unsafe-inline';
         font-src 'self' data:;
