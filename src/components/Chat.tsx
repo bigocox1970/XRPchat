@@ -777,9 +777,21 @@ export const Chat: React.FC = () => {
     };
   }, [user, threadDetails, participants, threadId, messagesEndRef]);
 
-  // Enhanced connection monitoring
+  // Enhanced connection monitoring (avoid refresh on every focus)
   useEffect(() => {
+    const lastRefreshAtRef = { current: 0 } as { current: number };
     const handleConnectionRefresh = () => {
+      // If we're already connected, skip eager refresh to avoid re-renders on input focus
+      if (connectionStatus === 'connected' && !connectionError) {
+        return;
+      }
+      // Basic rate limit: skip if a refresh happened within the last 3 seconds
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current < 3000) {
+        return;
+      }
+      lastRefreshAtRef.current = now;
+      
       console.log('🔄 Received Supabase connection refresh event');
       setIsReconnecting(true);
       
@@ -806,7 +818,7 @@ export const Chat: React.FC = () => {
       window.removeEventListener('supabaseConnectionRefresh', handleConnectionRefresh);
       window.removeEventListener('supabaseConnectionError', handleConnectionError);
     };
-  }, [threadId, user, handleRefreshMessages]);
+  }, [threadId, user, handleRefreshMessages, connectionStatus, connectionError]);
   
   // Load messages and handle subscriptions
   useEffect(() => {
@@ -1709,9 +1721,7 @@ export const Chat: React.FC = () => {
     );
   }
 
-  // Debug log for user id and message sender ids
-  console.log('Current user id:', user?.id);
-  messages.forEach(m => console.log('Message', m.id, 'sender:', m.sender_id));
+  // Debug log removed to prevent excessive rerenders logging
 
   // Enhanced loading screen with smooth transitions
   if (loading || !threadDetails) {
@@ -2310,20 +2320,7 @@ export const Chat: React.FC = () => {
               }
               // Allow Shift+Enter for new lines without triggering send
             }}
-            onFocus={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              // Just focus, no other actions
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              // Just click, no other actions
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              // Prevent any mouse events from bubbling
-            }}
+            
             placeholder="Type a message... (Shift+Enter for new line)"
             rows={1}
             style={{

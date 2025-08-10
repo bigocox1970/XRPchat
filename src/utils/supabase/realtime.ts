@@ -12,6 +12,10 @@ let connectionHealth = {
   maxReconnectAttempts: 10
 };
 
+// Heartbeat and staleness configuration
+const HEARTBEAT_INTERVAL_MS = 30000; // Send a heartbeat every 30s
+const STALE_THRESHOLD_MS = 90 * 1000; // Consider stale if no activity for 90s
+
 // Track connection status with visibility API
 if (typeof document !== 'undefined') {
   // Monitor page visibility to maintain connections
@@ -33,9 +37,9 @@ if (typeof document !== 'undefined') {
 setInterval(() => {
   const timeSinceActivity = Date.now() - connectionHealth.lastActivity;
   
-  // If no activity for 5 minutes, assume connection may be stale
-  if (timeSinceActivity > 5 * 60 * 1000) {
-    console.log('⚠️ Supabase connection inactive for 5+ minutes - health check');
+  // If no activity for 90s, assume connection may be stale
+  if (timeSinceActivity > STALE_THRESHOLD_MS) {
+    console.log('⚠️ Supabase connection inactive for >90s - health check');
     checkAndRefreshConnections();
   }
 }, 30000); // Check every 30 seconds
@@ -75,6 +79,8 @@ export const subscribeToThread = (
   let shouldRetry = true;
   let currentChannel: any = null;
   let reconnectTimer: NodeJS.Timeout | null = null;
+  let heartbeatTimer: NodeJS.Timeout | null = null;
+  let staleCheckTimer: NodeJS.Timeout | null = null;
 
   // Check if already subscribed
   const channelKey = `thread:${threadId}`;
@@ -115,6 +121,60 @@ export const subscribeToThread = (
   
   let channel = createChannel();
 
+  const startHeartbeat = () => {
+    // Clear existing interval first
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+    }
+    heartbeatTimer = setInterval(() => {
+      if (!isSubscribed || !currentChannel) return;
+      try {
+        currentChannel
+          .send({
+            type: 'broadcast',
+            event: 'heartbeat',
+            payload: { timestamp: Date.now(), threadId, seq: Math.random().toString(36).slice(2) }
+          })
+          .catch((e: any) => {
+            console.warn('Heartbeat send failed, forcing resubscribe:', e);
+            // Treat as stale and force a resubscribe
+            try { currentChannel.unsubscribe(); } catch {}
+            isSubscribed = false;
+            retryAttempts = Math.min(retryAttempts + 1, maxRetries);
+            channel = createChannel();
+            setupChannelHandlers(channel);
+            channel.subscribe(handleSubscribe);
+          });
+      } catch (e) {
+        console.warn('Heartbeat exception, forcing resubscribe:', e);
+        try { currentChannel.unsubscribe(); } catch {}
+        isSubscribed = false;
+        retryAttempts = Math.min(retryAttempts + 1, maxRetries);
+        channel = createChannel();
+        setupChannelHandlers(channel);
+        channel.subscribe(handleSubscribe);
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+  };
+
+  const startStaleChecker = () => {
+    if (staleCheckTimer) {
+      clearInterval(staleCheckTimer);
+    }
+    staleCheckTimer = setInterval(() => {
+      const inactiveFor = Date.now() - connectionHealth.lastActivity;
+      if (isSubscribed && inactiveFor > STALE_THRESHOLD_MS) {
+        console.log(`⏳ No activity for ${inactiveFor}ms (>${STALE_THRESHOLD_MS}), resubscribing thread:${threadId}`);
+        try { currentChannel?.unsubscribe(); } catch {}
+        isSubscribed = false;
+        retryAttempts = Math.min(retryAttempts + 1, maxRetries);
+        channel = createChannel();
+        setupChannelHandlers(channel);
+        channel.subscribe(handleSubscribe);
+      }
+    }, Math.min(HEARTBEAT_INTERVAL_MS, 20000));
+  };
+
   const handleSubscribe = async (status: string) => {
     console.log(`📡 Supabase subscription status for thread:${threadId}:`, status);
     
@@ -125,27 +185,19 @@ export const subscribeToThread = (
       connectionHealth.lastActivity = Date.now();
       console.log(`✅ Successfully subscribed to thread:${threadId}`);
       
-      // Send heartbeat to test connection
-      setTimeout(() => {
-        if (isSubscribed && currentChannel) {
-          currentChannel.send({
-            type: 'broadcast',
-            event: 'heartbeat',
-            payload: { timestamp: Date.now(), threadId }
-          }).catch((e: any) => {
-            console.warn('Heartbeat failed, connection may be stale:', e);
-            connectionHealth.isHealthy = false;
-          });
-        }
-      }, 5000);
+      // Start periodic heartbeat and stale checker
+      startHeartbeat();
+      startStaleChecker();
       
-    } else if (status === 'CLOSED' && shouldRetry && retryAttempts < maxRetries) {
+    } else if ((status === 'CLOSED' || status === 'TIMED_OUT') && shouldRetry && retryAttempts < maxRetries) {
       retryAttempts++;
       connectionHealth.reconnectAttempts++;
       console.log(`🔄 Channel closed, retrying... (${retryAttempts}/${maxRetries})`);
       
-      // Progressive backoff: 2s, 4s, 8s, 16s, then 30s max
-      const backoffDelay = Math.min(retryDelayMs * Math.pow(2, retryAttempts - 1), 30000);
+      // Progressive backoff with jitter: 2s, 4s, 8s, 16s, then 30s max
+      const baseDelay = Math.min(retryDelayMs * Math.pow(2, retryAttempts - 1), 30000);
+      const jitter = baseDelay * (0.2 * (Math.random() - 0.5)); // +/-10%
+      const backoffDelay = Math.max(1000, baseDelay + jitter);
       
       reconnectTimer = setTimeout(async () => {
         if (shouldRetry) {
@@ -162,7 +214,9 @@ export const subscribeToThread = (
       connectionHealth.reconnectAttempts++;
       console.log(`❌ Channel error, retrying... (${retryAttempts}/${maxRetries})`);
       
-      const backoffDelay = Math.min(retryDelayMs * Math.pow(2, retryAttempts - 1), 30000);
+      const baseDelay = Math.min(retryDelayMs * Math.pow(2, retryAttempts - 1), 30000);
+      const jitter = baseDelay * (0.2 * (Math.random() - 0.5));
+      const backoffDelay = Math.max(1000, baseDelay + jitter);
       
       reconnectTimer = setTimeout(async () => {
         if (shouldRetry) {
@@ -237,9 +291,12 @@ export const subscribeToThread = (
   
   // Listen for global connection refresh events
   const handleConnectionRefresh = () => {
-    if (shouldRetry && !isSubscribed) {
-      console.log(`🔄 Global refresh triggered for thread:${threadId}`);
+    const inactiveFor = Date.now() - connectionHealth.lastActivity;
+    const isStale = inactiveFor > STALE_THRESHOLD_MS;
+    if ((shouldRetry && !isSubscribed) || isStale) {
+      console.log(`🔄 Global refresh triggered for thread:${threadId}${isStale ? ' (stale)' : ''}`);
       retryAttempts = 0; // Reset retry count
+      try { currentChannel?.unsubscribe(); } catch {}
       channel = createChannel();
       setupChannelHandlers(channel);
       channel.subscribe(handleSubscribe);
@@ -256,6 +313,14 @@ export const subscribeToThread = (
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
+    }
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    if (staleCheckTimer) {
+      clearInterval(staleCheckTimer);
+      staleCheckTimer = null;
     }
     
     // Remove global listener
