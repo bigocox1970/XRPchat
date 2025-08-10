@@ -88,7 +88,7 @@ export const GunProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [migrationStatus, setMigrationStatus] = useState<any>(null);
   
   // Loading states
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [threadsLoading, setThreadsLoading] = useState(false);
   
