@@ -4,10 +4,14 @@ import Gun from 'gun';
 import 'gun/sea';
 
 // Initialize Gun with current working relay servers for P2P messaging
+const relayEnv = (import.meta as any).env?.VITE_GUN_RELAY as string | undefined;
+const envPeers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
+
 const gun = Gun({
-  peers: [
-    // Primary working relay server only to reduce connection spam
-    'https://relay.peer.ooo:8765/gun'
+  peers: envPeers.length ? envPeers : [
+    // Local fallback for development
+    'http://localhost:8080/gun',
+    'ws://localhost:8080/gun'
   ],
   localStorage: true,
   // Reduced connection attempts to prevent spam
