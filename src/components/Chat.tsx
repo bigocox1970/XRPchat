@@ -383,6 +383,16 @@ export const Chat: React.FC = () => {
     console.log('🎯 Will use Gun.js for messages:', gunConnected && gunAuthenticated && hasRealPeers);
   }, [liveTypingEnabled, gunConnected, gunAuthenticated, connectedPeers, typingUsers, gunConnectionHealth]);
 
+  // Drive the header status dot from actual transport connectivity (peers), not auth
+  useEffect(() => {
+    if (gunConnected && connectedPeers > 0) {
+      setConnectionStatus('connected');
+      setConnectionError(null);
+    } else if (!gunConnected) {
+      setConnectionStatus('connecting');
+    }
+  }, [gunConnected, connectedPeers]);
+
   // Capture console output in debug mode
   useEffect(() => {
     if (!debugMode) return;
@@ -472,18 +482,24 @@ export const Chat: React.FC = () => {
   }, [newMessage, adjustTextareaHeight]);
 
   // Enhanced refresh with better state management
-  const handleRefreshMessages = React.useCallback(async () => {
+  const handleRefreshMessages = React.useCallback(async (options?: { background?: boolean }) => {
     if (!threadId || !user || isRefreshing) return; // Prevent multiple simultaneous refreshes
-    
-    console.log('Starting message refresh...');
+    const background = options?.background === true;
+
+    console.log(background ? 'Starting background message refresh...' : 'Starting message refresh...');
     setIsRefreshing(true);
-    setLoading(true);
-    setError(null); // Clear any existing errors
+    if (!background) {
+      setLoading(true);
+      setError(null); // Clear any existing errors
+    }
     
     try {
       console.log(`Manually refreshing messages for thread ${threadId}`);
-      // Clear current messages first
-      setMessages([]);
+      // In foreground refresh, optionally clear; in background keep UI stable
+      if (!background) {
+        // Clear current messages first
+        setMessages([]);
+      }
       
       // Check for expired messages
       try {
@@ -523,12 +539,16 @@ export const Chat: React.FC = () => {
       console.log('Messages refreshed successfully');
     } catch (error) {
       console.error('Failed to refresh messages:', error);
-      setError('Failed to refresh messages. Please try again.');
+      if (!background) {
+        setError('Failed to refresh messages. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
       setIsRefreshing(false);
     }
-  }, [threadId, user, clearUnread]);
+  }, [threadId, user, clearUnread, isRefreshing]);
 
   // Hard retry: force channels to refresh and reload messages (helps on mobile)
   const handleHardRetry = React.useCallback(() => {
@@ -866,7 +886,9 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     if (!threadId || !user) return;
     setMessages([]); // Optionally clear messages only when thread changes
-    setConnectionStatus('connecting');
+    if (connectionStatus !== 'connected') {
+      setConnectionStatus('connecting');
+    }
     setConnectionError(null);
 
     // Define loadMessages inside the effect
@@ -1890,24 +1912,25 @@ export const Chat: React.FC = () => {
           <EncryptionIndicator />
           
           {/* Connection Status Indicator */}
-          <div className="flex items-center space-x-1" title={
-            gunConnected && gunAuthenticated && gunConnectionHealth?.hasRealPeers
-              ? `🌐 P2P Network Active - Direct peer-to-peer messaging (${connectedPeers} peers connected)` 
-              : gunConnected && gunAuthenticated && !gunConnectionHealth?.hasRealPeers
-              ? `📱 P2P Local Mode - Using device storage only (${connectedPeers} local peers)`
+          {(() => {
+            const transportConnected = gunConnected && connectedPeers > 0;
+            const hasRelayPeers = !!gunConnectionHealth?.hasRealPeers;
+            const title = transportConnected
+              ? (hasRelayPeers
+                  ? `🌐 P2P Network Active - Direct peer-to-peer messaging (${connectedPeers} peers connected)`
+                  : `📱 P2P Local Mode - Using device storage only (${connectedPeers} local peers)`)
               : connectionStatus === 'connected'
               ? `☁️ Cloud Mode - Using secure server connection for messaging`
               : connectionStatus === 'connecting' || isReconnecting
               ? `🔄 Connecting to messaging service...`
               : connectionStatus === 'error'
               ? `❌ Connection Error: ${connectionError || 'Unable to connect to messaging service'}`
-              : `⚫ Offline - No connection to messaging service`
-          }>
+              : `⚫ Offline - No connection to messaging service`;
+            return (
+          <div className="flex items-center space-x-1" title={title}>
             {/* Neon green pulsing dot for all connected states */}
             <div className={`relative ${
-              gunConnected && gunAuthenticated && gunConnectionHealth?.hasRealPeers ||
-              gunConnected && gunAuthenticated && !gunConnectionHealth?.hasRealPeers ||
-              connectionStatus === 'connected'
+              transportConnected || connectionStatus === 'connected'
                 ? 'neon-status-dot' 
                 : connectionStatus === 'connecting' || isReconnecting
                 ? 'connecting-status-dot'
@@ -1918,12 +1941,12 @@ export const Chat: React.FC = () => {
               <div className="w-2 h-2 rounded-full bg-current"></div>
             </div>
             <div className="flex items-center space-x-1 text-xs text-white/80">
-              {gunConnected && gunAuthenticated && gunConnectionHealth?.hasRealPeers ? (
+              {transportConnected && hasRelayPeers ? (
                 <>
                   <span>P2P</span>
                   <span className="text-white/60">({connectedPeers})</span>
                 </>
-              ) : gunConnected && gunAuthenticated && !gunConnectionHealth?.hasRealPeers ? (
+              ) : transportConnected && !hasRelayPeers ? (
                 <>
                   <span>P2P</span>
                   <span className="text-white/60">(Local)</span>
@@ -1935,7 +1958,7 @@ export const Chat: React.FC = () => {
                 </>
               ) : connectionStatus === 'connecting' || isReconnecting ? (
                 <>
-                  <span>Con</span>
+                  <span>Conn</span>
                   <div className="connecting-dots">
                     <span>.</span>
                     <span>.</span>
@@ -1949,6 +1972,8 @@ export const Chat: React.FC = () => {
               )}
             </div>
           </div>
+            );
+          })()}
           
           <button
             onClick={(e) => {
@@ -2420,7 +2445,7 @@ export const Chat: React.FC = () => {
       
       {/* Auto-refresh messages periodically to maintain connection */}
       {connectionStatus === 'connected' && (
-        <RefreshInterval onRefresh={handleRefreshMessages} intervalMs={300000} />
+        <RefreshInterval onRefresh={() => handleRefreshMessages({ background: true })} intervalMs={300000} />
       )}
     </div>
   );

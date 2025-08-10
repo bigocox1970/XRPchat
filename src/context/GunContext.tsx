@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useUser } from './UserContext';
 import { 
   GunUser, 
   GunProfile, 
@@ -73,6 +74,8 @@ interface GunContextType {
 const GunContext = createContext<GunContextType | undefined>(undefined);
 
 export const GunProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Access user wallet for auto-auth
+  const { user: supabaseUser, wallet, isPINEnabled } = useUser() as any;
   // Connection state
   const [isConnected, setIsConnected] = useState(false);
   const [connectedPeers, setConnectedPeers] = useState(0);
@@ -143,6 +146,23 @@ export const GunProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     initializeHybridMode({ enableDualWrite: true });
   }, []);
+
+  // Auto-authenticate Gun using wallet when safe (no PIN)
+  useEffect(() => {
+    const tryAutoAuth = async () => {
+      try {
+        if (!isAuthenticated && supabaseUser && wallet && !isPINEnabled) {
+          // Use wallet address as alias and private_key as password
+          const user = await authenticateGunUser(wallet.address, wallet.private_key);
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.warn('Gun auto-auth failed (will stay unauthenticated):', err);
+      }
+    };
+    tryAutoAuth();
+  }, [isAuthenticated, supabaseUser, wallet, isPINEnabled]);
 
   // Authentication functions
   const signUp = async (username: string, privateKey?: string, address?: string) => {

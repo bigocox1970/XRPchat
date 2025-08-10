@@ -2,11 +2,22 @@
 import Gun from 'gun';
 // @ts-ignore
 import 'gun/sea';
+// Enable AXE transport optimisations
+// @ts-ignore
+import 'gun/axe';
 
 // Initialize Gun with current working relay servers for P2P messaging
+const relayEnv = (import.meta as any).env?.VITE_GUN_RELAY as string | undefined;
+const envPeers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
+
 const gun = Gun({
-  peers: [
-    // Primary working relay server only to reduce connection spam
+  peers: envPeers.length ? envPeers : [
+    // Local Docker relay for development
+    'http://localhost:8080/gun',
+    'ws://localhost:8080/gun',
+    'http://127.0.0.1:8080/gun',
+    'ws://127.0.0.1:8080/gun',
+    // Public fallback relay
     'https://relay.peer.ooo:8765/gun'
   ],
   localStorage: true,
@@ -14,7 +25,7 @@ const gun = Gun({
   retry: 5000,        // Longer retry delay
   timeout: 10000,     // Shorter timeout to fail faster
   // Allow graceful fallback but track real connections
-  axe: false,
+  axe: true,
   // Optimized batch settings
   batch: 20,          // Smaller batches for better reliability
   chunk: 1024 * 4,    // Smaller chunks
@@ -164,9 +175,14 @@ const attemptRelayReconnection = () => {
   
   // Try to manually trigger connection to each relay
   const relayPeers = [
+    ...envPeers,
+    'http://localhost:8080/gun',
+    'ws://localhost:8080/gun',
+    'http://127.0.0.1:8080/gun',
+    'ws://127.0.0.1:8080/gun',
     'https://relay.peer.ooo:8765/gun',
-    'https://gun-relay.herokuapp.com/gun',
-    'wss://relay.peer.ooo:8765/gun'
+    'wss://relay.peer.ooo:8765/gun',
+    'https://gun-relay.herokuapp.com/gun'
   ];
   
   relayPeers.forEach((peerUrl, index) => {
