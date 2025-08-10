@@ -10,6 +10,9 @@ import 'gun/axe';
 const relayEnv = (import.meta as any).env?.VITE_GUN_RELAY as string | undefined;
 const envPeers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
 
+console.log('🔍 VITE_GUN_RELAY environment variable:', relayEnv);
+console.log('🔫 Gun.js initializing with peers:', envPeers);
+
 const gun = Gun({
   peers: envPeers.length ? envPeers : [],
   localStorage: true,
@@ -22,9 +25,7 @@ const gun = Gun({
   batch: 20,          // Smaller batches for better reliability
   chunk: 1024 * 4,    // Smaller chunks
   // Disable WebRTC to reduce connection complexity
-  rtc: false,
-  // DISABLE automatic peer discovery - only use YOUR specified peers
-  super: false
+  rtc: false
 });
 
 // Global Gun instance
