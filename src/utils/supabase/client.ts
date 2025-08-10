@@ -44,24 +44,27 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 console.log('[DEBUG] Supabase client created:', !!supabase);
 
 // Admin client for operations that require service role
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey || supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  },
-  global: {
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'apikey': supabaseServiceKey || supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseServiceKey || supabaseAnonKey}`,
-    },
-    fetch: (input, init = {}) => {
-      // Always use cache: 'no-store' for all requests
-      return fetch(input, { ...init, cache: 'no-store' });
-    }
-  }
-});
+// Never instantiate in the browser to avoid duplicate GoTrueClient instances
+export const supabaseAdmin = (!isBrowser && !!supabaseServiceKey)
+  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+      global: {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        fetch: (input, init = {}) => {
+          return fetch(input, { ...init, cache: 'no-store' });
+        }
+      }
+    })
+  : (null as any);
 
 // Run the last_active migration
 export const runLastActiveMigration = async () => {
@@ -115,48 +118,20 @@ export const runLastActiveMigration = async () => {
 
 // Validate admin client on initialization - but don't try to count profiles
 // which seems to be causing a 400 error
-(async () => {
-  if (!supabaseServiceKey) {
-    return; // Already logged warning above
-  }
-  
-  try {
-    // Simple test query to verify service role permissions using a simple table query
-    // instead of count(*) which might be failing due to RLS policies
-    const { error } = await supabaseAdmin.from('profiles').select('id').limit(1);
-    
-    if (error) {
-      console.error('CRITICAL: Supabase service role validation failed:', error);
-      // Don't throw as this would crash app initialization
-    } else {
-      console.log('Supabase service role key validated successfully');
-      
-      // FOR NOW, let's skip the migration as the RPC functions don't seem to exist
-      console.log('Skipping last_active migration since RPC functions aren\'t configured');
-      
-      // Instead, let's check if the last_active column exists directly
-      try {
-        const { data, error: structureError } = await supabaseAdmin
-          .from('profiles')
-          .select('last_active')
-          .limit(1);
-          
-        if (structureError) {
-          console.warn('last_active column likely doesn\'t exist:', structureError.message);
-          console.warn('You may need to manually add this column to your Supabase profiles table');
-          console.warn('Use this SQL command in Supabase\'s SQL editor:');
-          console.warn('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_active TIMESTAMPTZ DEFAULT NOW();');
-        } else {
-          console.log('last_active column appears to exist already');
-        }
-      } catch (columnCheckError) {
-        console.error('Error checking for last_active column:', columnCheckError);
+if (!isBrowser && supabaseAdmin) {
+  (async () => {
+    try {
+      const { error } = await supabaseAdmin.from('profiles').select('id').limit(1);
+      if (error) {
+        console.error('CRITICAL: Supabase service role validation failed:', error);
+      } else {
+        console.log('Supabase service role key validated successfully');
       }
+    } catch (err) {
+      console.error('Error validating Supabase service role:', err);
     }
-  } catch (err) {
-    console.error('Error validating Supabase service role:', err);
-  }
-})();
+  })();
+}
 
 // Export a utility to check authentication status that's mobile friendly
 export const checkAuthStatus = async () => {
