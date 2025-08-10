@@ -1910,6 +1910,22 @@ export const Chat: React.FC = () => {
         </div>
       </div>
 
+      {/* Encrypted view banner */}
+      {showEncrypted && (
+        <div className="px-4 py-3 border-l-4 border-brand-primary/50 bg-brand-primary/10 rounded-md text-gray-900 dark:text-white">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <IoLockClosed className="h-5 w-5 text-current" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm leading-relaxed">
+                <span className="font-medium">Encrypted view:</span> You’re seeing the ciphertext exactly as it’s sent over the network. It can only be decrypted with the correct private key.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Private Key Deleted Notice */}
       {isPrivateKeyDeleted && (
         <div className="bg-yellow-50 dark:bg-yellow-900/30 border-b border-yellow-200 dark:border-yellow-900 px-4 py-3">
@@ -2191,7 +2207,7 @@ export const Chat: React.FC = () => {
             e.stopPropagation();
             handleSend(e);
           }}
-          className="flex items-end space-x-2 transition-all duration-200"
+          className="flex items-center space-x-2 transition-all duration-200"
         >
           {/* Visual indicator for scrollable textarea - only show when 3+ lines and at max height */}
           {isAtMaxHeight && isMultiLine && (
