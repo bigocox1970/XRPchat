@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co:* wss://aoqvffeqscehfnrjgjrs.supabase.co wss://s.altnet.rippletest.net:51233; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://*.supabase.co https://api.dicebear.com; manifest-src 'self'; worker-src 'self' blob:
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co:* wss://aoqvffeqscehfnrjgjrs.supabase.co wss://s.altnet.rippletest.net:51233 http://localhost:8080 http://127.0.0.1:8080 ws://localhost:8080 ws://127.0.0.1:8080 ws://localhost:8765 https://relay.peer.ooo:8765 wss://relay.peer.ooo:8765 https://036da3538859.ngrok-free.app wss://036da3538859.ngrok-free.app https://*.ngrok-free.app wss://*.ngrok-free.app; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://*.supabase.co https://api.dicebear.com; manifest-src 'self'; worker-src 'self' blob:
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
