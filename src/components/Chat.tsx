@@ -530,6 +530,23 @@ export const Chat: React.FC = () => {
     }
   }, [threadId, user, clearUnread]);
 
+  // Hard retry: force channels to refresh and reload messages (helps on mobile)
+  const handleHardRetry = React.useCallback(() => {
+    try {
+      setIsReconnecting(true);
+      // Force all Supabase subscriptions to refresh
+      window.dispatchEvent(new CustomEvent('supabaseConnectionRefresh', { detail: { manual: true } }));
+      // Reset typing channel if present
+      if (typingChannelRef.current) {
+        try { typingChannelRef.current.unsubscribe(); } catch {}
+        typingChannelRef.current = null;
+      }
+    } finally {
+      // Reload messages after forcing refresh
+      handleRefreshMessages().finally(() => setIsReconnecting(false));
+    }
+  }, [handleRefreshMessages]);
+
   // Load thread details
   useEffect(() => {
     const loadThreadDetails = async () => {
@@ -1735,7 +1752,7 @@ export const Chat: React.FC = () => {
           {loadingTimeout && (
             <button
               className={`mt-2 text-blue-600 dark:text-blue-400 text-sm flex items-center justify-center mx-auto hover:text-blue-800 dark:hover:text-blue-300 transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
-              onClick={handleRefreshMessages}
+              onClick={handleHardRetry}
               style={{ outline: 'none', border: 'none', background: 'none', cursor: 'pointer' }}
             >
               <HiRefresh className="w-5 h-5 mr-1" />
