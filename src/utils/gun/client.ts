@@ -11,15 +11,7 @@ const relayEnv = (import.meta as any).env?.VITE_GUN_RELAY as string | undefined;
 const envPeers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
 
 const gun = Gun({
-  peers: envPeers.length ? envPeers : [
-    // Local Docker relay for development
-    'http://localhost:8080/gun',
-    'ws://localhost:8080/gun',
-    'http://127.0.0.1:8080/gun',
-    'ws://127.0.0.1:8080/gun',
-    // Public fallback relay
-    'https://relay.peer.ooo:8765/gun'
-  ],
+  peers: envPeers.length ? envPeers : [],
   localStorage: true,
   // Reduced connection attempts to prevent spam
   retry: 5000,        // Longer retry delay
@@ -173,17 +165,8 @@ setTimeout(() => {
 const attemptRelayReconnection = () => {
   console.log('🔄 Attempting to reconnect to Gun.js relay servers...');
   
-  // Try to manually trigger connection to each relay
-  const relayPeers = [
-    ...envPeers,
-    'http://localhost:8080/gun',
-    'ws://localhost:8080/gun',
-    'http://127.0.0.1:8080/gun',
-    'ws://127.0.0.1:8080/gun',
-    'https://relay.peer.ooo:8765/gun',
-    'wss://relay.peer.ooo:8765/gun',
-    'https://gun-relay.herokuapp.com/gun'
-  ];
+  // Only use environment peers - no hardcoded fallbacks
+  const relayPeers = envPeers;
   
   relayPeers.forEach((peerUrl, index) => {
     setTimeout(() => {
