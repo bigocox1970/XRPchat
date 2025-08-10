@@ -95,18 +95,42 @@ export const GunProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Error handling
   const [lastError, setLastError] = useState<Error | null>(null);
 
-  // Monitor connection status
+  // Monitor connection status with enhanced peer tracking
   useEffect(() => {
-    const checkConnection = () => {
+    const updateConnectionStatus = () => {
       const status = getConnectionStatus();
       setIsConnected(status.isConnected);
       setConnectedPeers(status.connectedPeers);
+      
+      const connectionType = status.hasRealPeers ? 'P2P + Relay' : 
+                           status.isConnected ? 'Local Only' : 'Disconnected';
+      
+      console.log(`🔄 Gun.js status update: ${connectionType} (${status.connectedPeers} peers, ${status.hasRealPeers ? 'has relay' : 'local only'})`);
     };
 
-    checkConnection();
-    const interval = setInterval(checkConnection, 2000);
+    // Listen for connection events with enhanced peer info
+    const handleConnectionChange = (event: CustomEvent) => {
+      console.log('📡 Gun.js connection event:', event.detail);
+      setIsConnected(event.detail.connected);
+      setConnectedPeers(event.detail.peers);
+      
+      const hasRealPeers = event.detail.hasRealPeers || false;
+      const connectionType = hasRealPeers ? 'P2P + Relay' : 
+                           event.detail.connected ? 'Local Only' : 'Disconnected';
+      
+      console.log(`📡 Connection type: ${connectionType}`);
+    };
 
-    return () => clearInterval(interval);
+    window.addEventListener('gunConnectionChange', handleConnectionChange as EventListener);
+
+    // Check connection status every 5 seconds (reduced frequency)
+    const interval = setInterval(updateConnectionStatus, 5000);
+    updateConnectionStatus(); // Initial check
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gunConnectionChange', handleConnectionChange as EventListener);
+    };
   }, []);
 
   // Load migration status

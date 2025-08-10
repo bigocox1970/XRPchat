@@ -84,10 +84,14 @@ const RouteGuard: React.FC = () => {
   const isWebsiteRoute = location.pathname === '/' || location.pathname.startsWith('/website');
   const isAppRoute = location.pathname.startsWith('/app');
 
+  // Enhanced loading screen with smooth transition
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Loading...</div>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center transition-opacity duration-300">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-4"></div>
+          <div className="text-gray-600 dark:text-gray-400 text-sm">Loading...</div>
+        </div>
       </div>
     );
   }
@@ -125,8 +129,17 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   );
 };
 
-// Layout wrapper for authenticated routes
+// Layout wrapper for authenticated routes with loading state management
 const AuthenticatedLayout: React.FC = () => {
+  useEffect(() => {
+    // Ensure loading skeleton is hidden when authenticated layout renders
+    const timer = setTimeout(() => {
+      document.body.classList.add('app-loaded');
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   return (
     <Layout />
   );
@@ -203,9 +216,6 @@ const createAppRoutes = () => {
 };
 
 const App: React.FC = () => {
-  // Add a key based on current location to force remounting of components
-  const location = window.location.pathname;
-
   // IMPORTANT: Clear notification permissions on application start 
   // to prevent auto-request popups
   useEffect(() => {
@@ -297,6 +307,26 @@ const App: React.FC = () => {
     };
     
     initializePermissions();
+    
+    // Ensure loading skeleton is properly hidden after app initialization
+    const hideLoadingTimer = setTimeout(() => {
+      document.body.classList.add('app-loaded');
+    }, 500);
+    
+    return () => clearTimeout(hideLoadingTimer);
+  }, []);
+  
+  // Additional effect to handle page visibility and prevent refresh loops
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // App became visible - don't trigger any automatic refreshes
+        console.log('App became visible - maintaining current state');
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   return (
@@ -306,8 +336,6 @@ const App: React.FC = () => {
           router={createBrowserRouter(createRoutesFromElements(
             createAppRoutes()
           ))}
-          // Remove the key that forces router to re-render when location changes
-          // This could be causing pages to not load properly until refresh
         />
       </EncryptionProvider>
     </AppProviders>

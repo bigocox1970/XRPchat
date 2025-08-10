@@ -4,6 +4,62 @@ import { supabase } from './client';
 // This helps prevent multiple components from subscribing to the same channel
 export const activeSubscriptions: Record<string, boolean> = {};
 
+// Connection health monitoring
+let connectionHealth = {
+  isHealthy: true,
+  lastActivity: Date.now(),
+  reconnectAttempts: 0,
+  maxReconnectAttempts: 10
+};
+
+// Track connection status with visibility API
+if (typeof document !== 'undefined') {
+  // Monitor page visibility to maintain connections
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      console.log('📱 Page visible - checking Supabase connection health');
+      checkAndRefreshConnections();
+    }
+  });
+  
+  // Monitor window focus for connection health
+  window.addEventListener('focus', () => {
+    console.log('👀 Window focused - verifying Supabase subscriptions');
+    checkAndRefreshConnections();
+  });
+}
+
+// Periodically check connection health
+setInterval(() => {
+  const timeSinceActivity = Date.now() - connectionHealth.lastActivity;
+  
+  // If no activity for 5 minutes, assume connection may be stale
+  if (timeSinceActivity > 5 * 60 * 1000) {
+    console.log('⚠️ Supabase connection inactive for 5+ minutes - health check');
+    checkAndRefreshConnections();
+  }
+}, 30000); // Check every 30 seconds
+
+// Function to refresh all active subscriptions
+function checkAndRefreshConnections() {
+  connectionHealth.lastActivity = Date.now();
+  
+  // If we have too many failed reconnect attempts, reset
+  if (connectionHealth.reconnectAttempts > connectionHealth.maxReconnectAttempts) {
+    console.log('🔄 Resetting connection health after max attempts');
+    connectionHealth.reconnectAttempts = 0;
+    connectionHealth.isHealthy = true;
+  }
+  
+  // Emit event to notify components to refresh their subscriptions
+  window.dispatchEvent(new CustomEvent('supabaseConnectionRefresh', {
+    detail: { 
+      timestamp: Date.now(),
+      reconnectAttempts: connectionHealth.reconnectAttempts 
+    }
+  }));
+}
+
 /**
  * Sets up real-time subscriptions for a thread
  */
@@ -12,11 +68,13 @@ export const subscribeToThread = (
   onMessage: (message: any) => void,
   onUpdate: (update: any) => void
 ) => {
-  const maxRetries = 3;
+  const maxRetries = 10; // Increased from 3 to 10
   const retryDelayMs = 2000;
   let retryAttempts = 0;
   let isSubscribed = false;
   let shouldRetry = true;
+  let currentChannel: any = null;
+  let reconnectTimer: NodeJS.Timeout | null = null;
 
   // Check if already subscribed
   const channelKey = `thread:${threadId}`;
@@ -31,31 +89,108 @@ export const subscribeToThread = (
   // Mark as active
   activeSubscriptions[channelKey] = true;
 
-  const channel = supabase.channel(`thread:${threadId}`);
+  const createChannel = () => {
+    // Clean up existing channel if any
+    if (currentChannel) {
+      try {
+        currentChannel.unsubscribe();
+      } catch (e) {
+        console.warn('Error unsubscribing from existing channel:', e);
+      }
+    }
+    
+    currentChannel = supabase.channel(`thread:${threadId}`, {
+      config: {
+        presence: {
+          key: `user-${Date.now()}` // Unique key for this session
+        },
+        broadcast: {
+          self: true // Allow receiving own broadcasts for connection testing
+        }
+      }
+    });
+    
+    return currentChannel;
+  };
+  
+  let channel = createChannel();
 
   const handleSubscribe = async (status: string) => {
+    console.log(`📡 Supabase subscription status for thread:${threadId}:`, status);
+    
     if (status === 'SUBSCRIBED') {
       isSubscribed = true;
       retryAttempts = 0;
+      connectionHealth.isHealthy = true;
+      connectionHealth.lastActivity = Date.now();
+      console.log(`✅ Successfully subscribed to thread:${threadId}`);
+      
+      // Send heartbeat to test connection
+      setTimeout(() => {
+        if (isSubscribed && currentChannel) {
+          currentChannel.send({
+            type: 'broadcast',
+            event: 'heartbeat',
+            payload: { timestamp: Date.now(), threadId }
+          }).catch((e: any) => {
+            console.warn('Heartbeat failed, connection may be stale:', e);
+            connectionHealth.isHealthy = false;
+          });
+        }
+      }, 5000);
+      
     } else if (status === 'CLOSED' && shouldRetry && retryAttempts < maxRetries) {
       retryAttempts++;
-      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-      if (shouldRetry) {
-        channel.subscribe(handleSubscribe);
-      }
+      connectionHealth.reconnectAttempts++;
+      console.log(`🔄 Channel closed, retrying... (${retryAttempts}/${maxRetries})`);
+      
+      // Progressive backoff: 2s, 4s, 8s, 16s, then 30s max
+      const backoffDelay = Math.min(retryDelayMs * Math.pow(2, retryAttempts - 1), 30000);
+      
+      reconnectTimer = setTimeout(async () => {
+        if (shouldRetry) {
+          console.log(`🔄 Attempting reconnection ${retryAttempts} for thread:${threadId}`);
+          // Create fresh channel for reconnection
+          channel = createChannel();
+          setupChannelHandlers(channel);
+          channel.subscribe(handleSubscribe);
+        }
+      }, backoffDelay);
+      
     } else if (status === 'CHANNEL_ERROR' && retryAttempts < maxRetries) {
       retryAttempts++;
-      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-      if (shouldRetry) {
-        channel.subscribe(handleSubscribe);
-      }
+      connectionHealth.reconnectAttempts++;
+      console.log(`❌ Channel error, retrying... (${retryAttempts}/${maxRetries})`);
+      
+      const backoffDelay = Math.min(retryDelayMs * Math.pow(2, retryAttempts - 1), 30000);
+      
+      reconnectTimer = setTimeout(async () => {
+        if (shouldRetry) {
+          // Create fresh channel for reconnection
+          channel = createChannel();
+          setupChannelHandlers(channel);
+          channel.subscribe(handleSubscribe);
+        }
+      }, backoffDelay);
+      
     } else if (retryAttempts >= maxRetries) {
       shouldRetry = false;
+      connectionHealth.isHealthy = false;
+      console.error(`💥 Max retries reached for thread:${threadId} subscription`);
+      
+      // Emit event for UI to show disconnected state
+      window.dispatchEvent(new CustomEvent('supabaseConnectionError', {
+        detail: { 
+          threadId,
+          error: 'Max retries exceeded',
+          canRetry: true
+        }
+      }));
     }
   };
 
-  channel
-    .on(
+  const setupChannelHandlers = (ch: any) => {
+    ch.on(
       'postgres_changes',
       {
         event: 'INSERT',
@@ -63,8 +198,10 @@ export const subscribeToThread = (
         table: 'messages',
         filter: `thread_id=eq.${threadId}`,
       },
-      (payload) => {
+      (payload: any) => {
         if (isSubscribed) {
+          connectionHealth.lastActivity = Date.now();
+          console.log(`📥 Received message via Supabase for thread:${threadId}`);
           onMessage(payload);
         }
       }
@@ -77,8 +214,9 @@ export const subscribeToThread = (
         table: 'threads',
         filter: `id=eq.${threadId}`,
       },
-      (payload) => {
+      (payload: any) => {
         if (isSubscribed) {
+          connectionHealth.lastActivity = Date.now();
           try {
             onUpdate(payload);
           } catch (error) {
@@ -87,11 +225,51 @@ export const subscribeToThread = (
         }
       }
     )
-    .subscribe(handleSubscribe);
+    // Add heartbeat response handler
+    .on('broadcast', { event: 'heartbeat' }, (payload: any) => {
+      console.log(`💗 Heartbeat response received for thread:${threadId}`);
+      connectionHealth.lastActivity = Date.now();
+    });
+  };
+  
+  setupChannelHandlers(channel);
+  channel.subscribe(handleSubscribe);
+  
+  // Listen for global connection refresh events
+  const handleConnectionRefresh = () => {
+    if (shouldRetry && !isSubscribed) {
+      console.log(`🔄 Global refresh triggered for thread:${threadId}`);
+      retryAttempts = 0; // Reset retry count
+      channel = createChannel();
+      setupChannelHandlers(channel);
+      channel.subscribe(handleSubscribe);
+    }
+  };
+  
+  window.addEventListener('supabaseConnectionRefresh', handleConnectionRefresh);
 
   return () => {
+    console.log(`🛑 Unsubscribing from thread:${threadId}`);
     shouldRetry = false;
-    channel.unsubscribe();
+    
+    // Clear any pending reconnection timers
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    
+    // Remove global listener
+    window.removeEventListener('supabaseConnectionRefresh', handleConnectionRefresh);
+    
+    // Unsubscribe from channel
+    if (currentChannel) {
+      try {
+        currentChannel.unsubscribe();
+      } catch (e) {
+        console.warn('Error during unsubscribe:', e);
+      }
+    }
+    
     // Remove from active subscriptions
     delete activeSubscriptions[channelKey];
   };
