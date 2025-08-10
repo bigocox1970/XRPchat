@@ -8,7 +8,15 @@ import 'gun/axe';
 
 // Initialize Gun with YOUR relay server
 const relayEnv = (import.meta as any).env?.VITE_GUN_RELAY as string | undefined;
+console.log('🔍 VITE_GUN_RELAY environment variable:', relayEnv);
+console.log('🔍 All environment variables:', (import.meta as any).env);
+
 const peers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
+console.log('🔫 Gun.js initializing with peers:', peers);
+
+if (peers.length === 0) {
+  console.error('❌ NO GUN RELAY SERVERS CONFIGURED! Check VITE_GUN_RELAY environment variable');
+}
 
 const gun = Gun({
   peers: peers,
@@ -24,8 +32,6 @@ const gun = Gun({
   // Disable WebRTC to reduce connection complexity
   rtc: false
 });
-
-console.log('🔫 Gun.js initializing with peers:', peers);
 
 // Global Gun instance
 export { gun };
