@@ -6,6 +6,11 @@
   NODE_VERSION = "20.11.0"
   SECRETS_SCAN_ENABLED = "false"
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://relay.peer.ooo wss://relay.peer.ooo https://gun-relay.herokuapp.com wss://gun-relay.herokuapp.com ws://localhost:*; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' data:;"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

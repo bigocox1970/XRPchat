@@ -6,25 +6,20 @@ import 'gun/sea';
 // Initialize Gun with current working relay servers for P2P messaging
 const gun = Gun({
   peers: [
-    // Use current working Gun.js relay servers
-    'https://relay.peer.ooo:8765/gun', 
-    'https://gun-relay.herokuapp.com/gun',
-    'wss://relay.peer.ooo:8765/gun',
-    // Self-hosted reliable relays (if available)
-    'https://gundb.vercel.app/gun',
-    'wss://gundb.vercel.app/gun'
+    // Primary working relay server only to reduce connection spam
+    'https://relay.peer.ooo:8765/gun'
   ],
   localStorage: true,
-  // Enhanced connection stability settings
-  retry: 2000,        // Increased retry delay
-  timeout: 15000,     // Increased timeout
+  // Reduced connection attempts to prevent spam
+  retry: 5000,        // Longer retry delay
+  timeout: 10000,     // Shorter timeout to fail faster
   // Allow graceful fallback but track real connections
   axe: false,
   // Optimized batch settings
-  batch: 50,          // Smaller batches for better reliability
-  chunk: 1024 * 8,    // Smaller chunks
-  // Add WebRTC options for peer-to-peer connections
-  rtc: true
+  batch: 20,          // Smaller batches for better reliability
+  chunk: 1024 * 4,    // Smaller chunks
+  // Disable WebRTC to reduce connection complexity
+  rtc: false
 });
 
 // Global Gun instance
