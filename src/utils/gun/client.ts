@@ -6,24 +6,16 @@ import 'gun/sea';
 // @ts-ignore
 import 'gun/axe';
 
-// Initialize Gun with YOUR relay server
+// Initialize Gun with current working relay servers for P2P messaging
 const relayEnv = (import.meta as any).env?.VITE_GUN_RELAY as string | undefined;
-console.log('🔍 VITE_GUN_RELAY environment variable:', relayEnv);
-console.log('🔍 All environment variables:', (import.meta as any).env);
-
-const peers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
-console.log('🔫 Gun.js initializing with peers:', peers);
-
-if (peers.length === 0) {
-  console.error('❌ NO GUN RELAY SERVERS CONFIGURED! Check VITE_GUN_RELAY environment variable');
-}
+const envPeers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
 
 const gun = Gun({
-  peers: peers,
+  peers: envPeers.length ? envPeers : [],
   localStorage: true,
   // Reduced connection attempts to prevent spam
   retry: 5000,        // Longer retry delay
-  timeout: 15000,     // Longer timeout for public relays
+  timeout: 10000,     // Shorter timeout to fail faster
   // Allow graceful fallback but track real connections
   axe: true,
   // Optimized batch settings
@@ -174,7 +166,7 @@ const attemptRelayReconnection = () => {
   console.log('🔄 Attempting to reconnect to Gun.js relay servers...');
   
   // Only use environment peers - no hardcoded fallbacks
-  const relayPeers = peers;
+  const relayPeers = envPeers;
   
   relayPeers.forEach((peerUrl: string, index: number) => {
     setTimeout(() => {
