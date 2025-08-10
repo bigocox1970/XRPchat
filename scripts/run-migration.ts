@@ -1,4 +1,4 @@
-import { runLastActiveMigration } from '../src/utils/supabase/migrations.js';
+import { runLastActiveMigration } from '../src/utils/supabase/migrations';
 
 const main = async () => {
   console.log('Running last_active migration...');
