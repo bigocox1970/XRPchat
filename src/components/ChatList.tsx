@@ -4,7 +4,7 @@ import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
 import { useTheme } from '../context/DarkModeContext';
 import { getUserThreads, subscribeToUserThreads, getProfile, subscribeToThread, deleteThread } from '../utils/supabase/index';
-import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil, HiChat } from 'react-icons/hi';
+import { HiPlus, HiUser, HiTrash, HiX, HiCheck, HiSelector, HiPencil, HiChat, HiRefresh } from 'react-icons/hi';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { supabase } from '../utils/supabase/index';
@@ -50,6 +50,8 @@ export const ChatList: React.FC = () => {
   const [selectedThreads, setSelectedThreads] = useState<string[]>([]);
   // Display wallet addresses in shortened form
   const [expandedThread, setExpandedThread] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
 
   // Filter threads based on search query
   const filteredThreads = threads.filter(thread => 
@@ -489,7 +491,11 @@ export const ChatList: React.FC = () => {
       const threadsToDelete = threadToDelete 
         ? [threadToDelete] 
         : selectedThreads;
-      
+      // Show explosion for the first thread (single delete UI)
+      if (threadsToDelete.length > 0) {
+        setDeletingThreadId(threadsToDelete[0]);
+        await new Promise(res => setTimeout(res, 600)); // Wait for animation
+      }
       // Delete each thread
       for (const threadId of threadsToDelete) {
         await deleteThread(threadId, user.id);
@@ -587,10 +593,26 @@ export const ChatList: React.FC = () => {
     };
   }, [loadThreadsWithParticipants]);
 
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
-        <div className="text-gray-600 dark:text-gray-400">Loading chats...</div>
+        <div className="text-gray-600 dark:text-gray-400">
+          Loading chats...
+          {loadingTimeout && (
+            <div className="mt-2 text-red-700 text-sm">
+              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -604,15 +626,18 @@ export const ChatList: React.FC = () => {
             <HiChat size={24} />
           </div>
           <div>
-            <div className="font-semibold">Chats</div>
+            <div className="flex items-center space-x-4">
+              <div className="font-semibold">Chats</div>
+            </div>
           </div>
         </div>
         <button
-          onClick={handleNewChat}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors"
-          aria-label="New Chat"
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
         >
-          <HiPlus size={24} />
+          <HiRefresh className="" size={20} />
         </button>
       </div>
 
@@ -701,9 +726,9 @@ export const ChatList: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {filteredThreads.map((thread) => (
-              <div key={thread.id} className="w-full">
+              <div key={thread.id} className="w-full relative">
                 <div
-                  className={`relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 shadow-sm ${
+                  className={`relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 shadow-sm transition-transform duration-500 ${deletingThreadId === thread.id ? 'explode-out' : ''} ${
                     thread.id === window.location.pathname.split('/').pop() 
                       ? getActiveClasses()
                       : selectedThreads.includes(thread.id) 
@@ -725,6 +750,12 @@ export const ChatList: React.FC = () => {
                     }
                   }}
                 >
+                  {/* Explosion overlay */}
+                  {deletingThreadId === thread.id && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                      <span className="text-5xl animate-explode">💥</span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-12 items-center gap-1">
                     {/* Selection checkbox in selection mode */}
                     {selectionMode && (
@@ -862,3 +893,25 @@ export const ChatList: React.FC = () => {
     </div>
   );
 };
+
+// Add this CSS to your global stylesheet (e.g., index.css or App.css):
+/*
+.explode-out {
+  animation: explodeFade 0.6s forwards;
+  z-index: 10;
+}
+@keyframes explodeFade {
+  0% { opacity: 1; transform: scale(1); }
+  60% { opacity: 1; transform: scale(1.2) rotate(-8deg); }
+  80% { opacity: 0.7; transform: scale(1.4) rotate(8deg); }
+  100% { opacity: 0; transform: scale(0.7) rotate(-12deg); }
+}
+.animate-explode {
+  animation: popExplode 0.5s cubic-bezier(.36,1.7,.5,.8);
+}
+@keyframes popExplode {
+  0% { transform: scale(0.5) rotate(-10deg); opacity: 0.7; }
+  60% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 0; }
+}
+*/

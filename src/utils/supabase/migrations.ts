@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './client.js';
+import { supabaseAdmin } from './client';
 
 export const runLastActiveMigration = async () => {
   try {

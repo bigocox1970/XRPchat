@@ -97,10 +97,28 @@ export const Profile: React.FC = () => {
     };
   }, [refreshProfile]);
 
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    if (loading || !profile || !wallet) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading, profile, wallet]);
+
   if (loading || !profile || !wallet) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Loading profile...</div>
+        <div className="text-gray-600 dark:text-gray-400">
+          Loading profile...
+          {loadingTimeout && (
+            <div className="mt-2 text-red-700 text-sm">
+              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -254,6 +272,14 @@ export const Profile: React.FC = () => {
             <div className="font-semibold">Profile</div>
           </div>
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">

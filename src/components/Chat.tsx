@@ -5,8 +5,11 @@ import { useNotification } from '../context/NotificationContext';
 import { useEncryption } from '../context/EncryptionContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
 import { useDebugMode } from '../context/DebugModeContext';
+import { useGun } from '../context/GunContext';
 import { supabase, getThreadMessages, sendMessage, markMessageAsRead, subscribeToThread, getProfile, updateLastActive } from '../utils/supabase/index';
-import { HiX, HiPaperAirplane, HiClock, HiRefresh, HiArrowLeft, HiDotsHorizontal, HiMicrophone, HiPaperClip } from 'react-icons/hi';
+import { sendHybridMessage } from '../utils/gun/hybrid';
+import { gun } from '../utils/gun/client';
+import { HiX, HiPaperAirplane, HiClock, HiRefresh, HiArrowLeft, HiDotsHorizontal, HiMicrophone, HiPaperClip, HiTrash, HiCloud } from 'react-icons/hi';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
 import { 
@@ -35,6 +38,7 @@ interface ParticipantProfile {
   avatar_url: string | null;
   last_active: string | null;
   avatar_seed?: string | null;
+  publicKey?: string; // Add public key for Gun.js encryption
 }
 
 interface ThreadParticipants {
@@ -156,11 +160,132 @@ const MessageContent: React.FC<{
   );
 };
 
+// Enhanced ErrorBoundary for catching render/runtime errors in Chat
+class ErrorBoundary extends React.Component<any, { 
+  hasError: boolean; 
+  error: any; 
+  isConnectionError: boolean;
+  retryCount: number;
+}> {
+  private maxRetries = 3;
+  
+  constructor(props: any) {
+    super(props);
+    this.state = { 
+      hasError: false, 
+      error: null, 
+      isConnectionError: false,
+      retryCount: 0
+    };
+  }
+  
+  static getDerivedStateFromError(error: any) {
+    const isConnectionError = error?.message?.includes('fetch') || 
+                             error?.message?.includes('network') ||
+                             error?.message?.includes('WebSocket') ||
+                             error?.message?.includes('connection');
+    
+    return { 
+      hasError: true, 
+      error,
+      isConnectionError
+    };
+  }
+  
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    
+    // If it's a connection error, we might want to retry
+    if (this.state.isConnectionError && this.state.retryCount < this.maxRetries) {
+      setTimeout(() => {
+        this.setState(prev => ({
+          hasError: false,
+          error: null,
+          isConnectionError: false,
+          retryCount: prev.retryCount + 1
+        }));
+      }, 2000 * (this.state.retryCount + 1)); // Progressive delay
+    }
+  }
+  
+  handleManualRetry = () => {
+    this.setState({
+      hasError: false,
+      error: null,
+      isConnectionError: false,
+      retryCount: 0
+    });
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      const canRetry = this.state.retryCount < this.maxRetries;
+      
+      return (
+        <div className="h-full flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+          <div className="max-w-md mx-auto text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <div className="text-red-500 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              {this.state.isConnectionError ? 'Connection Problem' : 'Something went wrong'}
+            </h2>
+            
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {this.state.isConnectionError 
+                ? 'Lost connection to the chat server. The app will try to reconnect automatically.'
+                : 'An unexpected error occurred in the chat.'
+              }
+            </p>
+            
+            {this.state.isConnectionError && (
+              <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                Retry attempt: {this.state.retryCount + 1} of {this.maxRetries + 1}
+              </div>
+            )}
+            
+            <div className="space-y-3">
+              <button
+                onClick={this.handleManualRetry}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Try Again
+              </button>
+              
+              {/* Reload button removed to prevent refresh issues */}
+              
+              <button
+                onClick={() => window.location.href = '/app'}
+                className="w-full px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+              >
+                Back to Chat List
+              </button>
+            </div>
+            
+            {process.env.NODE_ENV === 'development' && (
+              <details className="mt-4 text-left">
+                <summary className="text-sm text-gray-500 cursor-pointer">Error Details</summary>
+                <pre className="mt-2 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 p-2 rounded overflow-auto max-h-32">
+                  {this.state.error?.toString()}
+                </pre>
+              </details>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export const Chat: React.FC = () => {
   const { id: threadId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useUser();
+  const { user, profileRefreshing } = useUser();
   const { 
     notificationsEnabled, 
     requestNotificationPermission, 
@@ -171,6 +296,36 @@ export const Chat: React.FC = () => {
   } = useNotification();
   const { encryptForRecipient, decryptMessage } = useEncryption();
   const { debugMode } = useDebugMode();
+  const { 
+    isConnected: gunConnected, 
+    connectedPeers,
+    subscribeToThread: subscribeToGunThread,
+    sendMessage: sendGunMessage,
+    isAuthenticated: gunAuthenticated,
+    currentUser: gunUser
+  } = useGun();
+  
+  // Get enhanced connection status from Gun.js
+  const [gunConnectionHealth, setGunConnectionHealth] = useState<any>(null);
+  
+  useEffect(() => {
+    const updateGunHealth = () => {
+      try {
+        // Import getConnectionHealth dynamically to avoid circular imports
+        import('../utils/gun/client').then(({ getConnectionHealth }) => {
+          const health = getConnectionHealth();
+          setGunConnectionHealth(health);
+        });
+      } catch (error) {
+        console.warn('Could not get Gun.js connection health:', error);
+      }
+    };
+    
+    updateGunHealth();
+    const interval = setInterval(updateGunHealth, 10000); // Update every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [threadDetails, setThreadDetails] = useState<ThreadDetails | null>(null);
   const [participants, setParticipants] = useState<ThreadParticipants>({});
@@ -193,16 +348,51 @@ export const Chat: React.FC = () => {
   const [liveTypingEnabled, setLiveTypingEnabled] = useState(
     localStorage.getItem('xrpchat_feature_live_typing') === 'true'
   );
-  const [otherUserTypingText, setOtherUserTypingText] = useState('');
   // Image sending feature toggle
   const [imageFeatureEnabled, setImageFeatureEnabled] = useState(
-    localStorage.getItem('xrpchat_feature_image_files') === 'true'
+    localStorage.getItem('xrpchat_feature_media_files') === 'true'
   );
   // Image upload state
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'error'>('connecting');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [errorDisplayTimer, setErrorDisplayTimer] = useState<NodeJS.Timeout | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeoutId = useRef<NodeJS.Timeout | null>(null);
+  const typingChannelRef = useRef<any>(null);
+  
+  // Enhanced debug logging for connection and typing feature state
+  useEffect(() => {
+    const hasRealPeers = gunConnectionHealth?.hasRealPeers || false;
+    const connectionType = gunConnectionHealth?.connectionType || 'Unknown';
+    
+    console.log('🎯 Live typing enabled:', liveTypingEnabled);
+    console.log('🎯 Gun connected:', gunConnected);
+    console.log('🎯 Gun authenticated:', gunAuthenticated);
+    console.log('🎯 Connected peers:', connectedPeers);
+    console.log('🎯 Connection type:', connectionType);
+    console.log('🎯 Has real relay peers:', hasRealPeers);
+    console.log('🎯 Current typing users:', Array.from(typingUsers));
+    console.log('🎯 Will use Gun.js for typing:', gunConnected && gunAuthenticated && connectedPeers > 0);
+    console.log('🎯 Will use Gun.js for messages:', gunConnected && gunAuthenticated && hasRealPeers);
+  }, [liveTypingEnabled, gunConnected, gunAuthenticated, connectedPeers, typingUsers, gunConnectionHealth]);
+
+  // Drive the header status dot from actual transport connectivity (peers), not auth
+  useEffect(() => {
+    if (gunConnected && connectedPeers > 0) {
+      setConnectionStatus('connected');
+      setConnectionError(null);
+    } else if (!gunConnected) {
+      setConnectionStatus('connecting');
+    }
+  }, [gunConnected, connectedPeers]);
 
   // Capture console output in debug mode
   useEffect(() => {
@@ -233,19 +423,84 @@ export const Chat: React.FC = () => {
     };
   }, [debugMode]);
   
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Wrap handleRefreshMessages in useCallback to avoid dependency issues
-  const handleRefreshMessages = React.useCallback(async () => {
-    if (!threadId || !user) return;
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [textareaHeight, setTextareaHeight] = useState(64); // Start with two-line height (32px per line)
+  const [maxTextareaHeight, setMaxTextareaHeight] = useState(200); // Default max height
+  const [isAtMaxHeight, setIsAtMaxHeight] = useState(false); // Track if textarea is at max height
+  const [isMultiLine, setIsMultiLine] = useState(false); // Track if content spans 3+ lines (for scroll indicator)
+  
+  // Calculate max textarea height based on screen size (30%)
+  useEffect(() => {
+    const calculateMaxHeight = () => {
+      const screenHeight = window.innerHeight;
+      const maxHeight = Math.floor(screenHeight * 0.3); // 30% of screen height
+      setMaxTextareaHeight(Math.max(maxHeight, 120)); // Minimum 120px, maximum 30% of screen
+    };
     
+    calculateMaxHeight();
+    window.addEventListener('resize', calculateMaxHeight);
+    
+    return () => window.removeEventListener('resize', calculateMaxHeight);
+  }, []);
+  
+  // Auto-expand textarea based on content
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      // Reset height to get accurate scrollHeight
+      textarea.style.height = '64px'; // Reset to two-line height
+      
+      // Calculate new height (add padding for better appearance)
+      const scrollHeight = textarea.scrollHeight;
+      const newHeight = Math.min(Math.max(scrollHeight, 64), maxTextareaHeight); // Minimum 64px for two lines
+      const atMaxHeight = scrollHeight > maxTextareaHeight;
+      
+      // Check if content spans more than three lines
+      const twoLineHeight = 64; // Our default two-line height
+      const threeLineHeight = 96; // Approximately three lines (32px per line)
+      const hasThreeOrMoreLines = scrollHeight > threeLineHeight; // Show scroll indicator after 3 lines
+      
+      // Apply new height with smooth transition
+      setTextareaHeight(newHeight);
+      setIsAtMaxHeight(atMaxHeight);
+      setIsMultiLine(hasThreeOrMoreLines); // Now represents "3+ lines" instead of just multi-line
+      textarea.style.height = `${newHeight}px`;
+      
+      // Handle scrolling when content exceeds max height
+      if (atMaxHeight) {
+        textarea.style.overflowY = 'auto';
+        // Scroll to bottom when typing
+        textarea.scrollTop = textarea.scrollHeight;
+      } else {
+        textarea.style.overflowY = 'hidden';
+      }
+    }
+  }, [maxTextareaHeight]);
+  
+  // Adjust height when message content changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [newMessage, adjustTextareaHeight]);
+
+  // Enhanced refresh with better state management
+  const handleRefreshMessages = React.useCallback(async (options?: { background?: boolean }) => {
+    if (!threadId || !user || isRefreshing) return; // Prevent multiple simultaneous refreshes
+    const background = options?.background === true;
+
+    console.log(background ? 'Starting background message refresh...' : 'Starting message refresh...');
     setIsRefreshing(true);
-    setLoading(true);
+    if (!background) {
+      setLoading(true);
+      setError(null); // Clear any existing errors
+    }
     
     try {
       console.log(`Manually refreshing messages for thread ${threadId}`);
-      // Clear current messages first
-      setMessages([]);
+      // In foreground refresh, optionally clear; in background keep UI stable
+      if (!background) {
+        // Clear current messages first
+        setMessages([]);
+      }
       
       // Check for expired messages
       try {
@@ -285,27 +540,66 @@ export const Chat: React.FC = () => {
       console.log('Messages refreshed successfully');
     } catch (error) {
       console.error('Failed to refresh messages:', error);
-      setError('Failed to refresh messages. Please try again.');
+      if (!background) {
+        setError('Failed to refresh messages. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
       setIsRefreshing(false);
     }
-  }, [threadId, user, clearUnread]);
+  }, [threadId, user, clearUnread, isRefreshing]);
 
-  // Validate thread ID and handle navigation
+  // Hard retry: force channels to refresh and reload messages (helps on mobile)
+  const handleHardRetry = React.useCallback(() => {
+    try {
+      setIsReconnecting(true);
+      // Force all Supabase subscriptions to refresh
+      window.dispatchEvent(new CustomEvent('supabaseConnectionRefresh', { detail: { manual: true } }));
+      // Reset typing channel if present
+      if (typingChannelRef.current) {
+        try { typingChannelRef.current.unsubscribe(); } catch {}
+        typingChannelRef.current = null;
+      }
+    } finally {
+      // Reload messages after forcing refresh
+      handleRefreshMessages().finally(() => setIsReconnecting(false));
+    }
+  }, [handleRefreshMessages]);
+
+  // Auto hard-retry on focus/online/visibility if we're stuck loading or disconnected
   useEffect(() => {
-    if (!threadId || threadId === 'new') {
-      navigate('/app/contacts');
-      return;
-    }
-
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(threadId)) {
-      navigate('/app');
-      return;
-    }
-  }, [threadId, navigate]);
+    let lastFocusTime = 0;
+    const attemptAutoRecover = () => {
+      const isLoaderVisible = loading || !threadDetails || loadingTimeout;
+      const isDisconnected = connectionStatus !== 'connected' || !!connectionError;
+      if (isLoaderVisible || isDisconnected) {
+        // debounce slightly
+        setTimeout(() => handleHardRetry(), 150);
+      }
+    };
+    const handleFocus = () => {
+      // Only auto-recover on window focus, not input focus
+      const now = Date.now();
+      if (now - lastFocusTime > 1000) { // Debounce to prevent rapid firing
+        lastFocusTime = now;
+        attemptAutoRecover();
+      }
+    };
+    const handleOnline = () => attemptAutoRecover();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') attemptAutoRecover();
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [loading, loadingTimeout, threadDetails, connectionStatus, connectionError, handleHardRetry]);
 
   // Load thread details
   useEffect(() => {
@@ -554,10 +848,80 @@ export const Chat: React.FC = () => {
     };
   }, [user, threadDetails, participants, threadId, messagesEndRef]);
 
+  // Enhanced connection monitoring (avoid refresh on every focus)
+  useEffect(() => {
+    const lastRefreshAtRef = { current: 0 } as { current: number };
+    const handleConnectionRefresh = () => {
+      // If we're already connected, skip eager refresh to avoid re-renders on input focus
+      if (connectionStatus === 'connected' && !connectionError) {
+        return;
+      }
+      // Basic rate limit: skip if a refresh happened within the last 3 seconds
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current < 3000) {
+        return;
+      }
+      lastRefreshAtRef.current = now;
+      
+      console.log('🔄 Received Supabase connection refresh event');
+      
+      // Clear any pending error display timer since we're reconnecting
+      if (errorDisplayTimer) {
+        clearTimeout(errorDisplayTimer);
+        setErrorDisplayTimer(null);
+      }
+      
+      setIsReconnecting(true);
+      
+      // Refresh messages after connection restoration
+      setTimeout(() => {
+        if (threadId && user) {
+          console.log('🔄 Refreshing messages after connection restore');
+          handleRefreshMessages();
+        }
+        setIsReconnecting(false);
+      }, 1000);
+    };
+    
+    const handleConnectionError = (event: any) => {
+      console.error('📶 Supabase connection error:', event.detail);
+      
+      // Clear any existing timer
+      if (errorDisplayTimer) {
+        clearTimeout(errorDisplayTimer);
+      }
+      
+      // Wait 3 seconds before showing error state to avoid flashing on brief disconnections
+      const timer = setTimeout(() => {
+        setConnectionStatus('error');
+        setConnectionError(event.detail.error || 'Connection failed');
+      }, 3000);
+      
+      setErrorDisplayTimer(timer);
+    };
+    
+    window.addEventListener('supabaseConnectionRefresh', handleConnectionRefresh);
+    window.addEventListener('supabaseConnectionError', handleConnectionError);
+    
+    return () => {
+      // Clean up error display timer
+      if (errorDisplayTimer) {
+        clearTimeout(errorDisplayTimer);
+      }
+      
+      window.removeEventListener('supabaseConnectionRefresh', handleConnectionRefresh);
+      window.removeEventListener('supabaseConnectionError', handleConnectionError);
+    };
+  }, [threadId, user, handleRefreshMessages, connectionStatus, connectionError]);
+  
   // Load messages and handle subscriptions
   useEffect(() => {
     if (!threadId || !user) return;
     setMessages([]); // Optionally clear messages only when thread changes
+    if (connectionStatus !== 'connected') {
+      setConnectionStatus('connecting');
+    }
+    setConnectionError(null);
 
     // Define loadMessages inside the effect
     const loadMessages = async () => {
@@ -599,6 +963,8 @@ export const Chat: React.FC = () => {
       } catch (error) {
         console.error('Failed to load messages:', error);
         setError('Failed to load messages');
+        setConnectionStatus('error');
+        setConnectionError(error instanceof Error ? error.message : 'Unknown error');
       } finally {
         setLoading(false);
       }
@@ -606,71 +972,90 @@ export const Chat: React.FC = () => {
 
     loadMessages();
 
-    // Subscribe to new messages
-    const unsubscribe = subscribeToThread(
-      threadId,
-      async (payload) => {
-        if (payload.new && user) {
-          const message = payload.new;
-          if (message.sender_id !== user.id && document.hasFocus()) {
-            try {
-              await markMessageAsRead(message.id, user.id);
-            } catch (error) {}
-          }
-          setMessages(prev => {
-            if (prev.some(m => m.id === message.id)) return prev;
-            return [...prev, message].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          });
-          // Show notification if it's from another user
-          try {
-            // Check both our state and localStorage to make absolutely sure notifications are wanted
-            const userWantsNotifications = 
-              notificationsEnabled && 
-              Notification.permission === 'granted' && 
-              localStorage.getItem('xrpchat_notification_permission') !== 'disabled';
-            
-            // Only show notification if explicitly enabled and window is not focused
-            if (userWantsNotifications && !document.hasFocus()) {
-              const senderName = participants[message.sender_id]?.username || 'Someone';
-              
-              // Add try/catch specifically around decryption
-              let decryptedContent = 'New message';
-              try {
-                // Skip decryption if showing encrypted content
-                decryptedContent = showEncrypted ? 'New encrypted message' : 
-                  await decryptMessage(message.content);
-              } catch (decryptError) {
-                console.error('Error decrypting message for notification:', decryptError);
-                decryptedContent = 'New encrypted message'; // Fallback content
-              }
-              
-              try {
-                showNotification(`New message from ${senderName}`, {
-                  body: decryptedContent,
-                  data: {
-                    threadId: threadId,
-                    url: `/app/chat/${threadId}`
-                  },
-                  tag: `thread-${threadId}`,
-                  senderId: message.sender_id // Pass the sender ID to ensure it's not our own message
-                } as any); // Cast to any to allow our custom property
-                
-                // Increment unread counter
-                incrementUnread();
-              } catch (notificationError) {
-                console.error('Error showing notification:', notificationError);
-              }
-            }
-          } catch (error) {
-            // This catch won't block message display since we update state first
-            console.error('Error handling notification:', error);
-          }
-        }
-      },
-      () => {}
-    );
-    return () => { unsubscribe(); };
-  }, [threadId, user, notificationsEnabled, showNotification, incrementUnread, clearUnread, location.pathname, participants, decryptMessage, showEncrypted]);
+    // Subscribe to new messages using Gun.js for real-time updates
+    let gunUnsubscribe: (() => void) | null = null;
+    let supabaseUnsubscribe: (() => void) | null = null;
+    
+    const handleMessageReceived = (message: any, source: 'gun' | 'supabase' = 'supabase') => {
+      console.log(`📨 Message received via ${source}:`, message.id || message.new?.id);
+      setConnectionStatus('connected');
+      setConnectionError(null);
+      
+      // Convert Gun.js message to Supabase format if needed
+      const normalizedMessage = source === 'gun' ? {
+        id: message.id,
+        sender_id: message.sender_id,
+        content: message.content,
+        created_at: message.created_at,
+        type: message.type || 'text',
+        read: false,
+        thread_id: threadId || ''
+      } : message.new;
+      
+      if (!normalizedMessage) return;
+      
+      // Remove typing indicator for this sender since they sent a real message
+      setTypingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(normalizedMessage.sender_id);
+        return newSet;
+      });
+      
+      // Add the real message
+      setMessages(prev => {
+        // Only add if not already present
+        if (prev.some(m => m.id === normalizedMessage.id)) return prev;
+        return [...prev, normalizedMessage].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      });
+      
+      // Mark as read if not from current user and window is focused
+      if (normalizedMessage.sender_id !== user.id && document.hasFocus()) {
+        try {
+          markMessageAsRead(normalizedMessage.id, user.id).catch(() => {});
+        } catch (error) {}
+      }
+      
+      // Auto-scroll to new message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    };
+    
+    // Enhanced connection logic: Use Gun.js only if we have real relay peers
+    const hasRealPeers = gunConnectionHealth?.hasRealPeers || false;
+    const shouldUseGun = gunConnected && gunAuthenticated && hasRealPeers;
+    
+    if (shouldUseGun) {
+      console.log('📡 Using Gun.js P2P for real-time message updates (with relay peers)');
+      setConnectionStatus('connected');
+      gunUnsubscribe = subscribeToGunThread(
+        threadId,
+        (gunMessage) => handleMessageReceived(gunMessage, 'gun')
+      );
+    } else {
+      // Always use Supabase if Gun.js doesn't have real relay connections
+      const reason = !gunConnected ? 'Gun.js not connected' :
+                    !gunAuthenticated ? 'Gun.js not authenticated' :
+                    !hasRealPeers ? 'Gun.js has no relay peers (local only)' :
+                    'Unknown reason';
+      
+      console.log(`📡 Using Supabase for real-time message updates (${reason})`);
+      supabaseUnsubscribe = subscribeToThread(
+        threadId,
+        (payload) => {
+          handleMessageReceived(payload, 'supabase');
+          setConnectionStatus('connected');
+        },
+        () => {}
+      );
+    }
+    
+    // Cleanup function
+    return () => { 
+      if (gunUnsubscribe) gunUnsubscribe();
+      if (supabaseUnsubscribe) supabaseUnsubscribe();
+    };
+  }, [threadId, user, notificationsEnabled, showNotification, incrementUnread, clearUnread, location.pathname, participants, decryptMessage, showEncrypted, gunConnected, gunAuthenticated, subscribeToGunThread, messagesEndRef]);
 
   // Also add an effect to mark messages as read when user focuses window
   useEffect(() => {
@@ -993,14 +1378,40 @@ export const Chat: React.FC = () => {
         throw new Error('Failed to encrypt message');
       }
       
-      // Send the message
+      // Send the message using hybrid approach (Gun.js + Supabase)
       try {
-        console.log('Sending message to Supabase...');
-        await sendMessage(threadId, user.id, finalContent);
+        console.log('Sending message via hybrid approach...');
+        
+        // Get recipient's public key for Gun.js encryption
+        const recipientProfile = participants[otherParticipantId];
+        const recipientPublicKey = recipientProfile?.publicKey || 'unknown'; // Will need to get this from Gun.js profile
+        
+        const hasRealPeers = gunConnectionHealth?.hasRealPeers || false;
+        if (gunConnected && gunAuthenticated && hasRealPeers) {
+          console.log('📡 Sending via Gun.js hybrid system (with relay peers)...');
+          await sendHybridMessage(
+            threadId, 
+            user.id, 
+            gunUser?.publicKey || 'sender_pub_key', // Use Gun.js user's public key
+            recipientPublicKey,
+            finalContent
+          );
+        } else {
+          const reason = !gunConnected ? 'Gun.js not connected' :
+                        !gunAuthenticated ? 'Gun.js not authenticated' :
+                        !hasRealPeers ? 'no relay peers (local only)' :
+                        'unknown reason';
+          console.log(`📡 Fallback to Supabase only (${reason})...`);
+          await sendMessage(threadId, user.id, finalContent);
+        }
+        
         console.log('Message sent successfully');
+        
+        // Refresh messages to show the new message
         getThreadMessages(threadId).then(messages => {
           setMessages(messages.reverse()); // Reverse to show oldest first
         });
+        
         // Scroll to bottom after a short delay
         setTimeout(() => {
           if (messagesEndRef.current) {
@@ -1008,7 +1419,7 @@ export const Chat: React.FC = () => {
           }
         }, 100);
       } catch (sendError) {
-        console.error('Error sending message to database:', sendError);
+        console.error('Error sending message:', sendError);
         throw new Error('Network error while sending message');
       }
       
@@ -1045,6 +1456,25 @@ export const Chat: React.FC = () => {
       }
       
       setNewMessage('');
+      
+      // Clear typing indicator when message is sent
+      if (user && liveTypingEnabled) {
+        if (gunConnected && gunAuthenticated && connectedPeers > 0) {
+          const typingKey = `typing_${threadId}`;
+          const clearData = {
+            isTyping: false,
+            timestamp: new Date().toISOString()
+          };
+          gun.get('typing').get(typingKey).get(user.id).put(clearData);
+        } else if (typingChannelRef.current) {
+          typingChannelRef.current.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: { userId: user.id, isTyping: false }
+          });
+        }
+      }
+      
       console.log('Message send process completed successfully');
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -1156,30 +1586,132 @@ export const Chat: React.FC = () => {
     };
   }, [handleRefreshMessages]);
 
+  // Typing indicator management
+  const addTypingUser = useCallback((userId: string) => {
+    console.log(`🎯 Adding typing user: ${userId}`);
+    setTypingUsers(prev => {
+      const newSet = new Set(prev);
+      newSet.add(userId);
+      console.log(`🎯 Typing users after adding ${userId}:`, Array.from(newSet));
+      return newSet;
+    });
+  }, []);
+
+  const removeTypingUser = useCallback((userId: string) => {
+    console.log(`🎯 Removing typing user: ${userId}`);
+    setTypingUsers(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(userId);
+      console.log(`🎯 Typing users after removing ${userId}:`, Array.from(newSet));
+      return newSet;
+    });
+  }, []);
+
+  // Listen for typing events
   useEffect(() => {
-    if (!threadId || !user) return;
-
-    const channel = supabase
-      .channel(`typing-${threadId}`)
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        // Only show if it's from the other user
-        if (payload.payload.userId !== user.id) {
-          setOtherUserTyping(true);
-          setOtherUserTypingText(payload.payload.text || '');
-          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-          typingTimeoutRef.current = setTimeout(() => {
-            setOtherUserTyping(false);
-            setOtherUserTypingText('');
-          }, 2000);
+    if (!threadId || !user) {
+      console.log('🎯 Not setting up typing subscription - missing threadId or user');
+      return;
+    }
+    
+    console.log('🎯 Setting up typing subscription for thread', threadId, 'user', user.id);
+    
+    let typingChannel: any = null;
+    let gunTypingUnsubscribe: (() => void) | null = null;
+    
+    // Use Gun.js for typing if connected AND authenticated AND has peers, otherwise fallback to Supabase
+    if (gunConnected && gunAuthenticated && connectedPeers > 0) {
+      console.log('🔫 Using Gun.js for typing indicators');
+      // Gun.js typing implementation using standardized approach
+      const typingKey = `typing_${threadId}`;
+      console.log(`🔫 Subscribing to Gun.js typing key: ${typingKey}`);
+      
+      gun.get('typing').get(typingKey).map().on((typingData: any, userId: string) => {
+        console.log(`🔫 Received typing data for user ${userId}:`, typingData);
+        if (typingData && userId !== '_' && userId !== user.id) {
+          const isTyping = typingData.isTyping && (Date.now() - new Date(typingData.timestamp).getTime() < 3000);
+          
+          console.log(`🔫 Processing typing for ${userId}: isTyping=${isTyping}, current users:`, Array.from(typingUsers));
+          
+          if (isTyping) {
+            console.log(`🔫 ✅ User ${userId} is typing in thread ${threadId}`);
+            addTypingUser(userId);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+              console.log(`🔫 ⏰ Auto-removing typing indicator for user ${userId}`);
+              removeTypingUser(userId);
+            }, 3000);
+          } else {
+            console.log(`🔫 ❌ User ${userId} stopped typing`);
+            removeTypingUser(userId);
+          }
         }
-      })
-      .subscribe();
-
+      });
+      
+      gunTypingUnsubscribe = () => {
+        console.log(`🔫 Unsubscribing from Gun.js typing for ${typingKey}`);
+        gun.get('typing').get(typingKey).off();
+      };
+    } else {
+      console.log('📡 Using Supabase for typing indicators');
+      // Supabase fallback for typing
+      const channelName = `typing-${threadId}`;
+      console.log(`📡 Subscribing to Supabase channel: ${channelName}`);
+      
+      typingChannel = supabase
+        .channel(channelName, {
+          config: {
+            presence: { key: user.id },
+            broadcast: { self: false }
+          }
+        })
+        .on('broadcast', { event: 'typing' }, (payload) => {
+          console.log(`📡 Received Supabase typing payload:`, payload);
+          if (payload.payload.userId !== user.id) {
+            if (payload.payload.isTyping) {
+              console.log(`📡 ✅ User ${payload.payload.userId} is typing via Supabase`);
+              addTypingUser(payload.payload.userId);
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => {
+                console.log(`📡 ⏰ Auto-removing typing indicator for user ${payload.payload.userId}`);
+                removeTypingUser(payload.payload.userId);
+              }, 3000);
+            } else {
+              console.log(`📡 ❌ User ${payload.payload.userId} stopped typing via Supabase`);
+              removeTypingUser(payload.payload.userId);
+            }
+          }
+        })
+        .subscribe((status) => {
+          console.log(`📡 Supabase typing channel subscription status:`, status);
+          if (status === 'SUBSCRIBED') {
+            console.log(`📡 ✅ Successfully subscribed to Supabase typing channel ${channelName}`);
+            typingChannelRef.current = typingChannel;
+            // Send a tiny presence ping to ensure we're visible to others on this channel
+            try {
+              typingChannelRef.current.track({ joinedAt: Date.now() });
+            } catch (e) {
+              console.warn('📡 Presence track failed (non-fatal):', e);
+            }
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error(`📡 ❌ Error subscribing to Supabase typing channel ${channelName}`);
+          }
+        });
+    }
+    
     return () => {
-      channel.unsubscribe();
+      console.log('🎯 Cleaning up typing subscriptions');
+      if (typingChannel) {
+        console.log('📡 Unsubscribing from Supabase typing channel');
+        typingChannel.unsubscribe();
+        typingChannelRef.current = null;
+      }
+      if (gunTypingUnsubscribe) gunTypingUnsubscribe();
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (typingTimeoutId.current) clearTimeout(typingTimeoutId.current);
     };
-  }, [threadId, user]);
+  }, [threadId, user, gunConnected, gunAuthenticated, connectedPeers, addTypingUser, removeTypingUser]);
 
   // Listen for changes to the toggle (e.g., if user changes it in another tab)
   useEffect(() => {
@@ -1193,7 +1725,7 @@ export const Chat: React.FC = () => {
   // Listen for storage changes to update image feature toggle
   useEffect(() => {
     const handleStorage = () => {
-      setImageFeatureEnabled(localStorage.getItem('xrpchat_feature_image_files') === 'true');
+      setImageFeatureEnabled(localStorage.getItem('xrpchat_feature_media_files') === 'true');
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -1246,33 +1778,80 @@ export const Chat: React.FC = () => {
     }
   };
 
+  // Enhanced loading timeout with better UX
   useEffect(() => {
-    let lastHidden = Date.now();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        lastHidden = Date.now();
-      } else if (document.visibilityState === 'visible') {
-        // If hidden for more than 10 minutes, reload
-        if (Date.now() - lastHidden > 10 * 60 * 1000) {
-          window.location.reload();
-        } else {
-          handleRefreshMessages();
-        }
-      }
+    if (loading || !threadDetails) {
+      const timeout = setTimeout(() => {
+        setLoadingTimeout(true);
+        console.log('Loading timeout reached - showing retry option');
+      }, 10000); // Reduced to 10 seconds for better UX
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading, threadDetails]);
+  
+  // Prevent multiple refresh triggers
+  useEffect(() => {
+    let refreshInProgress = false;
+    
+    const handleBeforeUnload = () => {
+      refreshInProgress = true;
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    const handleUnload = () => {
+      refreshInProgress = false;
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+    
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
     };
-  }, [handleRefreshMessages]);
+  }, []);
 
-  if (loading || !threadDetails) {
+  const handleDeleteMessage = (messageId: string) => {
+    setDeletingMessageId(messageId);
+    setTimeout(() => {
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setDeletingMessageId(null);
+    }, 600); // match explosion duration
+  };
+
+  if (!user) {
     return (
       <div className="h-full flex items-center justify-center bg-[#efeae2]">
-        <div className="text-center">
-          <div className="text-gray-600 mb-2">Loading messages...</div>
+        <div className="text-center text-red-600">User not loaded. Please sign in again or refresh the page.</div>
+      </div>
+    );
+  }
+
+  // Debug log removed to prevent excessive rerenders logging
+
+  // Enhanced loading screen with smooth transitions
+  if (loading || !threadDetails) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
+        <div className="text-center animate-fade-in">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-4"></div>
+          <div className="text-gray-600 dark:text-gray-400 mb-2">Loading messages...</div>
+          
+          {/* Only show reload button after a delay to prevent immediate clicking */}
+          {loadingTimeout && (
+            <button
+              className={`mt-2 text-blue-600 dark:text-blue-400 text-sm flex items-center justify-center mx-auto hover:text-blue-800 dark:hover:text-blue-300 transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
+              onClick={handleHardRetry}
+              style={{ outline: 'none', border: 'none', background: 'none', cursor: 'pointer' }}
+            >
+              <HiRefresh className="w-5 h-5 mr-1" />
+              <span>Retry</span>
+            </button>
+          )}
+          
           {error && (
-            <div className="text-sm text-red-600 max-w-md mx-auto">
+            <div className="mt-3 text-sm text-red-600 dark:text-red-400 max-w-md mx-auto bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
               {error}
             </div>
           )}
@@ -1282,7 +1861,47 @@ export const Chat: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
+    <div 
+      className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background transition-colors duration-200 animate-fade-in"
+      onClick={(e) => {
+        // Prevent any clicks from causing refresh
+        e.stopPropagation();
+      }}
+    >
+      {profileRefreshing && (
+        <div className="absolute top-0 left-0 right-0 z-50 bg-yellow-100 text-yellow-800 text-center py-1 text-xs">Refreshing profile...</div>
+      )}
+      
+      {/* Connection Status Banner */}
+      {(connectionStatus === 'disconnected' || connectionStatus === 'error' || isReconnecting) && (
+        <div className={`absolute top-0 left-0 right-0 z-40 text-center py-2 text-xs ${
+          connectionStatus === 'error' ? 'bg-red-100 text-red-800' : 
+          isReconnecting ? 'bg-blue-100 text-blue-800' :
+          'bg-yellow-100 text-yellow-800'
+        }`}>
+          <div className="flex items-center justify-center space-x-2">
+            {isReconnecting ? (
+              <>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-800"></div>
+                <span>Reconnecting to chat...</span>
+              </>
+            ) : connectionStatus === 'error' ? (
+              <>
+                <span>❌ Connection failed</span>
+                {/* Reload button removed to prevent refresh issues */}
+              </>
+            ) : (
+              <>
+                <div className="animate-pulse h-2 w-2 bg-yellow-600 rounded-full"></div>
+                <span>Reconnecting...</span>
+              </>
+            )}
+          </div>
+          {connectionError && (
+            <div className="text-xs text-gray-600 mt-1">{connectionError}</div>
+          )}
+        </div>
+      )}
       {/* Chat Header */}
       <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3 overflow-hidden">
@@ -1323,8 +1942,77 @@ export const Chat: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3">
           <EncryptionIndicator />
+          
+          {/* Connection Status Indicator */}
+          {(() => {
+            const transportConnected = gunConnected && connectedPeers > 0;
+            const hasRelayPeers = !!gunConnectionHealth?.hasRealPeers;
+            const title = transportConnected
+              ? (hasRelayPeers
+                  ? `🌐 P2P Network Active - Direct peer-to-peer messaging (${connectedPeers} peers connected)`
+                  : `📱 P2P Local Mode - Using device storage only (${connectedPeers} local peers)`)
+              : connectionStatus === 'connected'
+              ? `☁️ Cloud Mode - Using secure server connection for messaging`
+              : connectionStatus === 'connecting' || isReconnecting
+              ? `🔄 Connecting to messaging service...`
+              : connectionStatus === 'error'
+              ? `❌ Connection Error: ${connectionError || 'Unable to connect to messaging service'}`
+              : `⚫ Offline - No connection to messaging service`;
+            return (
+          <div className="flex items-center space-x-1" title={title}>
+            {/* Neon green pulsing dot for all connected states */}
+            <div className={`relative ${
+              transportConnected || connectionStatus === 'connected'
+                ? 'neon-status-dot' 
+                : connectionStatus === 'connecting' || isReconnecting
+                ? 'connecting-status-dot'
+                : connectionStatus === 'error'
+                ? 'error-status-dot'
+                : 'offline-status-dot'
+            }`}>
+              <div className="w-2 h-2 rounded-full bg-current"></div>
+            </div>
+            <div className="flex items-center space-x-1 text-xs text-white/80">
+              {transportConnected && hasRelayPeers ? (
+                <>
+                  <span>P2P</span>
+                  <span className="text-white/60">({connectedPeers})</span>
+                </>
+              ) : transportConnected && !hasRelayPeers ? (
+                <>
+                  <span>P2P</span>
+                  <span className="text-white/60">(Local)</span>
+                </>
+              ) : connectionStatus === 'connected' ? (
+                <>
+                  <HiCloud size={12} className="text-white/80" />
+                  <span>Cloud</span>
+                </>
+              ) : connectionStatus === 'connecting' || isReconnecting ? (
+                <>
+                  <span>Conn</span>
+                  <div className="connecting-dots">
+                    <span>.</span>
+                    <span>.</span>
+                    <span>.</span>
+                  </div>
+                </>
+              ) : connectionStatus === 'error' ? (
+                <span className="text-red-300">Error</span>
+              ) : (
+                <span className="text-gray-400">Offline</span>
+              )}
+            </div>
+          </div>
+            );
+          })()}
+          
           <button
-            onClick={() => window.location.reload()}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleRefreshMessages();
+            }}
             disabled={isRefreshing || loading}
             className="p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Refresh messages"
@@ -1341,6 +2029,22 @@ export const Chat: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Encrypted view banner */}
+      {showEncrypted && (
+        <div className="px-4 py-3 border-l-4 border-brand-primary/50 bg-brand-primary/10 rounded-md text-gray-900 dark:text-white">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <IoLockClosed className="h-5 w-5 text-current" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm leading-relaxed">
+                <span className="font-medium">Encrypted view:</span> You’re seeing the ciphertext exactly as it’s sent over the network. It can only be decrypted with the correct private key.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Private Key Deleted Notice */}
       {isPrivateKeyDeleted && (
@@ -1386,10 +2090,17 @@ export const Chat: React.FC = () => {
             {/* Chat Messages */}
             {messages.map((message, index) => {
               const isUserMessage = message.sender_id === user?.id;
+              const isDeleting = deletingMessageId === message.id;
+              const isHovered = hoveredMessageId === message.id;
               return (
                 <div
                   key={`${message.id}-${index}`}
-                  className={`flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}
+                  className={`group flex items-end ${isUserMessage ? 'justify-end' : 'justify-start'} mb-4`}
+                  onMouseEnter={() => setHoveredMessageId(message.id)}
+                  onMouseLeave={() => setHoveredMessageId(null)}
+                  onFocus={() => setHoveredMessageId(message.id)}
+                  onBlur={() => setHoveredMessageId(null)}
+                  tabIndex={0}
                 >
                   {!isUserMessage ? (
                     <>
@@ -1401,16 +2112,18 @@ export const Chat: React.FC = () => {
                       seed={participants[message.sender_id]?.avatar_seed || undefined}
                       key={`chat-message-other-avatar-${message.id}-${participants[message.sender_id]?.avatar_url}-${participants[message.sender_id]?.avatar_seed || ''}`}
                     />
-                      <div className="max-w-[75%]">
+                      <div className="max-w-[75%] relative">
                         <div
-                          className={
-                            isUserMessage
-                              ? "px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none"
-                              : "px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none"
-                          }
+                          className={`px-3 py-1.5 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
                         >
+                          {/* Explosion overlay */}
+                          {isDeleting && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                              <span className="text-3xl animate-explode">💥</span>
+                            </div>
+                          )}
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                            {isUserMessage ? 'You' : participants[message.sender_id]?.username}
+                            {participants[message.sender_id]?.username}
                           </p>
                           {message.type === 'image' ? (
                             <img
@@ -1426,35 +2139,72 @@ export const Chat: React.FC = () => {
                               isFromCurrentUser={isUserMessage}
                             />
                           )}
-                          <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
-                            {new Date(message.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
+                          <div className="flex items-center justify-between mt-1 space-x-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <button
+                              className="text-gray-400 hover:text-red-600 p-0.5 rounded-full transition-colors"
+                              style={{ display: isDeleting ? 'none' : 'inline-flex' }}
+                              onClick={() => handleDeleteMessage(message.id)}
+                              tabIndex={-1}
+                              aria-label="Delete message"
+                            >
+                              <HiTrash size={12} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="max-w-[75%]">
+                      <div className="max-w-[75%] relative">
                         <div
-                          className="px-4 py-2 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none"
+                          className={`px-3 py-1.5 rounded-lg shadow bg-[#dcf8c6] dark:bg-brand-secondary natural-dark:bg-[#D2BC9B] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-br-none transition-transform duration-500 ${isDeleting ? 'explode-out' : ''}`}
                         >
+                          {/* Explosion overlay */}
+                          {isDeleting && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                              <span className="text-3xl animate-explode">💥</span>
+                            </div>
+                          )}
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                             You
                           </p>
-                          <MessageContent 
-                            content={message.content}
-                            showEncrypted={showEncrypted}
-                            isFromCurrentUser={isUserMessage}
-                          />
-                          <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
-                            {new Date(message.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
+                          {message.type === 'image' ? (
+                            <img
+                              src={message.content}
+                              alt="Sent image"
+                              className="max-w-xs max-h-64 rounded border my-2"
+                              onError={e => { (e.target as HTMLImageElement).src = '/img/image-placeholder.png'; }}
+                            />
+                          ) : (
+                            <MessageContent
+                              content={message.content}
+                              showEncrypted={showEncrypted}
+                              isFromCurrentUser={isUserMessage}
+                            />
+                          )}
+                          <div className="flex items-center justify-between mt-1 space-x-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <button
+                              className="text-gray-400 hover:text-red-600 p-0.5 rounded-full transition-colors"
+                              style={{ display: isDeleting ? 'none' : 'inline-flex' }}
+                              onClick={() => handleDeleteMessage(message.id)}
+                              tabIndex={-1}
+                              aria-label="Delete message"
+                            >
+                              <HiTrash size={12} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <DiceBearAvatar 
@@ -1470,28 +2220,33 @@ export const Chat: React.FC = () => {
                 </div>
               );
             })}
-            {otherUserTyping && (
-              <div className="flex items-end justify-start mb-4">
-                <DiceBearAvatar
-                  url={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_url}
-                  size={32}
-                  className="flex-shrink-0 mr-2"
-                  userId={threadDetails?.participant_ids.find(id => id !== user?.id) || ''}
-                  seed={participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.avatar_seed || undefined}
-                />
-                <div className="max-w-[75%]">
-                  <div className="px-4 py-2 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none flex items-center">
-                    <span className="italic text-gray-500">
-                      {participants[threadDetails?.participant_ids.find(id => id !== user?.id) || '']?.username || "User"} is typing...
-                    </span>
-                    {liveTypingEnabled && otherUserTypingText && (
-                      <span className="ml-2 text-gray-700 dark:text-gray-200">{otherUserTypingText}</span>
-                    )}
-                    <span className="ml-2 animate-bounce text-lg text-gray-400">...</span>
+            
+            {/* Typing Indicators */}
+            {liveTypingEnabled && Array.from(typingUsers).map(userId => {
+              if (userId === user?.id) return null; // Don't show our own typing
+              return (
+                <div key={`typing-${userId}`} className="flex items-end justify-start mb-4">
+                  <DiceBearAvatar 
+                    url={participants[userId]?.avatar_url}
+                    size={32}
+                    className="flex-shrink-0 mr-2"
+                    userId={userId}
+                    seed={participants[userId]?.avatar_seed || undefined}
+                  />
+                  <div className="max-w-[75%]">
+                    <div className="px-3 py-1.5 rounded-lg shadow bg-white dark:bg-gray-700 natural-dark:bg-[#F5EEE0] text-gray-800 dark:text-white natural-dark:text-gray-800 rounded-bl-none">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        {participants[userId]?.username || 'User'}
+                      </p>
+                      <span className="italic text-gray-500 dark:text-gray-400">
+                        typing<span className="animate-bounce">...</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })}
+            
             <div ref={messagesEndRef} className="h-6 mb-4" />
           </div>
         </div>
@@ -1531,6 +2286,7 @@ export const Chat: React.FC = () => {
               </div>
             </div>
             
+            
             {autoDeleteInfo.otherUserInfo !== null ? (
               <div className={`py-2 px-3 flex items-center border-t dark:border-gray-700 natural-light:border-[#A67C52] natural-dark:border-[#8B5A2B] ${
                 autoDeleteInfo.otherUserInfo.enabled 
@@ -1565,7 +2321,22 @@ export const Chat: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSend} className="flex items-center space-x-2">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSend(e);
+          }}
+          className="flex items-center space-x-2 transition-all duration-200"
+        >
+          {/* Visual indicator for scrollable textarea - only show when 3+ lines and at max height */}
+          {isAtMaxHeight && isMultiLine && (
+            <div className="absolute right-16 bottom-14 pointer-events-none">
+              <div className="bg-gray-600 dark:bg-gray-400 text-white dark:text-gray-900 text-xs px-2 py-1 rounded-full opacity-75 animate-pulse">
+                Scroll to see more
+              </div>
+            </div>
+          )}
           {imageFeatureEnabled && (
             <>
               <label className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center" title="Attach Image">
@@ -1591,22 +2362,86 @@ export const Chat: React.FC = () => {
               </button>
             </>
           )}
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
             value={newMessage}
             onChange={(e) => {
               setNewMessage(e.target.value);
-              if (user) {
-                supabase.channel(`typing-${threadId}`).send({
-                  type: 'broadcast',
-                  event: 'typing',
-                  payload: { userId: user.id, text: e.target.value }
-                });
+              console.log('🔤 Textarea changed, liveTypingEnabled:', liveTypingEnabled, 'user:', !!user);
+              if (user && liveTypingEnabled) {
+                const isTyping = e.target.value.length > 0;
+                console.log(`🔤 Typing event - isTyping: ${isTyping}, gunConnected: ${gunConnected}`);
+                
+                // Clear previous timeout
+                if (typingTimeoutId.current) {
+                  clearTimeout(typingTimeoutId.current);
+                  typingTimeoutId.current = null;
+                }
+                
+                // Send typing indicator via Gun.js if connected and authenticated and has peers, otherwise Supabase
+                if (gunConnected && gunAuthenticated && connectedPeers > 0) {
+                  const typingKey = `typing_${threadId}`;
+                  const typingData = {
+                    isTyping,
+                    timestamp: new Date().toISOString()
+                  };
+                  gun.get('typing').get(typingKey).get(user.id).put(typingData);
+                  console.log(`🔫 Gun.js: Sent typing indicator: ${isTyping} for user ${user.id} in key ${typingKey}`);
+                  
+                  // Auto-clear typing indicator after 2 seconds of no typing
+                  if (isTyping) {
+                    typingTimeoutId.current = setTimeout(() => {
+                      const clearData = {
+                        isTyping: false,
+                        timestamp: new Date().toISOString()
+                      };
+                      gun.get('typing').get(typingKey).get(user.id).put(clearData);
+                      console.log(`🔫 Gun.js: Auto-cleared typing indicator for user ${user.id}`);
+                    }, 2000);
+                  }
+                } else {
+                  // Supabase fallback
+                  console.log(`📡 Supabase: Sending typing indicator: ${isTyping} for user ${user.id} in thread ${threadId}`);
+                  
+                  if (typingChannelRef.current) {
+                    typingChannelRef.current.send({
+                      type: 'broadcast',
+                      event: 'typing',
+                      payload: { userId: user.id, isTyping }
+                    }).then(() => {
+                      console.log(`📡 ✅ Sent typing indicator via Supabase: ${isTyping}`);
+                    }).catch((error: any) => {
+                      console.error(`📡 ❌ Failed to send typing indicator via Supabase:`, error);
+                    });
+                  } else {
+                    console.log(`📡 ❌ No typing channel available to send indicator`);
+                  }
+                }
               }
             }}
-            placeholder="Type a message..."
-            className="flex-1 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-full px-4 py-2 focus:ring-brand-primary focus:border-brand-primary dark:focus:ring-blue-500 dark:focus:border-blue-500 natural-light:focus:ring-natural-primary natural-light:focus:border-natural-primary natural-dark:focus:ring-natural-dark-primary natural-dark:focus:border-natural-dark-primary"
+            onKeyDown={(e) => {
+              // Send message on Enter, allow new line on Shift+Enter
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!sending && newMessage.trim()) {
+                  handleSend(e as any);
+                }
+              }
+              // Allow Shift+Enter for new lines without triggering send
+            }}
+            
+            placeholder="Type a message... (Shift+Enter for new line)"
+            rows={1}
+            style={{
+              height: `${textareaHeight}px`,
+              maxHeight: `${maxTextareaHeight}px`,
+              minHeight: '64px', // Two-line minimum height
+              resize: 'none',
+              transition: 'height 0.2s ease-out',
+              lineHeight: '1.5' // Better line spacing for readability
+            }}
+            className="flex-1 auto-expand-textarea border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-2xl px-4 py-2 focus:outline-none focus:ring-0 focus:border-gray-300 dark:focus:border-gray-600 leading-relaxed scroll-smooth transition-all duration-200"
             disabled={sending}
           />
           <button
@@ -1639,6 +2474,57 @@ export const Chat: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Auto-refresh messages periodically to maintain connection */}
+      {connectionStatus === 'connected' && (
+        <RefreshInterval onRefresh={() => handleRefreshMessages({ background: true })} intervalMs={300000} />
+      )}
     </div>
   );
 };
+
+// Background refresh component to maintain connection health
+const RefreshInterval: React.FC<{ onRefresh: () => void; intervalMs: number }> = ({ onRefresh, intervalMs }) => {
+  useEffect(() => {
+    console.log(`🔄 Starting background refresh interval: ${intervalMs}ms`);
+    const interval = setInterval(() => {
+      console.log('🔄 Background refresh triggered');
+      onRefresh();
+    }, intervalMs);
+    
+    return () => {
+      console.log('🛑 Stopping background refresh interval');
+      clearInterval(interval);
+    };
+  }, [onRefresh, intervalMs]);
+  
+  return null;
+};
+
+// Page transition wrapper component
+const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isEntered, setIsEntered] = useState(false);
+  
+  useEffect(() => {
+    // Trigger entrance animation
+    const timer = setTimeout(() => setIsEntered(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  return (
+    <div className={`page-transition ${isEntered ? 'page-entered' : 'page-entering'}`}>
+      {children}
+    </div>
+  );
+};
+
+// Wrap Chat export with ErrorBoundary and PageTransition
+const ChatWithBoundary: React.FC = (props) => (
+  <ErrorBoundary>
+    <PageTransition>
+      <Chat {...props} />
+    </PageTransition>
+  </ErrorBoundary>
+);
+
+export default ChatWithBoundary;

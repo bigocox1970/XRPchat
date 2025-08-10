@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { HiQrcode, HiCamera, HiClipboard, HiShare, HiX, HiPhotograph, HiPlus } from 'react-icons/hi';
+import { HiQrcode, HiCamera, HiClipboard, HiShare, HiX, HiPhotograph, HiPlus, HiUserAdd, HiRefresh } from 'react-icons/hi';
 import { useUser } from '../context/UserContext';
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import { searchUsers, addContact } from '../utils/supabase/auth';
@@ -25,6 +25,8 @@ export const Connect: React.FC = () => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
@@ -98,21 +100,36 @@ export const Connect: React.FC = () => {
 
   // Add focus/visibility refresh for wallet/profile
   useEffect(() => {
-    const refreshOnFocus = () => {
-      // If you have a function to reload the wallet/profile, call it here
-      window.location.reload(); // fallback: reload the page
-    };
-    window.addEventListener('focus', refreshOnFocus);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        refreshOnFocus();
+    let lastHidden = Date.now();
+    const refreshOnFocusOrVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        lastHidden = Date.now();
+      } else if (document.visibilityState === 'visible' || document.hasFocus()) {
+        // If hidden for more than 10 minutes, reload
+        if (Date.now() - lastHidden > 10 * 60 * 1000) {
+          window.location.reload();
+        } else {
+          // If you have a function to reload wallet/profile, call it here
+          // Otherwise, do nothing or a light refresh
+        }
       }
-    });
+    };
+    document.addEventListener('visibilitychange', refreshOnFocusOrVisibility);
+    window.addEventListener('focus', refreshOnFocusOrVisibility);
     return () => {
-      window.removeEventListener('focus', refreshOnFocus);
-      document.removeEventListener('visibilitychange', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocusOrVisibility);
+      window.removeEventListener('focus', refreshOnFocusOrVisibility);
     };
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
 
   const handleCopyAddress = () => {
     if (profile?.wallet_address) {
@@ -361,18 +378,44 @@ export const Connect: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#f0f2f5] dark:bg-gray-900">
+        <div className="text-center">
+          <div className="text-gray-600 dark:text-gray-400 mb-2">Loading...</div>
+          <button
+            className={`mt-2 text-blue-700 text-sm flex items-center justify-center mx-auto transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
+            onClick={() => { setIsRefreshing(true); window.location.reload(); }}
+            style={{ outline: 'none', border: 'none', background: 'none', cursor: 'pointer' }}
+          >
+            <HiRefresh className="w-5 h-5 mr-1" />
+            <span>Reload</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900 natural-dark:bg-natural-dark-background">
       {/* Header */}
       <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
-            <HiQrcode size={24} />
+            <HiUserAdd size={24} />
           </div>
           <div>
             <div className="font-semibold">Connect</div>
           </div>
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -484,9 +527,13 @@ export const Connect: React.FC = () => {
                     <div id="qr-reader" className="w-full max-w-lg mx-auto"></div>
                     
                     {loading && (
-                      <div className="mt-4 flex flex-col items-center">
-                        <div className="animate-pulse rounded-full bg-gray-300 h-8 w-8 mb-2"></div>
-                        <p className="text-gray-600 dark:text-gray-400">Processing...</p>
+                      <div className="flex justify-center items-center mt-4">
+                        <span className="text-gray-600 dark:text-gray-300">Loading...</span>
+                        {loadingTimeout && (
+                          <div className="ml-4 text-red-700 text-sm">
+                            Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+                          </div>
+                        )}
                       </div>
                     )}
                     

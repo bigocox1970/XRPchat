@@ -5,7 +5,7 @@ import { searchUsers, getContacts } from '../utils/supabase/auth';
 import { addContact, removeContact, blockContact, unblockContact } from '../utils/supabase/auth';
 import { createThread } from '../utils/supabase/chat';
 import { supabase } from '../utils/supabase/client';
-import { HiUser, HiPlus, HiLockClosed, HiLockOpen } from 'react-icons/hi';
+import { HiUser, HiPlus, HiLockClosed, HiLockOpen, HiRefresh } from 'react-icons/hi';
 import { CopyButton } from './CopyButton';
 import { DiceBearAvatar } from './DiceBearAvatar';
 import type { Database } from '../types/supabase';
@@ -33,6 +33,7 @@ export const ContactList: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   // Helper function to get appropriate button classes based on theme
   const getButtonClassesForTheme = (type: 'green' | 'yellow' | 'red' | 'brand') => {
@@ -937,8 +938,27 @@ export const ContactList: React.FC = () => {
     };
   }, [reloadContacts]);
 
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
+
   return (
-    <div className="h-full flex flex-col bg-[#f0f2f5] dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900 natural-light:bg-natural-background natural-dark:bg-natural-dark-background">
+      {loading && (
+        <div className="flex justify-center items-center mt-4">
+          <span className="text-gray-600 dark:text-gray-300">Loading contacts...</span>
+          {loadingTimeout && (
+            <div className="ml-4 text-red-700 text-sm">
+              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          )}
+        </div>
+      )}
       {/* Header */}
       <div className="bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white px-4 py-[16px] flex items-center justify-between shadow-md z-10">
         <div className="flex items-center space-x-3">
@@ -951,6 +971,14 @@ export const ContactList: React.FC = () => {
             </div>
           </div>
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">

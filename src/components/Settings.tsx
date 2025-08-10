@@ -380,8 +380,15 @@ export const Settings: React.FC = () => {
             <div className="font-semibold">Settings</div>
           </div>
         </div>
-        
         {/* Add refresh indicator */}
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          aria-label="Hard Refresh"
+          title="Hard Refresh"
+        >
+          <HiRefresh className="" size={20} />
+        </button>
         {isRefreshing && (
           <div className="flex items-center text-white">
             <HiRefresh className="animate-spin mr-2" size={20} />
@@ -609,36 +616,34 @@ export const Settings: React.FC = () => {
                     {/* Live Typing Feed */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Live Typing Feed</h4>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">Show when user is typing</h4>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Show what the other user is typing in real time (instead of just 'is typing...')
+                          Show a typing indicator when the other user is typing.
                         </p>
                       </div>
-                      <div className="relative inline-block w-10 min-w-[40px] mr-2 align-middle select-none">
-                        <input
-                          type="checkbox"
-                          id="toggle-live-typing"
-                          checked={liveTypingEnabled}
-                          onChange={e => {
-                            setLiveTypingEnabled(e.target.checked);
-                            localStorage.setItem('xrpchat_feature_live_typing', e.target.checked ? 'true' : 'false');
-                            window.dispatchEvent(new Event('storage'));
-                          }}
-                          className="sr-only"
-                        />
-                        <label
-                          htmlFor="toggle-live-typing"
-                          className={`block overflow-hidden h-6 w-10 rounded-full cursor-pointer ${
-                            liveTypingEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                      <input
+                        type="checkbox"
+                        id="toggle-live-typing"
+                        checked={liveTypingEnabled}
+                        onChange={e => {
+                          setLiveTypingEnabled(e.target.checked);
+                          localStorage.setItem('xrpchat_feature_live_typing', e.target.checked ? 'true' : 'false');
+                          window.dispatchEvent(new Event('storage'));
+                        }}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor="toggle-live-typing"
+                        className={`block overflow-hidden h-6 w-10 rounded-full cursor-pointer ${
+                          liveTypingEnabled ? "natural-light:bg-natural-toggle-active natural-dark:bg-natural-toggle-active-dark bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                        }`}
+                      >
+                        <span
+                          className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                            liveTypingEnabled ? "translate-x-4" : "translate-x-0"
                           }`}
-                        >
-                          <span
-                            className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                              liveTypingEnabled ? "translate-x-4" : "translate-x-0"
-                            }`}
-                          ></span>
-                        </label>
-                      </div>
+                        ></span>
+                      </label>
                     </div>
                     {/* Allow Media Files */}
                     <div className="flex items-center justify-between">

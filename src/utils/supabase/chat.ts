@@ -78,17 +78,21 @@ export const getUserThreads = async (userId: string) => {
     
     console.log('User verified, fetching threads...');
     
-    // Try with admin client to bypass RLS
-    const { data: adminData, error: adminError } = await supabaseAdmin
-      .from('threads')
-      .select('*')
-      .order('last_message_at', { ascending: false });
-      
-    if (adminError) {
-      console.error('Error getting threads with admin client:', adminError);
-    } else {
-      console.log('Admin client found threads:', adminData?.length || 0);
-      console.log('Admin threads data:', adminData);
+    // Try with admin client to bypass RLS (only when available, e.g. on server)
+    if (supabaseAdmin) {
+      try {
+        const { data: adminData, error: adminError } = await supabaseAdmin
+          .from('threads')
+          .select('*')
+          .order('last_message_at', { ascending: false });
+        if (adminError) {
+          console.error('Error getting threads with admin client:', adminError);
+        } else {
+          console.log('Admin client found threads:', adminData?.length || 0);
+        }
+      } catch (adminCatchErr) {
+        console.warn('Admin client not available in this environment:', adminCatchErr);
+      }
     }
     
     // Now try with regular client
@@ -105,16 +109,29 @@ export const getUserThreads = async (userId: string) => {
         )
       `)
       .contains('participant_ids', [userId])
-      .order('last_message_at', { ascending: false });
+      .order('last_message_at', { ascending: false })
+      // Ensure nested messages are ordered by latest first for preview
+      .order('created_at', { ascending: false, foreignTable: 'messages' });
 
     if (error) {
       console.error('Error getting threads:', error);
       throw error;
     }
     
-    console.log(`Found ${data?.length || 0} threads for user`);
-    console.log('Threads data:', data);
-    return data || [];
+    const threads = (data || []).map((t: any) => ({
+      ...t,
+      messages: Array.isArray(t.messages) ? t.messages : []
+    }));
+
+    // Compute a fallback last activity time from messages if last_message_at is null
+    const sorted = threads.sort((a: any, b: any) => {
+      const aLast = a.last_message_at || a.messages?.[0]?.created_at || a.created_at || '1970-01-01T00:00:00Z';
+      const bLast = b.last_message_at || b.messages?.[0]?.created_at || b.created_at || '1970-01-01T00:00:00Z';
+      return new Date(bLast).getTime() - new Date(aLast).getTime();
+    });
+
+    console.log(`Found ${sorted.length} threads for user`);
+    return sorted;
   } catch (error) {
     console.error('Error in getUserThreads:', error);
     // Return empty array instead of throwing to avoid breaking the UI

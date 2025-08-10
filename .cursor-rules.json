@@ -1,0 +1,9 @@
+{
+    "terminal": [
+      {
+        "find": "&&",
+        "replace": ";",
+        "description": "Replace Bash-style && with PowerShell ; for command chaining"
+      }
+    ]
+  }

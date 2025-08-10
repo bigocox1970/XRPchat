@@ -14,7 +14,8 @@ export const Layout: React.FC = () => {
   // Initialize notification subscriptions
   useNotificationSubscriptions();
   
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Default sidebar to CLOSED on load/refresh
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const { user, profile, signOut, refreshProfile } = useUser();
@@ -44,27 +45,10 @@ export const Layout: React.FC = () => {
     }
   }, []);
   
-  // Service worker update check
+  // Service worker update check - DISABLED to prevent auto-refresh
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg) {
-          reg.update();
-          reg.onupdatefound = () => {
-            const newWorker = reg.installing;
-            if (newWorker) {
-              newWorker.onstatechange = () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New update available, reload to activate
-                  alert('A new version of the app is available. The page will now reload.');
-                  window.location.reload();
-                }
-              };
-            }
-          };
-        }
-      });
-    }
+    // Service worker auto-reload disabled to prevent double refresh issues
+    console.log('Service worker auto-reload disabled');
   }, []);
   
   // Handle refreshing data
@@ -73,20 +57,28 @@ export const Layout: React.FC = () => {
     setIsRefreshing(true);
     setRefreshFailed(false);
     setRefreshAttempts((prev) => prev + 1);
-    // Service worker update check on refresh
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg) reg.update();
-      });
-    }
+    // Service worker update disabled to prevent refresh loops
     try {
       // Refresh user profile data
       await refreshProfile();
-      // Create and dispatch a custom event to notify other components
+      
+      // Dispatch BOTH events to ensure complete refresh
+      // 1. App refresh for data updates
       const refreshEvent = new CustomEvent('app-refresh', { 
         detail: { path: location.pathname } 
       });
       window.dispatchEvent(refreshEvent);
+      
+      // 2. Supabase connection refresh for realtime reconnections
+      const connectionRefreshEvent = new CustomEvent('supabaseConnectionRefresh', {
+        detail: { 
+          timestamp: Date.now(),
+          manual: true,
+          source: 'app-refresh-button'
+        }
+      });
+      window.dispatchEvent(connectionRefreshEvent);
+      
       // Add a small delay to show the refresh animation
       await new Promise(resolve => setTimeout(resolve, 500));
       setRefreshFailed(false); // Success
@@ -98,9 +90,9 @@ export const Layout: React.FC = () => {
     }
   };
 
-  // Hard reload handler
+  // Hard reload handler - DISABLED
   const handleHardReload = () => {
-    window.location.reload();
+    console.log('Hard reload disabled to prevent refresh loops');
   };
   
   // Handle unlocking audio with user interaction
@@ -169,21 +161,13 @@ export const Layout: React.FC = () => {
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white shadow-lg"
+          className="p-2 rounded-full bg-brand-primary natural-light:bg-natural-primary natural-dark:bg-natural-dark-primary text-white shadow-lg hover:shadow-xl transition-shadow"
           aria-label="Refresh"
+          title="Refresh app data"
         >
           <HiRefresh size={24} className={isRefreshing ? "animate-spin" : ""} />
         </button>
-        {/* Show Hard Reload if refresh failed */}
-        {refreshFailed && (
-          <button
-            onClick={handleHardReload}
-            className="p-2 rounded-full bg-red-600 text-white shadow-lg ml-2"
-            aria-label="Hard Reload"
-          >
-            Hard Reload
-          </button>
-        )}
+        {/* Hard Reload button removed to prevent accidental refreshes */}
         
         {/* Sidebar Toggle Button */}
         <button
@@ -232,21 +216,13 @@ export const Layout: React.FC = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="hidden lg:block text-white"
+                  className="hidden lg:block text-white hover:text-white/80 transition-colors"
                   aria-label="Refresh"
+                  title="Refresh app data"
                 >
                   <HiRefresh size={20} className={isRefreshing ? "animate-spin" : ""} />
                 </button>
-                {/* Show Hard Reload if refresh failed */}
-                {refreshFailed && (
-                  <button
-                    onClick={handleHardReload}
-                    className="ml-2 px-3 py-1 rounded bg-red-600 text-white text-xs font-semibold"
-                    aria-label="Hard Reload"
-                  >
-                    Hard Reload
-                  </button>
-                )}
+                {/* Hard Reload button removed to prevent accidental refreshes */}
               </div>
             </div>
           </div>

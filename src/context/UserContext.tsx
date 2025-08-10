@@ -16,6 +16,7 @@ interface UserContextType {
   profile: Profile | null;
   wallet: Wallet | null;
   loading: boolean;
+  profileRefreshing: boolean;
   signUp: (email: string, password: string, username: string) => Promise<{ privateKey: string; address: string }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -41,6 +42,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileRefreshing, setProfileRefreshing] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [isPINEnabled, setIsPINEnabled] = useState(false);
   const [decryptedPrivateKey, setDecryptedPrivateKey] = useState<string | null>(null);
@@ -401,13 +403,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshProfile = async () => {
     if (user) {
       console.log('Manually refreshing profile data for:', user.id);
-      setLoading(true);
+      setProfileRefreshing(true);
       try {
         await fetchProfile(user.id);
       } catch (error) {
         console.error('Error refreshing profile:', error);
       } finally {
-        setLoading(false);
+        setProfileRefreshing(false);
       }
     }
   };
@@ -596,12 +598,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }
 
-  const value = {
+  const value: UserContextType & { profileRefreshing: boolean } = {
     session,
     user,
     profile,
     wallet,
     loading,
+    profileRefreshing,
     signUp,
     signIn,
     signOut,
@@ -702,7 +705,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('Found threads to delete:', threadsData.length);
           
           // Get array of thread IDs
-          const threadIds = threadsData.map(thread => thread.id);
+          const threadIds = threadsData.map((thread: { id: string }) => thread.id);
           
           // Delete all messages from these threads first
           const { error: messagesError } = await supabaseAdmin

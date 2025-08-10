@@ -143,10 +143,10 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For HTML documents, always try network first
+  // For HTML documents, always try network first with no-cache headers to avoid stale app state
   if (event.request.headers.get('Accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(event.request)
+      fetch(new Request(event.request, { cache: 'no-store' }))
         .then(response => {
           // Make a copy of the response for the cache
           const responseToCache = response.clone();

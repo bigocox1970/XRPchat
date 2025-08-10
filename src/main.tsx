@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+/*
 // Register service worker for better caching and offline capabilities
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -15,9 +16,20 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+*/
+
+// Hide loading skeleton once React starts rendering
+const hideLoadingSkeletonAfterDelay = () => {
+  setTimeout(() => {
+    document.body.classList.add('app-loaded');
+  }, 300); // Small delay to prevent flash
+};
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
+
+// Hide loading skeleton after React has mounted
+hideLoadingSkeletonAfterDelay();

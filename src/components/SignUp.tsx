@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useEncryptionMode } from '../context/EncryptionModeContext';
@@ -18,6 +18,16 @@ export const SignUp: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [walletInfo, setWalletInfo] = useState<{ privateKey: string; address: string } | null>(null);
   const [privateKeySaved, setPrivateKeySaved] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timeout = setTimeout(() => setLoadingTimeout(true), 15000); // 15 seconds
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,6 +290,12 @@ export const SignUp: React.FC = () => {
               </button>
             </div>
           </form>
+
+          {loading && loadingTimeout && (
+            <div className="mt-2 text-red-700 text-sm text-center">
+              Still loading? <button className="underline" onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          )}
 
           <div className="mt-6">
             <div className="relative">
