@@ -6,18 +6,9 @@ import 'gun/sea';
 // @ts-ignore
 import 'gun/axe';
 
-// Initialize Gun with reliable relay servers for P2P messaging
+// Initialize Gun with YOUR relay server
 const relayEnv = (import.meta as any).env?.VITE_GUN_RELAY as string | undefined;
-const envPeers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
-
-// Fallback to public Gun relay servers if no environment relay is set
-const publicRelays = [
-  'https://gun-relay.herokuapp.com/gun',
-  'https://relay.gun.eco/gun'
-];
-
-// Use environment relays first, then fall back to public relays
-const peers = envPeers.length > 0 ? envPeers : publicRelays;
+const peers = relayEnv ? relayEnv.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
 
 const gun = Gun({
   peers: peers,
@@ -35,46 +26,6 @@ const gun = Gun({
 });
 
 console.log('🔫 Gun.js initializing with peers:', peers);
-
-// Retry connection with fallback relays if needed
-let connectionAttempts = 0;
-const maxConnectionAttempts = 3;
-
-const attemptConnection = () => {
-  connectionAttempts++;
-  console.log(`🔄 Gun.js connection attempt ${connectionAttempts}/${maxConnectionAttempts}`);
-  
-  // Give it 30 seconds to connect, then try alternative relays
-  setTimeout(() => {
-    if (!hasRealPeers && connectionAttempts < maxConnectionAttempts) {
-      console.log('⚠️ No Gun relay connection established, trying alternatives...');
-      
-      // Try alternative relays
-      const alternativeRelays = [
-        'https://gunjs-relay-mlccl.herokuapp.com/gun',
-        'https://relay.peer.ooo/gun'
-      ];
-      
-      alternativeRelays.forEach(relay => {
-        (gun as any).opt({ peers: [relay] });
-      });
-      
-      attemptConnection();
-    } else if (hasRealPeers) {
-      console.log('✅ Gun.js successfully connected to relay servers');
-    } else {
-      console.log('🌐 Gun.js: LocalStorage mode active (no relay peers)');
-      
-      // Emit event to update UI
-      window.dispatchEvent(new CustomEvent('gunConnectionChange', { 
-        detail: { connected: true, peers: 0, hasRealPeers: false } 
-      }));
-    }
-  }, 30000);
-};
-
-// Start connection attempts
-attemptConnection();
 
 // Global Gun instance
 export { gun };
