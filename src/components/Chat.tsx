@@ -547,6 +547,31 @@ export const Chat: React.FC = () => {
     }
   }, [handleRefreshMessages]);
 
+  // Auto hard-retry on focus/online/visibility if we're stuck loading or disconnected
+  useEffect(() => {
+    const attemptAutoRecover = () => {
+      const isLoaderVisible = loading || !threadDetails || loadingTimeout;
+      const isDisconnected = connectionStatus !== 'connected' || !!connectionError;
+      if (isLoaderVisible || isDisconnected) {
+        // debounce slightly
+        setTimeout(() => handleHardRetry(), 150);
+      }
+    };
+    const handleFocus = () => attemptAutoRecover();
+    const handleOnline = () => attemptAutoRecover();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') attemptAutoRecover();
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [loading, loadingTimeout, threadDetails, connectionStatus, connectionError, handleHardRetry]);
+
   // Load thread details
   useEffect(() => {
     const loadThreadDetails = async () => {
