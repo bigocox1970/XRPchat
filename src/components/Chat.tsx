@@ -1581,7 +1581,12 @@ export const Chat: React.FC = () => {
       console.log(`📡 Subscribing to Supabase channel: ${channelName}`);
       
       typingChannel = supabase
-        .channel(channelName)
+        .channel(channelName, {
+          config: {
+            presence: { key: user.id },
+            broadcast: { self: false }
+          }
+        })
         .on('broadcast', { event: 'typing' }, (payload) => {
           console.log(`📡 Received Supabase typing payload:`, payload);
           if (payload.payload.userId !== user.id) {
@@ -1604,6 +1609,12 @@ export const Chat: React.FC = () => {
           if (status === 'SUBSCRIBED') {
             console.log(`📡 ✅ Successfully subscribed to Supabase typing channel ${channelName}`);
             typingChannelRef.current = typingChannel;
+            // Send a tiny presence ping to ensure we're visible to others on this channel
+            try {
+              typingChannelRef.current.track({ joinedAt: Date.now() });
+            } catch (e) {
+              console.warn('📡 Presence track failed (non-fatal):', e);
+            }
           } else if (status === 'CHANNEL_ERROR') {
             console.error(`📡 ❌ Error subscribing to Supabase typing channel ${channelName}`);
           }
