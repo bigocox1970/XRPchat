@@ -168,9 +168,9 @@ const attemptRelayReconnection = () => {
   console.log('🔄 Attempting to reconnect to Gun.js relay servers...');
   
   // Only use environment peers - no hardcoded fallbacks
-  const relayPeers = envPeers;
+  const relayPeers = peers;
   
-  relayPeers.forEach((peerUrl, index) => {
+  relayPeers.forEach((peerUrl: string, index: number) => {
     setTimeout(() => {
       try {
         console.log(`🔄 Attempting connection to ${peerUrl}`);
