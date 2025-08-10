@@ -22,7 +22,9 @@ const gun = Gun({
   batch: 20,          // Smaller batches for better reliability
   chunk: 1024 * 4,    // Smaller chunks
   // Disable WebRTC to reduce connection complexity
-  rtc: false
+  rtc: false,
+  // DISABLE automatic peer discovery - only use YOUR specified peers
+  super: false
 });
 
 // Global Gun instance
